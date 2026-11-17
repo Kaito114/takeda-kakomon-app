@@ -15,10 +15,24 @@ except ImportError:
 
 try:
     import winocr
-    from PIL import Image
 except ImportError:
     winocr = None
+
+try:
+    from PIL import Image
+except ImportError:
     Image = None
+
+_rapid_ocr_engine = None
+def get_rapid_ocr():
+    global _rapid_ocr_engine
+    if _rapid_ocr_engine is None:
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+            _rapid_ocr_engine = RapidOCR()
+        except Exception:
+            _rapid_ocr_engine = False
+    return _rapid_ocr_engine if _rapid_ocr_engine is not False else None
 
 KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "knowledge_base.json")
 
@@ -392,8 +406,18 @@ def _ocr_single_pil_image(img) -> str:
         dark_pixels = sum(hist[:200])
         if dark_pixels < 1500:
             return ""
-        res = winocr.recognize_pil_sync(img, "ja")
-        return clean_ocr_japanese_spaces((res.get("text") or "").strip())
+        if winocr is not None:
+            res = winocr.recognize_pil_sync(img, "ja")
+            return clean_ocr_japanese_spaces((res.get("text") or "").strip())
+        rapid = get_rapid_ocr()
+        if rapid is not None:
+            import numpy as np
+            arr = np.array(img)
+            result, _ = rapid(arr)
+            if result:
+                txt = "\n".join(line[1] for line in result if len(line) >= 2)
+                return clean_ocr_japanese_spaces(txt.strip())
+        return ""
     except Exception:
         return ""
 
@@ -430,7 +454,7 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
             txt = (page.get_text("text") or "").strip()
             if len(txt) >= 30:
                 raw_page_texts[i] = clean_ocr_japanese_spaces(txt)
-            elif winocr is not None and Image is not None:
+            elif Image is not None and (winocr is not None or get_rapid_ocr() is not None):
                 pix = page.get_pixmap(dpi=150)
                 pil_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 images_to_ocr.append((i, pil_img))
