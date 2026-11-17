@@ -1,11 +1,24 @@
 import os
+import re
 import json
 import math
 import time
+from collections import Counter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONF_BOOKS_PATH = os.path.join(BASE_DIR, "confirmation_test_books.json")
-DNA_STORAGE_PATH = os.path.join(BASE_DIR, "university_10yr_dna.json")
+DNA_STORAGE_PATH = os.path.join(BASE_DIR, "university_10yr_dna_v2.json")
+REMOTE_DNA_KEY = "kakomon_accumulated_dna_v2.json"
+
+_SB_CLIENT = None
+_CONFIG_BUCKET = "app-config"
+_DNA_STORE_CACHE = None
+
+
+def configure_dna_supabase_sync(sb_client, bucket_name: str = "app-config"):
+    global _SB_CLIENT, _CONFIG_BUCKET
+    _SB_CLIENT = sb_client
+    _CONFIG_BUCKET = bucket_name
 
 with open(CONF_BOOKS_PATH, "r", encoding="utf-8") as f:
     CONFIRMATION_TEST_BOOKS = json.load(f)
@@ -537,26 +550,215 @@ MAJOR_UNIVERSITIES_10YR_DNA = [
 ]
 
 
-def load_accumulated_dna_records() -> list:
+def _normalize_key_part(val: str, default: str) -> str:
+    s = re.sub(r'\s+', '', str(val or "")).strip()
+    s = re.sub(r'[（\(]過去問解析[）\)]', '', s)
+    return s if s else default
+
+
+def make_profile_key(university: str, faculty: str, exam_type: str, subject: str) -> str:
+    u = _normalize_key_part(university, "大学名未指定")
+    f = _normalize_key_part(faculty, "共通・標準")
+    e = _normalize_key_part(exam_type, "一般・標準")
+    s = _normalize_key_part(subject, "english").lower()
+    return f"{u}::{f}::{e}::{s}"
+
+
+def _sync_dna_store_to_supabase(store: dict):
+    if not _SB_CLIENT:
+        return
+    try:
+        try:
+            _SB_CLIENT.storage.create_bucket(_CONFIG_BUCKET, options={"public": False})
+        except Exception:
+            pass
+        _SB_CLIENT.storage.from_(_CONFIG_BUCKET).upload(
+            REMOTE_DNA_KEY,
+            json.dumps(store, ensure_ascii=False).encode("utf-8"),
+            {"content-type": "application/json", "upsert": "true"}
+        )
+    except Exception:
+        pass
+
+
+def load_dna_store() -> dict:
+    """
+    階層化・10年スライディングウィンドウ型DNAストアをロードする。
+    構造: {"profiles": {profile_key: {...}}, "fingerprints": {fp: {profile_key, year}}}
+    """
+    global _DNA_STORE_CACHE
+    if _DNA_STORE_CACHE is not None:
+        return _DNA_STORE_CACHE
+
+    store = None
     if os.path.exists(DNA_STORAGE_PATH):
         try:
             with open(DNA_STORAGE_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
-                    return data
+                if isinstance(data, dict) and "profiles" in data:
+                    store = data
+        except Exception:
+            store = None
+
+    if store is None and _SB_CLIENT:
+        try:
+            remote_bytes = _SB_CLIENT.storage.from_(_CONFIG_BUCKET).download(REMOTE_DNA_KEY)
+            if remote_bytes:
+                r_data = json.loads(remote_bytes.decode("utf-8"))
+                if isinstance(r_data, dict) and "profiles" in r_data:
+                    store = r_data
+                    try:
+                        with open(DNA_STORAGE_PATH, "w", encoding="utf-8") as f:
+                            json.dump(store, f, ensure_ascii=False)
+                    except Exception:
+                        pass
         except Exception:
             pass
-    return []
+
+    if store is None:
+        store = {"profiles": {}, "fingerprints": {}}
+
+    _DNA_STORE_CACHE = store
+    return store
 
 
-def save_accumulated_dna_record(record: dict) -> list:
-    records = load_accumulated_dna_records()
-    record["saved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    records.insert(0, record)
-    records = records[:500]  # Keep up to 500 exam DNA records (~400KB total!)
+def save_dna_store(store: dict):
+    global _DNA_STORE_CACHE
+    _DNA_STORE_CACHE = store
     with open(DNA_STORAGE_PATH, "w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
-    return records
+        json.dump(store, f, ensure_ascii=False, indent=2)
+    _sync_dna_store_to_supabase(store)
+
+
+def recompute_profile_centroid(prof: dict) -> dict:
+    """
+    プロファイル内の直近10年スロットから平均ベクトル(6D)・平均網羅率・最頻出単元を再集計する。
+    計算コストは1大学あたり最大10件の合計のみ（O(1)）で常に軽量。
+    """
+    slots = prof.get("year_slots", {})
+    # Keep at most 10 most recent years
+    sorted_years = sorted(slots.keys(), key=lambda y: (int(re.sub(r'\D', '', str(y)) or 0), str(y)), reverse=True)[:10]
+    trimmed_slots = {y: slots[y] for y in sorted_years}
+    prof["year_slots"] = trimmed_slots
+
+    n = len(trimmed_slots)
+    if n == 0:
+        return prof
+
+    mean_vec = [0.0] * 6
+    book_sums = {}
+    book_cnts = {}
+    topic_counter = Counter()
+
+    for y in sorted_years:
+        sl = trimmed_slots[y]
+        v = sl.get("exam_vector", [0.74, 0.78, 0.40, 0.85, 0.66, 0.74])
+        for i in range(6):
+            mean_vec[i] += float(v[i]) if i < len(v) else 0.5
+        for bk, rate in (sl.get("book_rates") or {}).items():
+            try:
+                rv = float(rate)
+                book_sums[bk] = book_sums.get(bk, 0.0) + rv
+                book_cnts[bk] = book_cnts.get(bk, 0) + 1
+            except Exception:
+                pass
+        for tp in (sl.get("topics") or []):
+            if tp:
+                topic_counter[tp] += 1
+
+    prof["mean_vector"] = [round(x / n, 4) for x in mean_vec]
+    prof["sample_years_count"] = n
+    prof["years_list"] = sorted_years
+
+    avg_books = []
+    for bk, s_val in book_sums.items():
+        avg_r = round(s_val / max(1, book_cnts[bk]), 1)
+        avg_books.append({"book": bk, "cov_10yr": f"{avg_r}%", "rate_num": avg_r, "role": f"実測{book_cnts[bk]}年平均網羅率"})
+    avg_books.sort(key=lambda x: (-x["rate_num"], x["book"]))
+    prof["avg_recommended_books"] = avg_books[:5]
+
+    prof["frequent_topics"] = [f"{tp} ({cnt}/{n}年実測)" for tp, cnt in topic_counter.most_common(4)]
+    prof["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    return prof
+
+
+def upsert_accumulated_dna_profile(record: dict) -> dict:
+    """
+    重複防止（コンテンツ指紋ハッシュ + 大学×学部×方式×科目×年度キーによるUpsert）と
+    直近10年窓・累積平均への畳み込みを実行する。
+    """
+    store = load_dna_store()
+    profiles = store.setdefault("profiles", {})
+    fingerprints = store.setdefault("fingerprints", {})
+
+    univ = _normalize_key_part(record.get("university"), "大学名未指定")
+    faculty = _normalize_key_part(record.get("faculty"), "共通・標準")
+    exam_type = _normalize_key_part(record.get("exam_type"), "一般・標準")
+    subject = _normalize_key_part(record.get("subject"), "english").lower()
+    year = _normalize_key_part(record.get("year"), "2026")
+    fp = str(record.get("content_fingerprint") or "").strip()
+
+    pkey = make_profile_key(univ, faculty, exam_type, subject)
+
+    duplicate_status = "CREATED_NEW_YEAR"
+    duplicate_message = f"{univ}（{faculty}／{exam_type}）{year}年度のDNAを新規登録しました。"
+
+    # 1. Exact content fingerprint check across store
+    if fp and fp in fingerprints:
+        prev = fingerprints[fp]
+        if prev.get("profile_key") == pkey and prev.get("year") == year:
+            duplicate_status = "OVERWROTE_EXACT_MATCH"
+            duplicate_message = f"同一問題（内容指紋一致）が既に {year}年度に存在したため、二重登録を防ぎ最新値で上書き更新しました。"
+        else:
+            duplicate_status = "DUPLICATE_CONTENT_DETECTED"
+            duplicate_message = f"入力問題の内容指紋が既登録データ（{prev.get('university', '')} {prev.get('year', '')}年）と完全一致しました。同一問題の重複蓄積を防ぐため既存枠（{pkey}｜{year}年）として安全に統合しました。"
+
+    if pkey not in profiles:
+        profiles[pkey] = {
+            "profile_key": pkey,
+            "university": univ,
+            "faculty": faculty,
+            "exam_type": exam_type,
+            "subject": subject,
+            "display_name": f"{univ}（{faculty}・{exam_type}）",
+            "deviation_value": record.get("deviation_value") or 60,
+            "year_slots": {}
+        }
+
+    prof = profiles[pkey]
+    if year in prof["year_slots"] and duplicate_status == "CREATED_NEW_YEAR":
+        duplicate_status = "OVERWROTE_SAME_YEAR_SLOT"
+        duplicate_message = f"同じ『{univ}｜{faculty}｜{exam_type}｜{year}年』が既に登録済みだったため、二重加算せず該当年度スロットを上書き更新しました。"
+
+    prof["year_slots"][year] = {
+        "year": year,
+        "exam_vector": [round(float(x), 4) for x in (record.get("exam_vector") or [0.74, 0.78, 0.40, 0.85, 0.66, 0.74])[:6]],
+        "content_fingerprint": fp,
+        "book_rates": record.get("book_rates") or {},
+        "topics": record.get("topics") or [],
+        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    if fp:
+        fingerprints[fp] = {"profile_key": pkey, "university": univ, "year": year}
+
+    recompute_profile_centroid(prof)
+    save_dna_store(store)
+
+    return {
+        "duplicate_status": duplicate_status,
+        "message": duplicate_message,
+        "profile": prof,
+        "total_profiles": len(profiles),
+        "total_year_slots": sum(len(p.get("year_slots", {})) for p in profiles.values())
+    }
+
+
+def load_accumulated_dna_records() -> list:
+    store = load_dna_store()
+    profiles = list(store.get("profiles", {}).values())
+    profiles.sort(key=lambda p: p.get("updated_at", ""), reverse=True)
+    return profiles
 
 
 def cosine_sim(v1: list, v2: list) -> float:
@@ -568,45 +770,128 @@ def cosine_sim(v1: list, v2: list) -> float:
     return dot / (n1 * n2)
 
 
-def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, subject: str) -> dict:
+def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, subject: str, current_faculty: str = "", current_exam_type: str = "") -> dict:
     """
-    主要大学・過去10年分DNAデータベースと照合し、
-    1. 幅広い併願推奨校（本命同レベル帯・上位チャレンジ校・安全圏抑え校）
-    2. 過去10年分のデータに基づく「使用推奨参考書と10年平均網羅率（％）」
-    を出力する。
+    初期基準プロファイル + 蓄積された実測DNAプロファイル（大学×学部×方式×最大10年）を統合し、
+    使うほど実測ベースで精度が高まる併願推奨＆使用推奨参考書を出力する。
     """
+    store = load_dna_store()
+    measured_profiles = list(store.get("profiles", {}).values())
+    same_subj_measured = [p for p in measured_profiles if p.get("subject") == subject]
+
+    # Build unified candidate pool: start with baselines, override/augment with measured profiles!
+    candidate_pool = []
+    used_measured_keys = set()
+
+    for base_p in MAJOR_UNIVERSITIES_10YR_DNA:
+        # Check if a measured profile matches this baseline university (with generic or matching faculty)
+        matching_m = None
+        for mp in same_subj_measured:
+            u_short = mp["university"].replace("大学", "")
+            if len(u_short) >= 2 and u_short in base_p["name"] and mp.get("faculty", "共通・標準") in ("共通・標準", "全学部"):
+                matching_m = mp
+                break
+
+        if matching_m:
+            used_measured_keys.add(matching_m["profile_key"])
+            rec_books_m = matching_m.get("avg_recommended_books") or base_p.get("rec_books", {}).get(subject) or base_p.get("rec_books", {}).get("english", [])
+            topics_m = matching_m.get("frequent_topics") or base_p.get("ten_year_topics", {}).get(subject) or []
+            yrs_cnt = matching_m.get("sample_years_count", 1)
+            yrs_str = "・".join(matching_m.get("years_list", []))
+            candidate_pool.append({
+                "id": matching_m["profile_key"],
+                "university_name": f"{matching_m['university']}（{matching_m['faculty']}・{matching_m['exam_type']}）",
+                "tier": base_p["tier"],
+                "dev": base_p["dev"],
+                "vec": matching_m.get("mean_vector", base_p["vec"]),
+                "years_analyzed": yrs_cnt,
+                "data_source_type": "measured",
+                "data_source_label": f"🟢 実測蓄積（{yrs_cnt}年分: {yrs_str}）",
+                "desc": f"校舎で実際に読み込んだ過去問 {yrs_cnt}年分（{yrs_str}）の平均DNAベクトルから算出した実測傾向データです。",
+                "topics": topics_m,
+                "rec_books": rec_books_m
+            })
+        else:
+            candidate_pool.append({
+                "id": base_p["id"],
+                "university_name": base_p["name"],
+                "tier": base_p["tier"],
+                "dev": base_p["dev"],
+                "vec": base_p["vec"],
+                "years_analyzed": base_p.get("years_analyzed", 10),
+                "data_source_type": "baseline",
+                "data_source_label": "📘 初期基準モデル（参考目安値）",
+                "desc": base_p["desc"],
+                "topics": base_p.get("ten_year_topics", {}).get(subject) or base_p.get("ten_year_topics", {}).get("english", []),
+                "rec_books": base_p.get("rec_books", {}).get(subject) or base_p.get("rec_books", {}).get("english", [])
+            })
+
+    # Add all distinct faculty/exam_type measured profiles (e.g. 関西大学｜システム理工｜個別日程 etc.)
+    for mp in same_subj_measured:
+        if mp["profile_key"] in used_measured_keys:
+            continue
+        # Guess deviation tier from matching baseline if possible
+        inferred_dev = mp.get("deviation_value") or 60
+        inferred_tier = "実測蓄積プロファイル"
+        u_short = mp["university"].replace("大学", "")
+        for bp in MAJOR_UNIVERSITIES_10YR_DNA:
+            if len(u_short) >= 2 and u_short in bp["name"]:
+                inferred_dev = bp["dev"]
+                inferred_tier = bp["tier"]
+                break
+        yrs_cnt = mp.get("sample_years_count", 1)
+        yrs_str = "・".join(mp.get("years_list", []))
+        candidate_pool.append({
+            "id": mp["profile_key"],
+            "university_name": f"{mp['university']}（{mp['faculty']}・{mp['exam_type']}）",
+            "tier": inferred_tier,
+            "dev": inferred_dev,
+            "vec": mp.get("mean_vector", exam_vec),
+            "years_analyzed": yrs_cnt,
+            "data_source_type": "measured",
+            "data_source_label": f"🟢 実測蓄積（{yrs_cnt}年分: {yrs_str}）",
+            "desc": f"実際に投入された『{mp['university']} {mp['faculty']} {mp['exam_type']}』の過去問（{yrs_cnt}年分: {yrs_str}）に基づく実測傾向プロファイルです。",
+            "topics": mp.get("frequent_topics", []),
+            "rec_books": mp.get("avg_recommended_books", [])
+        })
+
     scored = []
     matched_prof = None
-
-    for prof in MAJOR_UNIVERSITIES_10YR_DNA:
+    for prof in candidate_pool:
         cos_s = cosine_sim(exam_vec, prof["vec"])
         l1_d = sum(abs(a - b) for a, b in zip(exam_vec, prof["vec"])) / len(exam_vec)
         match_score = round((cos_s * 0.62 + (1.0 - l1_d) * 0.38) * 100, 1)
-        match_score = min(98.8, max(68.0, match_score))
+        match_score = min(99.2, max(68.0, match_score))
 
-        if current_univ and (current_univ in prof["name"] or (matched_prof is None and current_univ.replace("大学", "") in prof["name"] and len(current_univ.replace("大学", "")) >= 2)):
-            if current_univ in prof["name"] or matched_prof is None:
+        u_clean = _normalize_key_part(current_univ, "").replace("大学", "")
+        if u_clean and len(u_clean) >= 2 and u_clean in prof["university_name"]:
+            # Prefer measured profile with matching faculty/exam_type if available
+            if matched_prof is None or (prof["data_source_type"] == "measured" and matched_prof["data_source_type"] != "measured"):
                 matched_prof = prof
-            match_score = max(match_score, 97.5 if current_univ in prof["name"] else 95.0)
-
-        rec_books_subj = prof.get("rec_books", {}).get(subject) or prof.get("rec_books", {}).get("english", [])
-        topics_subj = prof.get("ten_year_topics", {}).get(subject) or prof.get("ten_year_topics", {}).get("english", [])
+            elif current_faculty and current_faculty in prof["university_name"]:
+                matched_prof = prof
+            match_score = max(match_score, 97.5 if prof["data_source_type"] == "measured" else 95.5)
 
         scored.append({
             "id": prof["id"],
-            "university_name": prof["name"],
+            "university_name": prof["university_name"],
             "tier": prof["tier"],
             "deviation_value": prof["dev"],
-            "years_analyzed": prof.get("years_analyzed", 10),
+            "years_analyzed": prof["years_analyzed"],
+            "data_source_type": prof["data_source_type"],
+            "data_source_label": prof["data_source_label"],
             "match_rate": match_score,
             "reason": prof["desc"],
-            "ten_year_topics": topics_subj,
-            "rec_books": rec_books_subj
+            "ten_year_topics": prof["topics"],
+            "rec_books": prof["rec_books"]
         })
 
-    scored.sort(key=lambda x: -x["match_rate"])
+    # Sort measured first on ties, and overall by match_rate
+    scored.sort(key=lambda x: (-x["match_rate"], 0 if x["data_source_type"] == "measured" else 1))
     if matched_prof is None:
-        matched_prof = next((p for p in MAJOR_UNIVERSITIES_10YR_DNA if p["id"] == scored[0]["id"]), MAJOR_UNIVERSITIES_10YR_DNA[0])
+        matched_prof = candidate_pool[0]
+        top_id = scored[0]["id"]
+        matched_prof = next((p for p in candidate_pool if p["id"] == top_id), candidate_pool[0])
 
     base_dev = matched_prof.get("dev", 60)
     for item in scored:
@@ -621,25 +906,27 @@ def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, su
             item["concurrent_category"] = "🎯 実力相応・本命併願推奨校（出題傾向・難易度帯が直撃一致）"
             item["category_code"] = "match"
 
-    # Select balanced top 10 concurrent schools across Match, Challenge, Safe
     match_list = [x for x in scored if x["category_code"] == "match"][:5]
     challenge_list = [x for x in scored if x["category_code"] == "challenge"][:3]
     safe_list = [x for x in scored if x["category_code"] == "safe"][:3]
-
     combined_concurrent = match_list + challenge_list + safe_list
     combined_concurrent.sort(key=lambda x: -x["match_rate"])
 
-    accumulated = load_accumulated_dna_records()
+    total_profiles = len(store.get("profiles", {}))
+    total_year_slots = sum(len(p.get("year_slots", {})) for p in store.get("profiles", {}).values())
 
     return {
         "matched_university_id": matched_prof["id"],
-        "matched_university_name": matched_prof["name"],
+        "matched_university_name": matched_prof["university_name"],
         "years_analyzed": matched_prof.get("years_analyzed", 10),
+        "data_source_type": matched_prof.get("data_source_type", "baseline"),
+        "data_source_label": matched_prof.get("data_source_label", "📘 初期基準モデル（目安）"),
         "ten_year_summary": matched_prof["desc"],
-        "ten_year_frequent_topics": matched_prof.get("ten_year_topics", {}).get(subject) or matched_prof.get("ten_year_topics", {}).get("english", []),
-        "ten_year_recommended_books": matched_prof.get("rec_books", {}).get(subject) or matched_prof.get("rec_books", {}).get("english", []),
+        "ten_year_frequent_topics": matched_prof.get("topics", []),
+        "ten_year_recommended_books": matched_prof.get("rec_books", []),
         "all_universities_10yr": scored,
         "concurrent_universities": combined_concurrent[:10],
-        "accumulated_custom_dna_count": len(accumulated),
-        "accumulated_custom_dna_recent": accumulated[:10]
+        "accumulated_custom_dna_count": total_year_slots,
+        "accumulated_profiles_count": total_profiles,
+        "accumulated_custom_dna_recent": measured_profiles[:10]
     }

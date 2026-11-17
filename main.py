@@ -15,8 +15,11 @@ from analyzer_engine import analyze_past_exam_on_memory, KNOWLEDGE_BASE
 from ten_year_dna_engine import (
     CONFIRMATION_TEST_BOOKS,
     MAJOR_UNIVERSITIES_10YR_DNA,
+    configure_dna_supabase_sync,
+    load_dna_store,
     load_accumulated_dna_records,
-    save_accumulated_dna_record,
+    upsert_accumulated_dna_profile,
+    analyze_10yr_university_and_concurrent,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -38,6 +41,8 @@ if SUPABASE_URL and SUPABASE_KEY:
         _sb_client = create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception:
         _sb_client = None
+
+configure_dna_supabase_sync(_sb_client, CONFIG_BUCKET)
 
 
 def _upload_auth_to_supabase(data_bytes: bytes):
@@ -216,11 +221,15 @@ class TextAnalyzeRequest(BaseModel):
 
 class ExamDnaSaveRequest(BaseModel):
     university: str
+    faculty: str = "共通・標準"
+    exam_type: str = "一般・標準"
     year: str = "2026"
     subject: str
     exam_vector: list
-    top_coverage_summary: str = ""
-    recommended_books: list = []
+    content_fingerprint: str = ""
+    book_rates: dict = {}
+    topics: list = []
+    deviation_value: Optional[int] = None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -314,6 +323,9 @@ async def health_check():
     vocab_books = len(KNOWLEDGE_BASE.get("vocab", {}))
     total_vocab = sum(v.get("total_unique", 0) for v in KNOWLEDGE_BASE.get("vocab", {}).values())
     math_cnt = len(KNOWLEDGE_BASE.get("math_juyo", {}).get("rikei", [])) + len(KNOWLEDGE_BASE.get("math_juyo", {}).get("bunkei", []))
+    store = load_dna_store()
+    profs = store.get("profiles", {})
+    total_slots = sum(len(p.get("year_slots", {})) for p in profs.values())
     return {
         "status": "ok",
         "storage_policy": "ZERO_STORAGE_ON_MEMORY_ONLY",
@@ -322,7 +334,9 @@ async def health_check():
         "total_indexed_headwords": total_vocab,
         "indexed_math_juyo_problems": math_cnt,
         "confirmation_test_books_count": len(CONFIRMATION_TEST_BOOKS),
-        "major_universities_10yr_profiles": len(MAJOR_UNIVERSITIES_10YR_DNA)
+        "major_universities_10yr_profiles": len(MAJOR_UNIVERSITIES_10YR_DNA),
+        "accumulated_measured_profiles": len(profs),
+        "accumulated_year_slots": total_slots
     }
 
 
@@ -330,33 +344,42 @@ async def health_check():
 def get_10yr_dna_list():
     return {
         "major_universities_10yr": MAJOR_UNIVERSITIES_10YR_DNA,
-        "accumulated_records": load_accumulated_dna_records(),
+        "accumulated_profiles": load_accumulated_dna_records(),
         "confirmation_books_count": len(CONFIRMATION_TEST_BOOKS)
     }
 
 
 @app.post("/api/save-exam-dna")
 def save_exam_dna_endpoint(req: ExamDnaSaveRequest):
-    rec = {
-        "university": req.university.strip() or "大学名未指定",
-        "year": req.year.strip() or "2026",
+    res = upsert_accumulated_dna_profile({
+        "university": req.university,
+        "faculty": req.faculty,
+        "exam_type": req.exam_type,
+        "year": req.year,
         "subject": req.subject,
         "exam_vector": req.exam_vector,
-        "top_coverage_summary": req.top_coverage_summary,
-        "recommended_books": req.recommended_books[:5]
+        "content_fingerprint": req.content_fingerprint,
+        "book_rates": req.book_rates,
+        "topics": req.topics,
+        "deviation_value": req.deviation_value
+    })
+    updated_dna = analyze_10yr_university_and_concurrent(
+        req.exam_vector,
+        req.university,
+        req.subject,
+        current_faculty=req.faculty,
+        current_exam_type=req.exam_type
+    )
+    return {
+        "status": "ok",
+        "duplicate_status": res["duplicate_status"],
+        "message": res["message"],
+        "saved_profile": res["profile"],
+        "total_profiles": res["total_profiles"],
+        "total_year_slots": res["total_year_slots"],
+        "ten_year_dna": updated_dna,
+        "concurrent_universities": updated_dna["concurrent_universities"]
     }
-    records = save_accumulated_dna_record(rec)
-    # Also persist lightweight DNA JSON (~few KB) to Supabase Storage so Render restarts never lose it
-    if _sb_client:
-        try:
-            _sb_client.storage.from_(CONFIG_BUCKET).upload(
-                "kakomon_accumulated_dna.json",
-                json.dumps(records, ensure_ascii=False, indent=2).encode("utf-8"),
-                {"content-type": "application/json", "upsert": "true"}
-            )
-        except Exception:
-            pass
-    return {"status": "ok", "saved_record": rec, "total_accumulated": len(records), "recent_records": records[:10]}
 
 
 @app.post("/api/analyze-pdf")
@@ -375,7 +398,8 @@ def analyze_pdf_endpoint(req: PdfBase64AnalyzeRequest):
         result = analyze_past_exam_on_memory(
             pdf_bytes=pdf_bytes,
             subject=req.subject,
-            university=req.university
+            university=req.university,
+            filename=req.filename
         )
         return JSONResponse(result)
     except Exception as e:

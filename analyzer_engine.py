@@ -4,6 +4,7 @@ import re
 import os
 import json
 import math
+import hashlib
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
@@ -1995,7 +1996,102 @@ def _extract_standard_exam_vec(result: dict, subject: str) -> list:
 # =====================================================================
 # 11. 統合エントリーポイント（オンメモリ解析＋即時クリーンアップ保証）
 # =====================================================================
-def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, subject: str = "auto", university: str = "") -> dict:
+def _extract_exam_metadata_for_dna(text_to_analyze: str, cover_text: str, filename: str, subject: str, university: str, result: dict) -> dict:
+    combined = (cover_text or "") + "\n" + (text_to_analyze or "")[:2500] + "\n" + (filename or "")
+    # Detect year (2015..2027) or 令和X年 or (26) / 2026_
+    year_val = "2026"
+    m_yr = re.search(r'(201[5-9]|202[0-7])', combined)
+    if m_yr:
+        year_val = m_yr.group(1)
+    else:
+        m_reiwa = re.search(r'令和\s*([1-9])\s*年', combined)
+        if m_reiwa:
+            year_val = str(2018 + int(m_reiwa.group(1)))
+
+    # Detect faculty / division
+    faculty_val = "共通・標準"
+    fac_patterns = [
+        (r'システム理工|環境都市工|化学生命工|基幹理工|創造理工|先進理工|理工学部|工学部|理学部', "理工系学部"),
+        (r'医学部|医学科|薬学部|看護', "医歯薬・生命系"),
+        (r'法学部', "法学部"),
+        (r'商学部|経営学部', "商・経営学部"),
+        (r'経済学部|政治経済|政経', "経済・政経学部"),
+        (r'文学部|文化構想|人文学部|心理|社会学部|教育学部|外国語|国際', "文・社会・国際系"),
+        (r'理系', "理系"),
+        (r'文系', "文系")
+    ]
+    for pat, lbl in fac_patterns:
+        if re.search(pat, combined):
+            faculty_val = lbl
+            break
+
+    # Detect exam format / schedule
+    exam_type_val = "一般・標準"
+    for pat, lbl in [
+        (r'全学部日程|全学統一|全学部入試|全学部', "全学部日程"),
+        (r'学部個別|個別日程', "学部個別日程"),
+        (r'前期日程|前期', "前期日程"),
+        (r'後期日程|後期', "後期日程"),
+        (r'共通テスト|センター試験', "共通テスト"),
+        (r'([AＡBＢCＣ]\s*方式|[AＡBＢCＣ]\s*日程)', "方式・日程別")
+    ]:
+        m_et = re.search(pat, combined)
+        if m_et:
+            exam_type_val = m_et.group(1).replace(" ", "") if lbl == "方式・日程別" else lbl
+            break
+
+    # Content fingerprint (16-char SHA256 hash of normalized text without keeping original text)
+    norm_fp_src = re.sub(r'[^a-z0-9\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]+', '', (text_to_analyze or "").lower())
+    fp_hash = hashlib.sha256(norm_fp_src[:6000].encode("utf-8", errors="ignore")).hexdigest()[:16] if norm_fp_src else ""
+
+    # Book coverage rates snapshot
+    book_rates = {}
+    if subject == "english":
+        sc = result.get("systan_coverage", {})
+        if sc:
+            book_rates["[5訂版]システム英単語 (1〜1200番)"] = sc.get("cumulative_1200_exam_rate", 0)
+            book_rates["[5訂版]システム英単語 (1〜1700番)"] = sc.get("cumulative_1700_exam_rate", 0)
+            book_rates["[5訂版]システム英単語 (全2027語)"] = sc.get("cumulative_all_exam_rate", 0)
+        for bc in (result.get("book_comparisons") or [])[:6]:
+            book_rates[bc["book_name"]] = bc["exam_vocab_coverage"]
+        # Calculate Systan 1700 + Sokutan Adv combined coverage from matrix
+        sim = result.get("vocab_combination_simulator", {})
+        mat = sim.get("word_matrix") or []
+        if mat:
+            hit_sys_sok = sum(1 for w in mat if ("systan_1700" in w.get("books", {}) or "sokutan_adv" in w.get("books", {})))
+            book_rates["シス単(1〜1700)＋★速読英単語 上級編"] = round(hit_sys_sok / max(1, len(mat)) * 100, 1)
+            hit_sys_tep = sum(1 for w in mat if ("systan_all" in w.get("books", {}) or "teppeki" in w.get("books", {})))
+            book_rates["シス単全範囲＋★鉄緑会 鉄壁"] = round(hit_sys_tep / max(1, len(mat)) * 100, 1)
+    else:
+        for b in (result.get("book_coverage_summary") or [])[:5]:
+            book_rates[b["book_name"]] = b["coverage_rate"]
+
+    # Detected topics snapshot
+    topics = []
+    if subject == "english":
+        for gh in (result.get("grammar_hits") or [])[:3]:
+            topics.append(gh["topic"])
+        if result.get("idiom_matches"):
+            topics.append(f"熟語表現 ({len(result['idiom_matches'])}種)")
+    else:
+        for pa in (result.get("problem_analyses") or [])[:4]:
+            u_name = pa.get("detected_unit", "").split("（")[0]
+            if u_name and u_name not in topics:
+                topics.append(u_name)
+
+    return {
+        "university": university,
+        "faculty": faculty_val,
+        "exam_type": exam_type_val,
+        "year": year_val,
+        "subject": subject,
+        "content_fingerprint": fp_hash,
+        "book_rates": book_rates,
+        "topics": topics
+    }
+
+
+def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, subject: str = "auto", university: str = "", filename: str = "") -> dict:
     extracted_meta = {"page_count": 1, "problem_page_count": 1, "char_count": 0}
     cover_text = ""
     try:
@@ -2037,8 +2133,16 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
         base_ab = float(ev.get("juyo_ab_coverage") or result.get("systan_coverage", {}).get("cumulative_all_exam_rate") or 96.0)
 
         exam_vec = _extract_standard_exam_vec(result, detected_subj)
-        dna_pack = analyze_10yr_university_and_concurrent(exam_vec, detected_univ, detected_subj)
-        result["exam_vector"] = [round(x, 3) for x in exam_vec]
+        dna_meta = _extract_exam_metadata_for_dna(text_to_analyze, cover_text, filename, detected_subj, detected_univ, result)
+        dna_meta["exam_vector"] = [round(x, 4) for x in exam_vec]
+
+        dna_pack = analyze_10yr_university_and_concurrent(
+            exam_vec, detected_univ, detected_subj,
+            current_faculty=dna_meta["faculty"],
+            current_exam_type=dna_meta["exam_type"]
+        )
+        result["exam_vector"] = dna_meta["exam_vector"]
+        result["dna_candidate"] = dna_meta
         result["concurrent_universities"] = dna_pack["concurrent_universities"]
         result["ten_year_dna"] = dna_pack
         result["confirmation_test_books"] = get_subject_confirmation_books(detected_subj, base_a_cov=base_a, base_ab_cov=base_ab)

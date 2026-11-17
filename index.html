@@ -1092,10 +1092,10 @@
 
       <div id="pdfDropSection">
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-          <input type="file" id="fileInput" accept=".pdf" style="display: none" onchange="handleFileSelect(this.files)" />
+          <input type="file" id="fileInput" accept=".pdf" multiple style="display: none" onchange="handleFileSelect(this.files)" />
           <div class="dropzone-icon">📥</div>
-          <h2>ここに大学の過去問PDFをドラッグ＆ドロップ</h2>
-          <p>スキャン画像PDF（英語・数学・理科・国語・社会）も自動で高速並列OCR解析します</p>
+          <h2>ここに大学の過去問PDFをドラッグ＆ドロップ（1件解析 ／ 複数一括DNA蓄積対応）</h2>
+          <p>スキャン画像PDF（全11科目）も自動OCR解析します。複数年分をまとめてドロップすると自動で1KB傾向DNAだけを抽出・重複統合して蓄積します</p>
           <span class="note-pill">⚡ 解析完了と同時にインプットPDFはメモリから完全消去されます</span>
         </div>
       </div>
@@ -1362,59 +1362,104 @@
       }
     });
 
-    async function handleFileSelect(files) {
-      const file = files[0];
-      if (!file) return;
-      if (!file.name.toLowerCase().endsWith(".pdf")) {
-        alert("PDFファイル（.pdf）をドラッグ＆ドロップしてください。");
-        return;
+    async function _analyzeSinglePdfFile(file) {
+      const b64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = err => reject(err);
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch("/api/analyze-pdf", {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          pdf_base64: b64,
+          filename: file.name,
+          subject: document.getElementById("subjectSelect").value,
+          university: document.getElementById("univInput").value
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        document.getElementById("loginModal").style.display = "flex";
+        throw new Error("ログインが必要です。");
       }
+      if (!res.ok) throw new Error(data.detail || "解析に失敗しました");
 
-      showLoading(true);
-      try {
-        const b64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = err => reject(err);
-          reader.readAsDataURL(file);
-        });
-
-        const res = await fetch("/api/analyze-pdf", {
+      if (data.needs_client_ocr && data.scanned_page_images) {
+        const ocrText = await runClientSideOcrFallback(data.scanned_page_images);
+        const res2 = await fetch("/api/analyze-text", {
           method: "POST",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
-            pdf_base64: b64,
-            filename: file.name,
+            text: ocrText,
             subject: document.getElementById("subjectSelect").value,
             university: document.getElementById("univInput").value
           })
         });
-        const data = await res.json();
-        if (res.status === 401) {
-          document.getElementById("loginModal").style.display = "flex";
-          throw new Error("ログインが必要です。");
-        }
-        if (!res.ok) throw new Error(data.detail || "解析に失敗しました");
-        if (data.needs_client_ocr && data.scanned_page_images) {
-          const ocrText = await runClientSideOcrFallback(data.scanned_page_images);
-          const res2 = await fetch("/api/analyze-text", {
-            method: "POST",
-            headers: getAuthHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({
-              text: ocrText,
-              subject: document.getElementById("subjectSelect").value,
-              university: document.getElementById("univInput").value
-            })
-          });
-          const data2 = await res2.json();
-          if (!res2.ok) throw new Error(data2.detail || "OCR後の解析に失敗しました");
-          renderResults(data2);
-        } else {
+        const data2 = await res2.json();
+        if (!res2.ok) throw new Error(data2.detail || "OCR後の解析に失敗しました");
+        return data2;
+      }
+      return data;
+    }
+
+    async function handleFileSelect(files) {
+      const pdfList = Array.from(files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      if (pdfList.length === 0) {
+        alert("PDFファイル（.pdf）をドラッグ＆ドロップしてください。");
+        return;
+      }
+
+      const loadH3 = document.querySelector("#loadingBox h3");
+      const origLoadText = loadH3 ? loadH3.innerText : "";
+      showLoading(true);
+      try {
+        if (pdfList.length === 1) {
+          const data = await _analyzeSinglePdfFile(pdfList[0]);
           renderResults(data);
+        } else {
+          // Batch mode: sequentially parse on memory -> extract 1KB DNA -> upsert with dedup -> discard PDF
+          const logs = [];
+          let lastData = null;
+          for (let i = 0; i < pdfList.length; i++) {
+            const f = pdfList[i];
+            if (loadH3) loadH3.innerText = `一括解析＆DNA蓄積中（${i + 1} / ${pdfList.length}）：${f.name}`;
+            const d = await _analyzeSinglePdfFile(f);
+            lastData = d;
+            const cand = d.dna_candidate || {};
+            const saveRes = await fetch("/api/save-exam-dna", {
+              method: "POST",
+              headers: getAuthHeaders({ "Content-Type": "application/json" }),
+              body: JSON.stringify({
+                university: cand.university || d.university || "大学名未指定",
+                faculty: cand.faculty || "共通・標準",
+                exam_type: cand.exam_type || "一般・標準",
+                year: cand.year || "2026",
+                subject: cand.subject || d.subject || "english",
+                exam_vector: d.exam_vector || cand.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
+                content_fingerprint: cand.content_fingerprint || "",
+                book_rates: cand.book_rates || {},
+                topics: cand.topics || []
+              })
+            });
+            const sd = await saveRes.json();
+            if (saveRes.ok) {
+              lastData.ten_year_dna = sd.ten_year_dna;
+              lastData.concurrent_universities = sd.concurrent_universities;
+              logs.push(`・${f.name} → ${sd.message}`);
+            }
+          }
+          if (lastData) {
+            renderResults(lastData);
+          }
+          alert(`✅ ${pdfList.length}件の過去問PDFをオンメモリ解析し、傾向DNA(各約1KB)のみを重複防止・統合蓄積しました（PDF原文は全件即時破棄）：\n\n${logs.join("\n")}`);
         }
       } catch (err) {
         alert("エラー: " + err.message);
       } finally {
+        if (loadH3 && origLoadText) loadH3.innerText = origLoadText;
         document.getElementById("fileInput").value = "";
         showLoading(false);
       }
@@ -1619,25 +1664,27 @@
     function renderConcurrentAndTenYearDNA(data) {
       const concEl = document.getElementById("concurrentContent");
       const dna = data.ten_year_dna || {};
+      const cand = data.dna_candidate || {};
       const allUnivs = dna.all_universities_10yr || [];
       const selectedUnivId = window._selectedTenYearUnivId || dna.matched_university_id || (allUnivs[0] && allUnivs[0].id);
       const activeProf = allUnivs.find(u => u.id === selectedUnivId) || allUnivs[0];
       const recBooks = (activeProf && activeProf.rec_books) || dna.ten_year_recommended_books || [];
       const topics10yr = (activeProf && activeProf.ten_year_topics) || dna.ten_year_frequent_topics || [];
-      const accCount = dna.accumulated_custom_dna_count || 0;
+      const accYears = dna.accumulated_custom_dna_count || 0;
+      const accProfiles = dna.accumulated_profiles_count || 0;
       const accRecent = dna.accumulated_custom_dna_recent || [];
 
       concEl.innerHTML = `
         <div style="background:linear-gradient(135deg,#f8fafc 0%,#f0fdf4 100%);border:2px solid #86efac;border-radius:14px;padding:18px 20px;margin-bottom:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
             <div>
-              <h4 style="font-size:16px;font-weight:800;color:#14532d;">📊 主要大学「過去10年分（2017〜2026）」出題DNA ＆ 使用推奨参考書（定量出力）</h4>
-              <p style="font-size:12.5px;color:#334155;margin-top:2px;">過去問PDF原文は保存せず、1年あたり約1KBの<strong>「出題傾向DNA（語彙・単元・定石カバー率ベクトル）」</strong>だけをデータベース化して10年分を統計分析しています。</p>
+              <h4 style="font-size:16px;font-weight:800;color:#14532d;">📊 過去問DNAデータベース（実測蓄積 ＋ 初期基準モデル）＆ 使用推奨参考書</h4>
+              <p style="font-size:12.5px;color:#334155;margin-top:2px;">過去問PDF原文は保存せず、大学×学部×受験方式ごとに<strong>最大直近10年分の累積平均DNA（O(1)固定サイズ）</strong>へ統合・更新されます。</p>
             </div>
-            <div style="min-width:280px;">
-              <label style="display:block;font-size:11.5px;font-weight:800;color:#166534;margin-bottom:4px;">🏫 大学・学部系統を切り替え（プルダウン）:</label>
+            <div style="min-width:290px;">
+              <label style="display:block;font-size:11.5px;font-weight:800;color:#166534;margin-bottom:4px;">🏫 大学・学部・方式を切り替え（プルダウン）:</label>
               <select class="form-control" style="padding:7px 10px;font-size:12.5px;" onchange="window._selectedTenYearUnivId=this.value; renderConcurrentAndTenYearDNA(currentAnalysisData);">
-                ${allUnivs.map(u => `<option value="${u.id}" ${u.id === (activeProf && activeProf.id) ? 'selected' : ''}>${u.university_name}（一致度 ${u.match_rate}%）</option>`).join("")}
+                ${allUnivs.map(u => `<option value="${u.id}" ${u.id === (activeProf && activeProf.id) ? 'selected' : ''}>${u.data_source_type === 'measured' ? '🟢[実測]' : '📘[目安]'} ${u.university_name}（一致度 ${u.match_rate}%）</option>`).join("")}
               </select>
             </div>
           </div>
@@ -1645,13 +1692,18 @@
           ${activeProf ? `
             <div style="background:white;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
               <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                <strong style="font-size:14.5px;color:var(--navy);">🏛️ ${activeProf.university_name}（過去${activeProf.years_analyzed || 10}年分統計）</strong>
+                <div>
+                  <strong style="font-size:14.5px;color:var(--navy);">🏛️ ${activeProf.university_name}</strong>
+                  <span style="display:inline-block;margin-left:8px;background:${activeProf.data_source_type === 'measured' ? '#dcfce7;color:#166534' : '#e0f2fe;color:#075985'};padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;">
+                    ${activeProf.data_source_label || '📘 初期基準モデル'}
+                  </span>
+                </div>
                 <span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800;">今回の過去問との一致度 ${activeProf.match_rate}%</span>
               </div>
               <p style="font-size:12.5px;color:#475569;margin-bottom:10px;">${activeProf.reason}</p>
               ${topics10yr.length > 0 ? `
                 <div style="margin-bottom:10px;font-size:12.5px;">
-                  <strong style="color:#1e3a8a;">📌 過去10年の頻出テーマ：</strong>
+                  <strong style="color:#1e3a8a;">📌 頻出テーマ・単元：</strong>
                   ${topics10yr.map(t => `<span style="display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:2px 8px;border-radius:6px;margin:2px 4px 2px 0;font-weight:700;">${t}</span>`).join("")}
                 </div>
               ` : ''}
@@ -1659,8 +1711,8 @@
                 <table class="data-table" style="margin-top:8px;">
                   <thead>
                     <tr>
-                      <th style="width:42%;">10年分のデータに基づく使用推奨参考書（確認テスト収録）</th>
-                      <th style="width:18%;">10年平均 網羅率</th>
+                      <th style="width:42%;">使用推奨参考書（実測平均または基準ルート）</th>
+                      <th style="width:18%;">平均網羅率</th>
                       <th style="width:40%;">定量データからみた役割・推奨理由</th>
                     </tr>
                   </thead>
@@ -1678,36 +1730,54 @@
             </div>
           ` : ''}
 
-          <div style="margin-top:12px;padding:12px 14px;background:#fff;border:1px dashed #60a5fa;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div style="font-size:12.5px;color:#334155;">
-              <strong>🧬 自校舎専用「10年分DNA蓄積アーカイブ」に今回の解析傾向を登録（現在 <strong>${accCount}</strong> 件蓄積済み）：</strong><br />
-              <span style="color:#64748b;">重いPDF原文は保存せず、今回解析した「6次元傾向ベクトル(約1KB)」のみを蓄積して年次推移・併願精度を高めます。</span>
+          <div style="margin-top:12px;padding:14px 16px;background:#fff;border:1.5px dashed #60a5fa;border-radius:10px;">
+            <div style="font-size:12.5px;color:#334155;margin-bottom:10px;">
+              <strong>🧬 実測DNAアーカイブへ登録（現在：${accProfiles} 学部・方式 ／ 累計 ${accYears} 年度分蓄積済み｜重複＆同年度方式別管理対応）：</strong><br />
+              <span style="color:#64748b;">同じ『大学×学部×方式×年度』や『同一問題指紋(${cand.content_fingerprint || '-'})』は自動で重複排除（上書き統合）され、直近10年分の累積平均へ即座に反映されます。</span>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="text" id="dnaSaveYearInput" value="2026" class="form-control" style="width:76px;padding:6px 8px;font-size:12.5px;" placeholder="年度" />
-              <button class="btn-primary" style="padding:7px 14px;font-size:12.5px;background:#1d4ed8;" onclick="saveCurrentExamDna()">💾 傾向DNA(1KB)を蓄積</button>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:8px;align-items:end;">
+              <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">🏫 大学名</label>
+                <input type="text" id="dnaSaveUnivInput" value="${cand.university || data.university || ''}" class="form-control" style="padding:6px 8px;font-size:12.5px;" />
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">🎓 学部・系統</label>
+                <input type="text" id="dnaSaveFacultyInput" value="${cand.faculty || '共通・標準'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="例: 全学部 / システム理工 / 法" />
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">📝 受験方式・日程</label>
+                <input type="text" id="dnaSaveExamTypeInput" value="${cand.exam_type || '一般・標準'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="例: 全学部日程 / 個別日程 / A方式" />
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">📅 年度</label>
+                <input type="text" id="dnaSaveYearInput" value="${cand.year || '2026'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="2026" />
+              </div>
+              <div>
+                <button class="btn-primary" style="width:100%;padding:8px 12px;font-size:12.5px;background:#1d4ed8;" onclick="saveCurrentExamDna()">💾 傾向DNA(1KB)を蓄積</button>
+              </div>
             </div>
           </div>
+
           ${accRecent.length > 0 ? `
-            <div style="margin-top:8px;font-size:12px;color:#475569;">
-              <strong>📚 最近蓄積された過去問DNA:</strong>
-              ${accRecent.slice(0, 5).map(a => `<span style="display:inline-block;background:#f1f5f9;padding:2px 8px;border-radius:6px;margin:2px 4px;">${a.university} (${a.year}年 / ${a.subject})</span>`).join("")}
+            <div style="margin-top:10px;font-size:12px;color:#475569;">
+              <strong>📚 蓄積済みの実測プロファイル（大学 × 学部 × 方式）:</strong>
+              ${accRecent.slice(0, 8).map(p => `<span style="display:inline-block;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:2px 8px;border-radius:6px;margin:2px 4px;font-weight:700;">🟢 ${p.display_name || p.university} [${p.subject}] (${(p.years_list || []).join('・')}年 / 計${p.sample_years_count || 1}年分)</span>`).join("")}
             </div>
           ` : ''}
         </div>
 
         <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:#334155;">
           <strong>📌 幅広い併願推奨校（本命同レベル帯・上位チャレンジ校・安全圏抑え校）の選出基準：</strong><br />
-          実測した6次元傾向ベクトルと主要大学の過去10年DNAとのコサイン類似度から、<strong>「同じ参考書ルート・対策のまま合格可能性を最大化できる幅広い併願校（最大10大学群）」</strong>をカテゴリ別に抽出しています。
+          実測した6次元傾向ベクトルとデータベース上の全プロファイル（<strong>🟢実測蓄積データ＋📘初期基準モデル</strong>）とのコサイン類似度から、幅広い併願候補をカテゴリ別に抽出しています。過去問を蓄積するほど、実測プロファイルが基準値を上書きして高精度化します。
         </div>
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 14%;">傾向一致度</th>
-              <th style="width: 24%;">併願区分</th>
-              <th style="width: 26%;">併願推奨大学・学部</th>
+              <th style="width: 13%;">傾向一致度</th>
+              <th style="width: 22%;">併願区分</th>
+              <th style="width: 28%;">併願推奨大学・学部（データ根拠）</th>
               <th style="width: 14%;">レベル帯</th>
-              <th style="width: 22%;">過去10年傾向・対策共通点</th>
+              <th style="width: 23%;">傾向・対策共通点</th>
             </tr>
           </thead>
           <tbody>
@@ -1717,7 +1787,10 @@
                 <tr>
                   <td><span style="background:${badgeColor};padding:4px 10px;border-radius:999px;font-weight:800;">一致度 ${u.match_rate}%</span></td>
                   <td style="font-size:12px;font-weight:700;">${u.concurrent_category || '🎯 実力相応・併願推奨'}</td>
-                  <td><strong>${u.university_name}</strong></td>
+                  <td>
+                    <strong>${u.university_name}</strong><br>
+                    <span style="font-size:11px;font-weight:700;color:${u.data_source_type === 'measured' ? '#15803d' : '#0369a1'};">${u.data_source_label || '📘 初期基準モデル'}</span>
+                  </td>
                   <td>${u.tier}<br><small style="color:#64748b;">(偏差値${u.deviation_value}帯)</small></td>
                   <td style="font-size:12.5px;">${u.reason}</td>
                 </tr>
@@ -1730,27 +1803,36 @@
 
     async function saveCurrentExamDna() {
       if (!currentAnalysisData) return;
-      const yearVal = document.getElementById("dnaSaveYearInput").value || "2026";
+      const cand = currentAnalysisData.dna_candidate || {};
+      const univVal = document.getElementById("dnaSaveUnivInput").value.trim() || currentAnalysisData.university || "大学名未指定";
+      const facVal = document.getElementById("dnaSaveFacultyInput").value.trim() || "共通・標準";
+      const examVal = document.getElementById("dnaSaveExamTypeInput").value.trim() || "一般・標準";
+      const yearVal = document.getElementById("dnaSaveYearInput").value.trim() || "2026";
       try {
         const res = await fetch("/api/save-exam-dna", {
           method: "POST",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
-            university: currentAnalysisData.university || "大学名未指定",
+            university: univVal,
+            faculty: facVal,
+            exam_type: examVal,
             year: yearVal,
             subject: currentAnalysisData.subject || "english",
             exam_vector: currentAnalysisData.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
-            top_coverage_summary: currentAnalysisData.subject_label || "",
-            recommended_books: (currentAnalysisData.next_books_roadmap || []).map(r => r.book)
+            content_fingerprint: cand.content_fingerprint || "",
+            book_rates: cand.book_rates || {},
+            topics: cand.topics || []
           })
         });
         const d = await res.json();
         if (!res.ok) throw new Error(d.detail || "保存に失敗しました");
-        currentAnalysisData.ten_year_dna = currentAnalysisData.ten_year_dna || {};
-        currentAnalysisData.ten_year_dna.accumulated_custom_dna_count = d.total_accumulated;
-        currentAnalysisData.ten_year_dna.accumulated_custom_dna_recent = d.recent_records;
+        currentAnalysisData.ten_year_dna = d.ten_year_dna;
+        currentAnalysisData.concurrent_universities = d.concurrent_universities;
+        if (d.saved_profile && d.saved_profile.profile_key) {
+          window._selectedTenYearUnivId = d.saved_profile.profile_key;
+        }
         renderConcurrentAndTenYearDNA(currentAnalysisData);
-        alert(`✅ ${currentAnalysisData.university}（${yearVal}年）の出題傾向DNA（約1KB）を10年データベースに蓄積しました！\n（※重いPDF原文データは一切保存していません）`);
+        alert(`✅ ${d.message}\n（累積：${d.total_profiles} 学部・方式 ／ 計 ${d.total_year_slots} 年度分｜重いPDF原文は一切保存していません）`);
       } catch (e) {
         alert("エラー: " + e.message);
       }
