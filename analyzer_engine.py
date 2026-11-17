@@ -541,48 +541,130 @@ UNIVERSITY_PROFILES = [
 ]
 
 
-def detect_subject_and_meta(problem_text: str, cover_text: str = "", user_subject: str = "auto", user_univ: str = "") -> dict:
-    combined = (cover_text + "\n" + problem_text)
+KNOWN_UNIVERSITIES = [
+    # 旧帝大・難関国公立
+    "東京大学", "京都大学", "大阪大学", "東北大学", "名古屋大学", "九州大学", "北海道大学",
+    "東京科学大学", "東京工業大学", "東京医科歯科大学", "一橋大学", "神戸大学", "筑波大学",
+    "横浜国立大学", "横浜市立大学", "東京都立大学", "大阪公立大学", "大阪府立大学", "大阪市立大学",
+    "千葉大学", "埼玉大学", "お茶の水女子大学", "電気通信大学", "東京農工大学", "東京学芸大学", "東京海洋大学",
+    "東京外国語大学", "京都工芸繊維大学", "京都府立大学", "京都教育大学", "大阪教育大学", "奈良女子大学",
+    "兵庫県立大学", "神戸市外国語大学", "名古屋工業大学", "名古屋市立大学", "金沢大学", "新潟大学",
+    "信州大学", "静岡大学", "岡山大学", "広島大学", "熊本大学", "長崎大学", "鹿児島大学", "琉球大学",
+    "滋賀大学", "三重大学", "岐阜大学", "和歌山大学", "山口大学", "徳島大学", "香川大学", "愛媛大学",
+    "弘前大学", "岩手大学", "山形大学", "茨城大学", "宇都宮大学", "群馬大学", "富山大学", "福井大学", "山梨大学",
+    "国際教養大学", "会津大学",
+    # 早慶上理・ICU・難関私大
+    "早稲田大学", "慶應義塾大学", "上智大学", "東京理科大学", "国際基督教大学",
+    # GMARCH
+    "明治大学", "青山学院大学", "立教大学", "中央大学", "法政大学", "学習院大学",
+    # 関関同立
+    "同志社大学", "関西大学", "関西学院大学", "立命館大学",
+    # 成成明学獨國武・四工大・日東駒専・大東亜帝国・産近甲龍・外外経工佛・摂神追桃
+    "成蹊大学", "成城大学", "明治学院大学", "獨協大学", "國學院大學", "國學院大学", "武蔵大学",
+    "芝浦工業大学", "東京都市大学", "東京電機大学", "工学院大学", "神奈川大学",
+    "日本大学", "東洋大学", "駒澤大学", "専修大学", "東京農業大学", "東海大学", "亜細亜大学", "帝京大学", "国士舘大学", "大東文化大学",
+    "近畿大学", "京都産業大学", "甲南大学", "龍谷大学",
+    "関西外国語大学", "京都外国語大学", "大阪経済大学", "大阪工業大学", "佛教大学",
+    "摂南大学", "神戸学院大学", "追手門学院大学", "桃山学院大学",
+    # 中部・九州・女子大・医歯薬系主要校
+    "南山大学", "名城大学", "中京大学", "愛知大学", "西南学院大学", "福岡大学", "立命館アジア太平洋大学",
+    "津田塾大学", "東京女子大学", "日本女子大学", "同志社女子大学", "京都女子大学", "武庫川女子大学", "甲南女子大学",
+    "順天堂大学", "日本医科大学", "東京慈恵会医科大学", "昭和大学", "東京医科大学", "北里大学", "東京薬科大学", "星薬科大学", "京都薬科大学", "大阪医科薬科大学",
+    # 短縮・頻出表記（大学なし表記）
+    "早稲田", "慶應", "関西学院", "同志社", "立命館", "青山学院", "東京理科", "横浜国立", "大阪公立", "芝浦工業", "京都産業"
+]
+
+FILENAME_UNIV_SLUGS = {
+    "kandai": "関西大学", "kansai": "関西大学", "kwansei": "関西学院大学", "kg": "関西学院大学",
+    "doshisha": "同志社大学", "ritsumei": "立命館大学", "rits": "立命館大学",
+    "waseda": "早稲田大学", "keio": "慶應義塾大学", "sophia": "上智大学", "jochi": "上智大学",
+    "rikadai": "東京理科大学", "tus": "東京理科大学", "meiji": "明治大学", "aoyama": "青山学院大学", "aogaku": "青山学院大学",
+    "rikkyo": "立教大学", "chuo": "中央大学", "hosei": "法政大学", "gakushuin": "学習院大学",
+    "kindai": "近畿大学", "kinki": "近畿大学", "kyosan": "京都産業大学", "konan": "甲南大学", "ryukoku": "龍谷大学",
+    "nichidai": "日本大学", "nihon": "日本大学", "toyo": "東洋大学", "komazawa": "駒澤大学", "senshu": "専修大学",
+    "todai": "東京大学", "utokyo": "東京大学", "kyodai": "京都大学", "handai": "大阪大学", "osaka": "大阪大学",
+    "tohoku": "東北大学", "nagoya": "名古屋大学", "kyushu": "九州大学", "hokudai": "北海道大学",
+    "hitotsubashi": "一橋大学", "titech": "東京科学大学", "kobe": "神戸大学", "tsukuba": "筑波大学",
+    "chiba": "千葉大学", "yokoku": "横浜国立大学", "hiroshima": "広島大学", "okayama": "岡山大学"
+}
+
+GENERIC_UNIV_BLACKLIST = {
+    "入学試験", "一般入試", "全国大学", "志望大学", "当該大学", "本大学", "貴大学", "他大学",
+    "私立大学", "国立大学", "公立大学", "短期大学", "大学院", "大学入試", "大学入学", "複数大学", "女子大学", "医科大学", "工業大学"
+}
+
+
+def detect_subject_and_meta(problem_text: str, cover_text: str = "", user_subject: str = "auto", user_univ: str = "", filename: str = "") -> dict:
+    combined = (cover_text + "\n" + problem_text + "\n" + (filename or ""))
+    # Strip spaces inside Japanese OCR text (e.g., "関 西 大 学" -> "関西大学")
+    compact_combined = re.sub(r'[ \t\u3000]+', '', combined)
     detected_univ = user_univ.strip() if user_univ.strip() else ""
+    univ_detected = bool(detected_univ)
 
     if not detected_univ:
-        for u in ["関西大学", "関西学院", "同志社", "立命館", "早稲田", "慶應", "明治", "青山学院", "立教", "中央", "法政", "東京理科", "上智", "日本大学", "東洋大学", "駒澤", "専修", "近畿", "京都産業", "甲南", "龍谷", "東京大学", "京都大学", "大阪大学", "東北大学", "名古屋大学", "九州大学", "北海道大学", "一橋", "筑波", "千葉大学", "横浜国立", "神戸大学", "大阪公立"]:
-            if u in combined:
-                detected_univ = u + ("大学" if not u.endswith("大学") else "")
+        # 1. Exact/short match against 130+ known universities (space-stripped)
+        for u in KNOWN_UNIVERSITIES:
+            if u in compact_combined:
+                detected_univ = u + ("大学" if not (u.endswith("大学") or u.endswith("大學")) else "")
+                detected_univ = detected_univ.replace("大學", "大学")
+                univ_detected = True
                 break
-        if not detected_univ and (re.search(r'B\s*[0-9]{2}\s*\(\s*26', combined) or "システム理工学部" in combined or "化学生命工学部" in combined):
+
+        # 2. Check filename romanized slugs (e.g., "waseda_2025_eng.pdf")
+        if not detected_univ and filename:
+            fn_low = re.sub(r'[^a-z]', ' ', filename.lower())
+            for slug, u_jp in FILENAME_UNIV_SLUGS.items():
+                if re.search(rf'\b{slug}\b', fn_low) or (len(slug) >= 5 and slug in fn_low.replace(" ", "")):
+                    detected_univ = u_jp
+                    univ_detected = True
+                    break
+
+        # 3. Known exam format / faculty signatures
+        if not detected_univ and (re.search(r'B\s*[0-9]{2}\s*\(\s*2[0-9]', combined) or "システム理工学部" in compact_combined or "化学生命工学部" in compact_combined):
             detected_univ = "関西大学"
+            univ_detected = True
+
+        # 4. Generic fallback regex for any unlisted university name (e.g. "〇〇大学")
+        if not detected_univ:
+            for m_u in re.finditer(r'([一-龥ァ-ヶ]{2,10}大学)', compact_combined[:2500]):
+                cand_u = m_u.group(1)
+                if cand_u not in GENERIC_UNIV_BLACKLIST and not any(bad in cand_u for bad in ("試験大学", "問題大学", "解答大学", "年度大学", "日程大学")):
+                    detected_univ = cand_u
+                    univ_detected = True
+                    break
+
+    final_univ = detected_univ or "志望大学（大学名未検出：手動入力可）"
 
     if user_subject and user_subject != "auto":
-        return {"subject": user_subject, "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": user_subject, "university": final_univ, "univ_detected": univ_detected}
 
     # Step 1: 表紙（1〜2ページ目）の科目名・問題コードから最優先判定（全11科目対応）
     if re.search(r'物\s*[LＬAＡ]?\s*問|試験問題\s*物\s*理|\[物理・化学\]', cover_text):
-        return {"subject": "physics", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "physics", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'化\s*[LＬAＡ]?\s*問|試験問題\s*化\s*学', cover_text):
-        return {"subject": "chemistry", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "chemistry", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'生\s*[LＬAＡ]?\s*問|試験問題\s*生\s*物', cover_text):
-        return {"subject": "biology", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "biology", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'数\s*[LＬAＡ]?\s*問|試験問題\s*数\s*学', cover_text):
-        return {"subject": "math", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "math", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'英\s*[LＬAＡ]?\s*問|試験問題\s*英\s*語', cover_text):
-        return {"subject": "english", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "english", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'日本史|日\s*史', cover_text):
-        return {"subject": "nihonshi", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "nihonshi", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'世界史|世\s*史', cover_text):
-        return {"subject": "sekaishi", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "sekaishi", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'地\s*理', cover_text):
-        return {"subject": "chiri", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "chiri", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'政治・経済|政\s*経|政治経済', cover_text):
-        return {"subject": "seikei", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "seikei", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'古\s*文|古\s*典', cover_text) and not re.search(r'現代文', cover_text):
-        return {"subject": "kobun", "university": detected_univ or "志望大学（過去問解析）"}
+        return {"subject": "kobun", "university": final_univ, "univ_detected": univ_detected}
     if re.search(r'国\s*[LＬAＡ]?\s*問|試験問題\s*国\s*語|現代文', cover_text):
         # 国語表紙の場合、本文に古文が多いか現代文が多いか、あるいは両方かをチェック
         kobun_cnt = len(re.findall(r'けり|たり|なり|べし|らむ|たまふ|おほす|侍り|奉る|いみじ|あはれ|をかし', problem_text))
         if kobun_cnt >= 6 and len(problem_text) < 2500:
-            return {"subject": "kobun", "university": detected_univ or "志望大学（過去問解析）"}
-        return {"subject": "gendai", "university": detected_univ or "志望大学（過去問解析）"}
+            return {"subject": "kobun", "university": final_univ, "univ_detected": univ_detected}
+        return {"subject": "gendai", "university": final_univ, "univ_detected": univ_detected}
 
     # Step 2: 問題本文のキーワード密度による全11科目自動判定
     eng_words = re.findall(r'[A-Za-z]{3,}', problem_text)
@@ -610,7 +692,7 @@ def detect_subject_and_meta(problem_text: str, cover_text: str = "", user_subjec
         else:
             subj = "math"
 
-    return {"subject": subj, "university": detected_univ or "志望大学（過去問解析）"}
+    return {"subject": subj, "university": final_univ, "univ_detected": univ_detected}
 
 
 # =====================================================================
@@ -2115,9 +2197,10 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
             text_to_analyze = clean_ocr_japanese_spaces(raw_text or "")
             extracted_meta["char_count"] = len(text_to_analyze)
 
-        meta = detect_subject_and_meta(text_to_analyze, cover_text=cover_text, user_subject=subject, user_univ=university)
+        meta = detect_subject_and_meta(text_to_analyze, cover_text=cover_text, user_subject=subject, user_univ=university, filename=filename)
         detected_subj = meta["subject"]
         detected_univ = meta["university"]
+        univ_detected = meta.get("univ_detected", True)
 
         if detected_subj == "english":
             result = analyze_english_exam(text_to_analyze, detected_univ)
@@ -2141,6 +2224,7 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
             current_faculty=dna_meta["faculty"],
             current_exam_type=dna_meta["exam_type"]
         )
+        result["univ_detected"] = univ_detected
         result["exam_vector"] = dna_meta["exam_vector"]
         result["dna_candidate"] = dna_meta
         result["concurrent_universities"] = dna_pack["concurrent_universities"]

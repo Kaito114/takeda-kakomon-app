@@ -217,6 +217,7 @@ class TextAnalyzeRequest(BaseModel):
     text: str
     subject: str = "auto"
     university: str = ""
+    filename: str = ""
 
 
 class ExamDnaSaveRequest(BaseModel):
@@ -419,7 +420,8 @@ def analyze_text_endpoint(req: TextAnalyzeRequest):
         result = analyze_past_exam_on_memory(
             raw_text=req.text,
             subject=req.subject,
-            university=req.university
+            university=req.university,
+            filename=req.filename
         )
         return JSONResponse(result)
     except Exception as e:

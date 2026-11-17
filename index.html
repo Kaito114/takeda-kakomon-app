@@ -1136,6 +1136,18 @@
           <h3><span class="num-badge">1</span> 参考書レベル判定 ＆ 過去問プロファイル</h3>
           <span id="resSubjBadge" style="font-size: 13.5px; font-weight: 800; color: var(--brand-red);"></span>
         </div>
+        <div id="univUnknownBanner" style="display:none;background:#fefce8;border:1.5px solid #facc15;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div style="font-size:12.5px;color:#854d0e;">
+              <strong>⚠️ PDF内に大学名テキストが見つかりませんでした</strong>（表紙がロゴ画像のみ・本文切り抜き等）。<br />
+              下の欄に大学名を入力して適用すると、上部「大学・学部名」欄・DNA蓄積欄に反映されます（ファイル名に大学名を入れておくと次回から自動判定されます）。
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="quickFixUnivInput" class="form-control" style="width:200px;padding:6px 10px;font-size:12.5px;" placeholder="例: 関西大学 / 広島大学" />
+              <button class="btn-primary" style="padding:7px 14px;font-size:12.5px;background:#ca8a04;" onclick="applyManualUnivName()">✔ 大学名を適用</button>
+            </div>
+          </div>
+        </div>
         <div class="kpi-grid" id="kpiGrid"></div>
       </div>
 
@@ -1395,7 +1407,8 @@
           body: JSON.stringify({
             text: ocrText,
             subject: document.getElementById("subjectSelect").value,
-            university: document.getElementById("univInput").value
+            university: document.getElementById("univInput").value,
+            filename: file.name
           })
         });
         const data2 = await res2.json();
@@ -1534,6 +1547,21 @@
       return texts.join("\n\n");
     }
 
+    function applyManualUnivName() {
+      const val = document.getElementById("quickFixUnivInput").value.trim();
+      if (!val || !currentAnalysisData) return;
+      currentAnalysisData.university = val;
+      currentAnalysisData.univ_detected = true;
+      if (currentAnalysisData.dna_candidate) {
+        currentAnalysisData.dna_candidate.university = val;
+      }
+      document.getElementById("univInput").value = val;
+      document.getElementById("resSubjBadge").innerText = `${val} ｜ ${currentAnalysisData.subject_label}`;
+      document.getElementById("univUnknownBanner").style.display = "none";
+      const dnaUnivEl = document.getElementById("dnaSaveUnivInput");
+      if (dnaUnivEl) dnaUnivEl.value = val;
+    }
+
     function showLoading(flag) {
       document.getElementById("loadingBox").style.display = flag ? "block" : "none";
       if (flag) {
@@ -1550,6 +1578,10 @@
           `🗑️ ${data.memory_policy.message}（総ページ: ${data.memory_policy.processed_pages}P / 問題抽出: ${data.memory_policy.problem_pages || data.memory_policy.processed_pages}P / 文字数: ${data.memory_policy.processed_chars}字）`;
       }
       document.getElementById("resSubjBadge").innerText = `${data.university} ｜ ${data.subject_label}`;
+      const unkBanner = document.getElementById("univUnknownBanner");
+      if (unkBanner) {
+        unkBanner.style.display = (data.univ_detected === false) ? "block" : "none";
+      }
 
       const lv = data.level_evaluation || {};
       const kpiGrid = document.getElementById("kpiGrid");
