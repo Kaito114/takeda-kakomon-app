@@ -482,6 +482,28 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
         problem_pages = [pt for pt in raw_page_texts if pt.strip()]
 
     full_problem_text = "\n\n".join(problem_pages)
+
+    scanned_page_images = []
+    if len(full_problem_text.strip()) < 40 and fitz is not None:
+        try:
+            import base64
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as doc_img:
+                for p_i, page in enumerate(doc_img):
+                    if len(scanned_page_images) >= 8:
+                        break
+                    pix = page.get_pixmap(dpi=120)
+                    if Image is not None:
+                        pil_im = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                        if sum(pil_im.convert("L").histogram()[:200]) < 1500:
+                            pil_im.close()
+                            continue
+                        pil_im.close()
+                    jpg_bytes = pix.tobytes("jpeg")
+                    scanned_page_images.append("data:image/jpeg;base64," + base64.b64encode(jpg_bytes).decode("ascii"))
+                    del pix
+        except Exception:
+            pass
+
     del raw_page_texts
     gc.collect()
 
@@ -490,7 +512,8 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
         "problem_page_count": len(problem_pages),
         "cover_text": cover_text,
         "full_text": full_problem_text,
-        "char_count": len(full_problem_text)
+        "char_count": len(full_problem_text),
+        "scanned_page_images": scanned_page_images
     }
 
 
@@ -1808,8 +1831,15 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
             extracted_meta["page_count"] = pdf_info["page_count"]
             extracted_meta["problem_page_count"] = pdf_info.get("problem_page_count", pdf_info["page_count"])
             extracted_meta["char_count"] = pdf_info["char_count"]
+            scanned_imgs = pdf_info.get("scanned_page_images", [])
             del pdf_bytes
             del pdf_info
+            if len(text_to_analyze.strip()) < 40 and scanned_imgs:
+                return {
+                    "needs_client_ocr": True,
+                    "scanned_page_images": scanned_imgs,
+                    "page_count": extracted_meta["page_count"]
+                }
         else:
             text_to_analyze = clean_ocr_japanese_spaces(raw_text or "")
             extracted_meta["char_count"] = len(text_to_analyze)
