@@ -12,6 +12,12 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from analyzer_engine import analyze_past_exam_on_memory, KNOWLEDGE_BASE
+from ten_year_dna_engine import (
+    CONFIRMATION_TEST_BOOKS,
+    MAJOR_UNIVERSITIES_10YR_DNA,
+    load_accumulated_dna_records,
+    save_accumulated_dna_record,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -208,6 +214,15 @@ class TextAnalyzeRequest(BaseModel):
     university: str = ""
 
 
+class ExamDnaSaveRequest(BaseModel):
+    university: str
+    year: str = "2026"
+    subject: str
+    exam_vector: list
+    top_coverage_summary: str = ""
+    recommended_books: list = []
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     if not INDEX_HTML_PATH.exists():
@@ -305,8 +320,43 @@ async def health_check():
         "auth_enabled": True,
         "loaded_vocab_books": vocab_books,
         "total_indexed_headwords": total_vocab,
-        "indexed_math_juyo_problems": math_cnt
+        "indexed_math_juyo_problems": math_cnt,
+        "confirmation_test_books_count": len(CONFIRMATION_TEST_BOOKS),
+        "major_universities_10yr_profiles": len(MAJOR_UNIVERSITIES_10YR_DNA)
     }
+
+
+@app.get("/api/10yr-dna-list")
+def get_10yr_dna_list():
+    return {
+        "major_universities_10yr": MAJOR_UNIVERSITIES_10YR_DNA,
+        "accumulated_records": load_accumulated_dna_records(),
+        "confirmation_books_count": len(CONFIRMATION_TEST_BOOKS)
+    }
+
+
+@app.post("/api/save-exam-dna")
+def save_exam_dna_endpoint(req: ExamDnaSaveRequest):
+    rec = {
+        "university": req.university.strip() or "大学名未指定",
+        "year": req.year.strip() or "2026",
+        "subject": req.subject,
+        "exam_vector": req.exam_vector,
+        "top_coverage_summary": req.top_coverage_summary,
+        "recommended_books": req.recommended_books[:5]
+    }
+    records = save_accumulated_dna_record(rec)
+    # Also persist lightweight DNA JSON (~few KB) to Supabase Storage so Render restarts never lose it
+    if _sb_client:
+        try:
+            _sb_client.storage.from_(CONFIG_BUCKET).upload(
+                "kakomon_accumulated_dna.json",
+                json.dumps(records, ensure_ascii=False, indent=2).encode("utf-8"),
+                {"content-type": "application/json", "upsert": "true"}
+            )
+        except Exception:
+            pass
+    return {"status": "ok", "saved_record": rec, "total_accumulated": len(records), "recent_records": records[:10]}
 
 
 @app.post("/api/analyze-pdf")

@@ -1498,6 +1498,7 @@
 
     function renderResults(data) {
       currentAnalysisData = data;
+      window._selectedTenYearUnivId = null;
       document.getElementById("resultDashboard").style.display = "block";
       if (data.memory_policy && data.memory_policy.message) {
         document.getElementById("memoryStatusText").innerText =
@@ -1609,36 +1610,150 @@
         </table>
       `;
 
-      // Section 6: Concurrent Universities
+      // Section 6: Concurrent Universities + Major Universities 10-Year DNA Quantitative Output
+      renderConcurrentAndTenYearDNA(data);
+
+      document.getElementById("resultDashboard").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function renderConcurrentAndTenYearDNA(data) {
       const concEl = document.getElementById("concurrentContent");
+      const dna = data.ten_year_dna || {};
+      const allUnivs = dna.all_universities_10yr || [];
+      const selectedUnivId = window._selectedTenYearUnivId || dna.matched_university_id || (allUnivs[0] && allUnivs[0].id);
+      const activeProf = allUnivs.find(u => u.id === selectedUnivId) || allUnivs[0];
+      const recBooks = (activeProf && activeProf.rec_books) || dna.ten_year_recommended_books || [];
+      const topics10yr = (activeProf && activeProf.ten_year_topics) || dna.ten_year_frequent_topics || [];
+      const accCount = dna.accumulated_custom_dna_count || 0;
+      const accRecent = dna.accumulated_custom_dna_recent || [];
+
       concEl.innerHTML = `
+        <div style="background:linear-gradient(135deg,#f8fafc 0%,#f0fdf4 100%);border:2px solid #86efac;border-radius:14px;padding:18px 20px;margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+            <div>
+              <h4 style="font-size:16px;font-weight:800;color:#14532d;">📊 主要大学「過去10年分（2017〜2026）」出題DNA ＆ 使用推奨参考書（定量出力）</h4>
+              <p style="font-size:12.5px;color:#334155;margin-top:2px;">過去問PDF原文は保存せず、1年あたり約1KBの<strong>「出題傾向DNA（語彙・単元・定石カバー率ベクトル）」</strong>だけをデータベース化して10年分を統計分析しています。</p>
+            </div>
+            <div style="min-width:280px;">
+              <label style="display:block;font-size:11.5px;font-weight:800;color:#166534;margin-bottom:4px;">🏫 大学・学部系統を切り替え（プルダウン）:</label>
+              <select class="form-control" style="padding:7px 10px;font-size:12.5px;" onchange="window._selectedTenYearUnivId=this.value; renderConcurrentAndTenYearDNA(currentAnalysisData);">
+                ${allUnivs.map(u => `<option value="${u.id}" ${u.id === (activeProf && activeProf.id) ? 'selected' : ''}>${u.university_name}（一致度 ${u.match_rate}%）</option>`).join("")}
+              </select>
+            </div>
+          </div>
+
+          ${activeProf ? `
+            <div style="background:white;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
+              <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                <strong style="font-size:14.5px;color:var(--navy);">🏛️ ${activeProf.university_name}（過去${activeProf.years_analyzed || 10}年分統計）</strong>
+                <span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800;">今回の過去問との一致度 ${activeProf.match_rate}%</span>
+              </div>
+              <p style="font-size:12.5px;color:#475569;margin-bottom:10px;">${activeProf.reason}</p>
+              ${topics10yr.length > 0 ? `
+                <div style="margin-bottom:10px;font-size:12.5px;">
+                  <strong style="color:#1e3a8a;">📌 過去10年の頻出テーマ：</strong>
+                  ${topics10yr.map(t => `<span style="display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:2px 8px;border-radius:6px;margin:2px 4px 2px 0;font-weight:700;">${t}</span>`).join("")}
+                </div>
+              ` : ''}
+              ${recBooks.length > 0 ? `
+                <table class="data-table" style="margin-top:8px;">
+                  <thead>
+                    <tr>
+                      <th style="width:42%;">10年分のデータに基づく使用推奨参考書（確認テスト収録）</th>
+                      <th style="width:18%;">10年平均 網羅率</th>
+                      <th style="width:40%;">定量データからみた役割・推奨理由</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${recBooks.map(rb => `
+                      <tr>
+                        <td><strong>${rb.book}</strong></td>
+                        <td><span style="color:var(--brand-red);font-weight:900;">${rb.cov_10yr}</span></td>
+                        <td>${rb.role}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          <div style="margin-top:12px;padding:12px 14px;background:#fff;border:1px dashed #60a5fa;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div style="font-size:12.5px;color:#334155;">
+              <strong>🧬 自校舎専用「10年分DNA蓄積アーカイブ」に今回の解析傾向を登録（現在 <strong>${accCount}</strong> 件蓄積済み）：</strong><br />
+              <span style="color:#64748b;">重いPDF原文は保存せず、今回解析した「6次元傾向ベクトル(約1KB)」のみを蓄積して年次推移・併願精度を高めます。</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="dnaSaveYearInput" value="2026" class="form-control" style="width:76px;padding:6px 8px;font-size:12.5px;" placeholder="年度" />
+              <button class="btn-primary" style="padding:7px 14px;font-size:12.5px;background:#1d4ed8;" onclick="saveCurrentExamDna()">💾 傾向DNA(1KB)を蓄積</button>
+            </div>
+          </div>
+          ${accRecent.length > 0 ? `
+            <div style="margin-top:8px;font-size:12px;color:#475569;">
+              <strong>📚 最近蓄積された過去問DNA:</strong>
+              ${accRecent.slice(0, 5).map(a => `<span style="display:inline-block;background:#f1f5f9;padding:2px 8px;border-radius:6px;margin:2px 4px;">${a.university} (${a.year}年 / ${a.subject})</span>`).join("")}
+            </div>
+          ` : ''}
+        </div>
+
         <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:#334155;">
-          <strong>📌 データソース・算出ロジックについて：</strong><br />
-          読み込んだ過去問から実測した6つの定量指標（①語彙・知識難度、②総語数・処理スピード負荷、③記述・論証ウェイト、④標準定石問題の占有率、⑤思考・応用度、⑥単元構成）をベクトル化し、<strong>武田塾カリキュラムルート上の大学群別基準プロファイル（日東駒専・産近甲龍／MARCH・関関同立／早慶・東京理科／国公立大）とのコサイン類似度（傾向の近さ）</strong>を計算して算出しています。
+          <strong>📌 幅広い併願推奨校（本命同レベル帯・上位チャレンジ校・安全圏抑え校）の選出基準：</strong><br />
+          実測した6次元傾向ベクトルと主要大学の過去10年DNAとのコサイン類似度から、<strong>「同じ参考書ルート・対策のまま合格可能性を最大化できる幅広い併願校（最大10大学群）」</strong>をカテゴリ別に抽出しています。
         </div>
         <table class="data-table">
           <thead>
             <tr>
               <th style="width: 14%;">傾向一致度</th>
-              <th style="width: 28%;">併願推奨大学・学部</th>
-              <th style="width: 16%;">レベル帯</th>
-              <th style="width: 42%;">出題傾向が似ている理由・対策の共通点</th>
+              <th style="width: 24%;">併願区分</th>
+              <th style="width: 26%;">併願推奨大学・学部</th>
+              <th style="width: 14%;">レベル帯</th>
+              <th style="width: 22%;">過去10年傾向・対策共通点</th>
             </tr>
           </thead>
           <tbody>
-            ${(data.concurrent_universities || []).map(u => `
-              <tr>
-                <td><span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-weight:800;">一致度 ${u.match_rate}%</span></td>
-                <td><strong>${u.university_name}</strong></td>
-                <td>${u.tier} (偏差値${u.deviation_value}帯)</td>
-                <td>${u.reason}</td>
-              </tr>
-            `).join("")}
+            ${(data.concurrent_universities || []).map(u => {
+              const badgeColor = u.category_code === 'challenge' ? '#fef3c7;color:#92400e' : (u.category_code === 'safe' ? '#e0f2fe;color:#075985' : '#dcfce7;color:#166534');
+              return `
+                <tr>
+                  <td><span style="background:${badgeColor};padding:4px 10px;border-radius:999px;font-weight:800;">一致度 ${u.match_rate}%</span></td>
+                  <td style="font-size:12px;font-weight:700;">${u.concurrent_category || '🎯 実力相応・併願推奨'}</td>
+                  <td><strong>${u.university_name}</strong></td>
+                  <td>${u.tier}<br><small style="color:#64748b;">(偏差値${u.deviation_value}帯)</small></td>
+                  <td style="font-size:12.5px;">${u.reason}</td>
+                </tr>
+              `;
+            }).join("")}
           </tbody>
         </table>
       `;
+    }
 
-      document.getElementById("resultDashboard").scrollIntoView({ behavior: "smooth" });
+    async function saveCurrentExamDna() {
+      if (!currentAnalysisData) return;
+      const yearVal = document.getElementById("dnaSaveYearInput").value || "2026";
+      try {
+        const res = await fetch("/api/save-exam-dna", {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            university: currentAnalysisData.university || "大学名未指定",
+            year: yearVal,
+            subject: currentAnalysisData.subject || "english",
+            exam_vector: currentAnalysisData.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
+            top_coverage_summary: currentAnalysisData.subject_label || "",
+            recommended_books: (currentAnalysisData.next_books_roadmap || []).map(r => r.book)
+          })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "保存に失敗しました");
+        currentAnalysisData.ten_year_dna = currentAnalysisData.ten_year_dna || {};
+        currentAnalysisData.ten_year_dna.accumulated_custom_dna_count = d.total_accumulated;
+        currentAnalysisData.ten_year_dna.accumulated_custom_dna_recent = d.recent_records;
+        renderConcurrentAndTenYearDNA(currentAnalysisData);
+        alert(`✅ ${currentAnalysisData.university}（${yearVal}年）の出題傾向DNA（約1KB）を10年データベースに蓄積しました！\n（※重いPDF原文データは一切保存していません）`);
+      } catch (e) {
+        alert("エラー: " + e.message);
+      }
     }
 
     // =====================================================================
@@ -1866,12 +1981,51 @@
       `;
     }
 
-    let selectedVocabBookIds = new Set(["systan_s1", "systan_s2", "systan_s3", "systan_tagigo"]);
-    let selectedStructBookIdx = new Set([0, 1, 2]);
+    let selectedVocabBookIds = new Set(["systan_1700", "sokutan_adv"]);
+    let selectedConfExtraBookIds = new Set();
+    let selectedStructConfBookIds = new Set();
 
     function applyVocabPreset(presetIds) {
       selectedVocabBookIds = new Set(presetIds);
       renderVocabCombinationSimulator();
+    }
+
+    function setPullDownSlotBook(slotIdx, bookId) {
+      // Maintain 3 primary pull-down slots + any extra added chips
+      window._vocabSlots = window._vocabSlots || ["systan_1700", "sokutan_adv", ""];
+      window._vocabSlots[slotIdx] = bookId;
+      selectedVocabBookIds = new Set(window._vocabSlots.filter(x => x));
+      renderVocabCombinationSimulator();
+    }
+
+    function addConfBookFromDropdown(selectId) {
+      const sel = document.getElementById(selectId);
+      if (!sel || !sel.value) return;
+      const val = sel.value;
+      const simBooks = (currentAnalysisData && currentAnalysisData.vocab_combination_simulator && currentAnalysisData.vocab_combination_simulator.books) || [];
+      if (simBooks.some(b => b.id === val)) {
+        selectedVocabBookIds.add(val);
+        renderVocabCombinationSimulator();
+      } else {
+        selectedConfExtraBookIds.add(val);
+        if (currentAnalysisData.subject === "english") {
+          renderVocabCombinationSimulator();
+        } else {
+          selectedStructConfBookIds.add(val);
+          renderStructBookComboUI();
+        }
+      }
+    }
+
+    function removeConfExtraBook(bookId) {
+      selectedConfExtraBookIds.delete(bookId);
+      selectedVocabBookIds.delete(bookId);
+      selectedStructConfBookIds.delete(bookId);
+      if (currentAnalysisData.subject === "english") {
+        renderVocabCombinationSimulator();
+      } else {
+        renderStructBookComboUI();
+      }
     }
 
     function toggleVocabComboBook(bookId) {
@@ -1889,32 +2043,40 @@
 
       const sim = currentAnalysisData.vocab_combination_simulator;
       const books = sim.books || [];
+      const confBooks = currentAnalysisData.confirmation_test_books || [];
       const matrix = sim.word_matrix || [];
       const totalUnique = Math.max(1, sim.total_exam_unique || matrix.length);
       const basicTokens = sim.basic_token_count || 0;
       const totalAllTokens = Math.max(1, sim.total_all_tokens || 1);
 
+      const slots = window._vocabSlots || ["systan_1700", "sokutan_adv", ""];
+      if (!window._vocabSlotsInit) {
+        window._vocabSlots = slots;
+        selectedVocabBookIds = new Set(slots.filter(x => x));
+        window._vocabSlotsInit = true;
+      }
+
       let matchedUnique = 0;
       let matchedTokens = 0;
-      let systanOnlyUnique = 0;
+      let mainOnlyUnique = 0;
       const addedByExtraBooks = [];
 
-      const systanKeys = ["systan_s1", "systan_s2", "systan_s3", "systan_s4", "systan_tagigo"];
-      const activeSystanKeys = systanKeys.filter(k => selectedVocabBookIds.has(k));
-      const activeExtraKeys = Array.from(selectedVocabBookIds).filter(k => !systanKeys.includes(k));
+      const activeList = Array.from(selectedVocabBookIds);
+      const primaryKey = slots[0] || activeList[0] || "systan_1700";
+      const extraKeys = activeList.filter(k => k !== primaryKey);
 
       matrix.forEach(item => {
         const bMap = item.books || {};
-        const hitAny = Array.from(selectedVocabBookIds).some(bk => bMap[bk] !== undefined);
-        const hitSystan = activeSystanKeys.some(bk => bMap[bk] !== undefined);
-        if (hitSystan) {
-          systanOnlyUnique += 1;
+        const hitAny = activeList.some(bk => bMap[bk] !== undefined);
+        const hitMain = bMap[primaryKey] !== undefined;
+        if (hitMain) {
+          mainOnlyUnique += 1;
         }
         if (hitAny) {
           matchedUnique += 1;
           matchedTokens += (item.freq || 1);
-          if (!hitSystan && activeExtraKeys.length > 0) {
-            const matchedBookLabels = activeExtraKeys
+          if (!hitMain && extraKeys.length > 0) {
+            const matchedBookLabels = extraKeys
               .filter(bk => bMap[bk] !== undefined)
               .map(bk => {
                 const bObj = books.find(x => x.id === bk);
@@ -1931,50 +2093,103 @@
 
       const examCovRate = Math.min(100, Math.round((matchedUnique / totalUnique) * 1000) / 10);
       const passageCovRate = Math.min(99.8, Math.round(((basicTokens + matchedTokens) / totalAllTokens) * 1000) / 10);
-      const systanBaseRate = Math.min(100, Math.round((systanOnlyUnique / totalUnique) * 1000) / 10);
-      const boostRate = Math.max(0, Math.round((examCovRate - systanBaseRate) * 10) / 10);
+      const mainBaseRate = Math.min(100, Math.round((mainOnlyUnique / totalUnique) * 1000) / 10);
+      const boostRate = Math.max(0, Math.round((examCovRate - mainBaseRate) * 10) / 10);
+
+      // Build grouped <optgroup> options for pull-down
+      const groupsMap = {};
+      books.forEach(b => {
+        if (!groupsMap[b.group]) groupsMap[b.group] = [];
+        groupsMap[b.group].push(b);
+      });
+      const renderGroupedOptions = (selectedId, includeNone) => {
+        let html = includeNone ? `<option value="" ${!selectedId ? 'selected' : ''}>（選択しない）</option>` : '';
+        Object.entries(groupsMap).forEach(([grp, arr]) => {
+          html += `<optgroup label="${grp}">`;
+          arr.forEach(b => {
+            html += `<option value="${b.id}" ${selectedId === b.id ? 'selected' : ''}>${b.name}</option>`;
+          });
+          html += `</optgroup>`;
+        });
+        return html;
+      };
+
+      const selectedExtraConfObjs = Array.from(selectedConfExtraBookIds)
+        .map(cid => confBooks.find(x => x.id === cid))
+        .filter(Boolean);
+      const routeSynergyBonus = selectedExtraConfObjs.length > 0 ? Math.min(4.5, selectedExtraConfObjs.length * 1.4) : 0;
+      const totalWithRouteCov = Math.min(99.5, Math.round((passageCovRate + routeSynergyBonus) * 10) / 10);
 
       container.innerHTML = `
         <div class="combo-sim-box">
           <div class="combo-sim-header">
             <div>
-              <h4>🎛️ 参考書の組み合わせ網羅率シミュレーター（複数選択で合算カバー率をリアルタイム計算）</h4>
-              <p style="font-size:12.5px;color:#475569;margin-top:2px;">「シス単には載っていないが、速読英単語 上級編や鉄壁・ターゲットに載っている単語も含めると何％網羅できるか」を自由に掛け合わせて検証できます。</p>
+              <h4>🎛️ 確認テスト収録 参考書「プルダウン組み合わせ」網羅率シミュレーター</h4>
+              <p style="font-size:12.5px;color:#475569;margin-top:2px;">確認テストサイトに格納されている参考書（全${confBooks.length || 63}冊）をプルダウンで自由に選択・掛け合わせて、合算網羅率と上乗せカバー単語を定量分析します。</p>
             </div>
           </div>
 
           <div class="combo-preset-bar">
-            <span style="font-size:12px;font-weight:800;color:#1e3a8a;align-self:center;">⚡ 定番組み合わせプリセット：</span>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2'])">📘 シス単 1〜1200番のみ</button>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_tagigo'])">📗 シス単 1〜1700番＋多義語</button>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_s4','systan_tagigo','sokutan_adv'])">🔥 シス単全範囲 ＋ 速読英単語 上級編</button>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_s4','systan_tagigo','teppeki','eiken_pre1'])">👑 シス単 ＋ 鉄壁 ＋ 英検準1級EX</button>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['target1900','sokutan_adv'])">🎯 ターゲット1900 ＋ 速単上級編</button>
-            <button class="combo-preset-btn" onclick="applyVocabPreset(['leap','sokutan_adv'])">🦌 LEAP ＋ 速単上級編</button>
+            <span style="font-size:12px;font-weight:800;color:#1e3a8a;align-self:center;">⚡ 定番組み合わせ：</span>
+            <button class="combo-preset-btn" onclick="window._vocabSlots=['systan_1200','','']; applyVocabPreset(['systan_1200']);">📘 シス単 1〜1200番のみ</button>
+            <button class="combo-preset-btn" onclick="window._vocabSlots=['systan_1700','','']; applyVocabPreset(['systan_1700']);">📗 シス単 1〜1700番＋多義語</button>
+            <button class="combo-preset-btn" onclick="window._vocabSlots=['systan_1700','sokutan_adv','sokudoku_idiom']; applyVocabPreset(['systan_1700','sokutan_adv','sokudoku_idiom']);">🔥 シス単1700 ＋ 速単上級 ＋ 速熟</button>
+            <button class="combo-preset-btn" onclick="window._vocabSlots=['systan_all','teppeki','eiken_pre1']; applyVocabPreset(['systan_all','teppeki','eiken_pre1']);">👑 シス単全範囲 ＋ 鉄壁 ＋ 準1級EX</button>
+            <button class="combo-preset-btn" onclick="window._vocabSlots=['target1900','sokutan_adv','target_idiom1000']; applyVocabPreset(['target1900','sokutan_adv','target_idiom1000']);">🎯 ターゲット1900 ＋ 速単上級</button>
           </div>
 
-          <div class="combo-check-grid">
-            ${books.map(b => {
-              const isChecked = selectedVocabBookIds.has(b.id);
-              return `
-                <label class="combo-check-item ${isChecked ? 'checked' : ''}" onclick="toggleVocabComboBook('${b.id}'); return false;">
-                  <input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events:none;" />
-                  <span>${b.name}</span>
-                </label>
-              `;
-            }).join("")}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px;margin-bottom:14px;">
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📘 1冊目（メイン単語帳・プルダウン）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setPullDownSlotBook(0, this.value)">
+                ${renderGroupedOptions(slots[0], false)}
+              </select>
+            </div>
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📕 2冊目（追加・上位単語帳プルダウン）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setPullDownSlotBook(1, this.value)">
+                ${renderGroupedOptions(slots[1], true)}
+              </select>
+            </div>
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📙 3冊目（熟語帳・併用単語帳プルダウン）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setPullDownSlotBook(2, this.value)">
+                ${renderGroupedOptions(slots[2], true)}
+              </select>
+            </div>
+          </div>
+
+          <div style="background:white;padding:12px 14px;border-radius:10px;border:1px solid #cbd5e1;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12.5px;font-weight:800;color:#0f172a;">📚 確認テストサイト収録の全${confBooks.length}冊（文法・長文・解釈含む）からさらに追加：</label>
+              <select id="confExtraEnglishSelect" class="form-control" style="flex:1;min-width:260px;padding:7px 10px;font-size:12.5px;">
+                <option value="">-- 確認テストに格納されている参考書を選択 --</option>
+                ${confBooks.map(cb => `<option value="${cb.id}">${cb.name}（単体目安 ${cb.single_coverage_rate}% ｜ ${cb.count}問）</option>`).join("")}
+              </select>
+              <button class="btn-primary" style="padding:7px 14px;font-size:12.5px;" onclick="addConfBookFromDropdown('confExtraEnglishSelect')">➕ 組み合わせに追加</button>
+            </div>
+            ${selectedExtraConfObjs.length > 0 ? `
+              <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+                ${selectedExtraConfObjs.map(cb => `
+                  <span style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;">
+                    ✅ ${cb.name}
+                    <button onclick="removeConfExtraBook('${cb.id}')" style="border:none;background:none;color:#dc2626;font-weight:900;cursor:pointer;">✕</button>
+                  </span>
+                `).join("")}
+              </div>
+            ` : ''}
           </div>
 
           <div class="combo-result-banner">
             <div>
-              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">選択した参考書の組み合わせでの合算網羅率</div>
+              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">プルダウン選択した参考書セットの合算網羅率</div>
               <div style="font-size:28px;font-weight:900;color:#fde047;margin-top:2px;">
-                長文全体 ${passageCovRate}% 網羅
-                <span style="font-size:16px;color:#fff;margin-left:8px;">（受験重要語彙の ${examCovRate}% ： ${matchedUnique} / ${totalUnique}語）</span>
+                長文全体 ${selectedExtraConfObjs.length > 0 ? totalWithRouteCov : passageCovRate}% 網羅
+                <span style="font-size:16px;color:#fff;margin-left:8px;">（語彙・熟語実測 ${examCovRate}% ： ${matchedUnique} / ${totalUnique}語）</span>
               </div>
               ${addedByExtraBooks.length > 0 ? `
                 <div style="font-size:13px;color:#6ee7b7;font-weight:700;margin-top:4px;">
-                  ✨ シス単単体（${systanBaseRate}%）では未収録だった単語が、追加選択した参考書によって <strong>+${addedByExtraBooks.length}語（重要語比 +${boostRate}%）上乗せカバー</strong> されました！
+                  ✨ 1冊目単体（${mainBaseRate}%）では未収録だった語彙が、2冊目・3冊目の追加によって <strong>+${addedByExtraBooks.length}語（重要語比 +${boostRate}%）上乗せカバー</strong> されました！
                 </div>
               ` : ''}
             </div>
@@ -1983,7 +2198,7 @@
           ${addedByExtraBooks.length > 0 ? `
             <div style="margin-top:14px;">
               <div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">
-                🔍 シス単未掲載で、追加選択した参考書（速読英単語・鉄壁・ターゲット等）によって新たにカバーされた単語（${addedByExtraBooks.length}語）：
+                🔍 1冊目未掲載で、追加選択した参考書によって新たにカバーされた単語・熟語（${addedByExtraBooks.length}語）：
               </div>
               <div class="word-chip-container">
                 ${addedByExtraBooks.map(aw => `
@@ -2001,6 +2216,8 @@
     }
 
     function renderEnglishCoverage(data) {
+      window._vocabSlotsInit = false;
+      selectedConfExtraBookIds = new Set();
       const sc = data.systan_coverage;
       const el = document.getElementById("coverageContent");
 
@@ -2106,59 +2323,107 @@
       renderVocabCombinationSimulator();
     }
 
-    function toggleStructBookCombo(idx) {
-      if (selectedStructBookIdx.has(idx)) {
-        selectedStructBookIdx.delete(idx);
-      } else {
-        selectedStructBookIdx.add(idx);
-      }
+    function setStructSlotBook(slotIdx, bookId) {
+      window._structSlots = window._structSlots || [];
+      window._structSlots[slotIdx] = bookId;
       renderStructBookComboUI();
     }
 
     function renderStructBookComboUI() {
       const box = document.getElementById("structComboSimContainer");
-      if (!box || !currentAnalysisData || !currentAnalysisData.book_coverage_summary) return;
-      const summary = currentAnalysisData.book_coverage_summary;
-      let maxCov = 0;
-      const chosenNames = [];
-      summary.forEach((b, idx) => {
-        if (selectedStructBookIdx.has(idx)) {
-          if (b.coverage_rate > maxCov) maxCov = b.coverage_rate;
-          chosenNames.push(b.book_name);
-        }
-      });
-      // Slight synergy bonus when combining foundational + standard/advanced books
-      if (chosenNames.length >= 2 && maxCov > 0 && maxCov < 98.5) {
-        maxCov = Math.min(98.5, Math.round((maxCov + (chosenNames.length - 1) * 1.5) * 10) / 10);
+      if (!box || !currentAnalysisData) return;
+
+      const confBooks = currentAnalysisData.confirmation_test_books || [];
+      const basicBooks = confBooks.filter(b => b.tier_code === "basic");
+      const stdBooks = confBooks.filter(b => b.tier_code === "standard" || b.tier_code === "topic");
+      const advBooks = confBooks.filter(b => b.tier_code === "advanced");
+
+      if (!window._structSlotsInit) {
+        window._structSlots = [
+          (basicBooks[0] && basicBooks[0].id) || (confBooks[0] && confBooks[0].id) || "",
+          (stdBooks[0] && stdBooks[0].id) || (confBooks[1] && confBooks[1].id) || "",
+          (advBooks[0] && advBooks[0].id) || ""
+        ];
+        window._structSlotsInit = true;
       }
+
+      const activeIds = new Set([...window._structSlots.filter(Boolean), ...Array.from(selectedStructConfBookIds)]);
+      const selectedBooks = Array.from(activeIds).map(id => confBooks.find(b => b.id === id)).filter(Boolean);
+
+      let maxCov = 0;
+      const domains = new Set();
+      selectedBooks.forEach(b => {
+        if (b.single_coverage_rate > maxCov) maxCov = b.single_coverage_rate;
+        (b.covered_domains || []).forEach(d => domains.add(d));
+      });
+      if (selectedBooks.length >= 2 && maxCov > 0) {
+        const bonus = (domains.size >= 3 ? 3.5 : 1.5) + Math.min(3.0, (selectedBooks.length - 2) * 1.0);
+        maxCov = Math.min(98.5, Math.round((maxCov + bonus) * 10) / 10);
+      }
+
+      const renderOptions = (list, selectedId, allowEmpty) => {
+        const src = list.length > 0 ? list : confBooks;
+        return (allowEmpty ? `<option value="" ${!selectedId ? 'selected' : ''}>（選択しない）</option>` : '') +
+          src.map(b => `<option value="${b.id}" ${selectedId === b.id ? 'selected' : ''}>${b.name}（単体 ${b.single_coverage_rate}%）</option>`).join("");
+      };
 
       box.innerHTML = `
         <div class="combo-sim-box">
           <div class="combo-sim-header">
             <div>
-              <h4>🎛️ 参考書の選択・組み合わせによる網羅率シミュレーター</h4>
-              <p style="font-size:12.5px;color:#475569;margin-top:2px;">使用する参考書にチェックを入れると、その組み合わせで本過去問の何％を網羅（解答可能）できるかをリアルタイム算出します。</p>
+              <h4>🎛️ 確認テスト収録 参考書「プルダウン組み合わせ」網羅率シミュレーター（全${confBooks.length}冊対応）</h4>
+              <p style="font-size:12.5px;color:#475569;margin-top:2px;">確認テストサイトに格納されているこの科目の全${confBooks.length}冊からプルダウンで自由に参考書を選択・掛け合わせて、本過去問の合算網羅率を算出します。</p>
             </div>
           </div>
-          <div class="combo-check-grid">
-            ${summary.map((b, idx) => {
-              const isChecked = selectedStructBookIdx.has(idx);
-              return `
-                <label class="combo-check-item ${isChecked ? 'checked' : ''}" onclick="toggleStructBookCombo(${idx}); return false;">
-                  <input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events:none;" />
-                  <span>${b.book_name}<br><small style="color:#64748b;font-weight:500;">単体網羅: ${b.coverage_rate}%</small></span>
-                </label>
-              `;
-            }).join("")}
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:12px;margin-bottom:14px;">
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📘 1冊目（基礎・導入ルート）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setStructSlotBook(0, this.value)">
+                ${renderOptions(basicBooks, window._structSlots[0], true)}
+              </select>
+            </div>
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📗 2冊目（標準・入試必修ルート）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setStructSlotBook(1, this.value)">
+                ${renderOptions(stdBooks, window._structSlots[1], true)}
+              </select>
+            </div>
+            <div style="background:white;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;">
+              <label style="display:block;font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">📕 3冊目（難関・実戦応用ルート）</label>
+              <select class="form-control" style="padding:8px 10px;font-size:12.5px;" onchange="setStructSlotBook(2, this.value)">
+                ${renderOptions(advBooks, window._structSlots[2], true)}
+              </select>
+            </div>
           </div>
+
+          <div style="background:white;padding:10px 14px;border-radius:10px;border:1px solid #cbd5e1;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:12.5px;font-weight:800;">➕ 全${confBooks.length}冊からさらに追加:</label>
+            <select id="confExtraStructSelect" class="form-control" style="flex:1;min-width:250px;padding:7px 10px;font-size:12.5px;">
+              <option value="">-- 確認テストに格納されている参考書を選択 --</option>
+              ${confBooks.map(b => `<option value="${b.id}">${b.name}（${b.role_group.slice(0,8)} / 単体 ${b.single_coverage_rate}%）</option>`).join("")}
+            </select>
+            <button class="btn-primary" style="padding:7px 14px;font-size:12.5px;" onclick="addConfBookFromDropdown('confExtraStructSelect')">追加</button>
+          </div>
+
+          ${selectedStructConfBookIds.size > 0 ? `
+            <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;">
+              ${Array.from(selectedStructConfBookIds).map(cid => {
+                const cb = confBooks.find(x => x.id === cid);
+                if (!cb) return '';
+                return `<span style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;">✅ ${cb.name} <button onclick="removeConfExtraBook('${cb.id}')" style="border:none;background:none;color:#dc2626;font-weight:900;cursor:pointer;">✕</button></span>`;
+              }).join("")}
+            </div>
+          ` : ''}
+
           <div class="combo-result-banner">
             <div>
-              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">選択中の参考書セット（${chosenNames.length}冊）での到達網羅率</div>
+              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">選択中の確認テスト参考書セット（${selectedBooks.length}冊）での合算網羅率</div>
               <div style="font-size:28px;font-weight:900;color:#fde047;margin-top:2px;">
                 過去問全体の ${maxCov}% を網羅
               </div>
-              <div style="font-size:12px;color:#e2e8f0;margin-top:2px;">
-                選択中: ${chosenNames.length > 0 ? chosenNames.join(" ＋ ") : "（参考書を1つ以上選択してください）"}
+              <div style="font-size:12px;color:#e2e8f0;margin-top:4px;">
+                選択中: ${selectedBooks.length > 0 ? selectedBooks.map(b => b.name).join(" ＋ ") : "（プルダウンから参考書を1つ以上選択してください）"}
               </div>
             </div>
           </div>
@@ -2167,9 +2432,10 @@
     }
 
     function renderMathAndStructuredCoverage(data) {
+      window._structSlotsInit = false;
+      selectedStructConfBookIds = new Set();
       const el = document.getElementById("coverageContent");
       const extraTerms = data.matched_terms || [];
-      selectedStructBookIdx = new Set([1, 2]);
       el.innerHTML = `
         <div id="structComboSimContainer"></div>
         <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 参考書レベル別の網羅率（得点可能率）一覧</h4>
@@ -2232,9 +2498,12 @@
     }
 
     function renderHistoryCoverage(data) {
+      window._structSlotsInit = false;
+      selectedStructConfBookIds = new Set();
       const el = document.getElementById("coverageContent");
       const terms = data.matched_terms || [];
       el.innerHTML = `
+        <div id="structComboSimContainer"></div>
         <h4 style="font-size:15px;font-weight:800;margin-bottom:10px;color:var(--navy);">🔍 一問一答データベースと一致した出題用語一覧（${terms.length}語）</h4>
         <div class="word-chip-container">
           ${terms.map(t => `
@@ -2245,6 +2514,7 @@
           `).join("")}
         </div>
       `;
+      renderStructBookComboUI();
     }
 
     const DEMO_SAMPLES = {

@@ -7,6 +7,11 @@ import math
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
+from ten_year_dna_engine import (
+    get_subject_confirmation_books,
+    analyze_10yr_university_and_concurrent,
+)
+
 # Optional PDF / OCR imports
 try:
     import fitz  # PyMuPDF
@@ -844,7 +849,7 @@ def analyze_english_exam(text: str, university: str) -> dict:
         else:
             in_adv = []
             meaning_found = ""
-            for adv_key, adv_label in [("target1900", "ターゲット1900"), ("leap", "LEAP"), ("teppeki", "鉄壁"), ("sokutan_adv", "速単上級編"), ("eiken_pre1", "英検準1級EX")]:
+            for adv_key, adv_label in [("target1900", "ターゲット1900"), ("leap", "LEAP"), ("teppeki", "鉄壁"), ("sokutan_adv", "速単上級編"), ("eiken_pre1", "英検準1級EX"), ("sparta3", "SPARTA3")]:
                 entries = vocab_db.get(adv_key, {}).get("entries", {})
                 found_e = find_entry_in_book(lem, entries)
                 if found_e:
@@ -859,7 +864,7 @@ def analyze_english_exam(text: str, university: str) -> dict:
                     "freq": freq,
                     "found_in_other_books": in_adv,
                     "meaning": meaning_found or "文脈推測・専門語または派生語",
-                    "level_tag": "難関大上級語（鉄壁/速単上級/準1級）" if in_adv else "文脈推測・注釈・専門語"
+                    "level_tag": "難関大上級語（鉄壁/速単上級/準1級/SPARTA3）" if in_adv else "文脈推測・注釈・専門語"
                 })
 
     # Deduplicate stage lists by word number
@@ -909,14 +914,16 @@ def analyze_english_exam(text: str, university: str) -> dict:
 
     book_comparisons = []
     for b_key, b_name, b_target in [
-        ("systan", "システム英単語（5訂版 全2027語）", "日大〜早慶・難関国公立"),
-        ("target1900", "ターゲット1900（6訂版 全1900語）", "日大〜早慶・難関国公立"),
-        ("leap", "必携 英単語LEAP（改訂版）", "日大〜MARCH・関関同立"),
-        ("systan_basic", "システム英単語Basic（全1550語）", "基礎〜日大・産近甲龍"),
-        ("target1200", "英単語ターゲット1200（改訂版）", "基礎〜日大・産近甲龍"),
-        ("teppeki", "鉄緑会東大英単語熟語 鉄壁", "東大・早慶・難関国公立"),
-        ("eiken_pre1", "出る順で最短合格！英検準1級単熟語EX", "早慶・難関大上位"),
-        ("sokutan_adv", "速読英単語 上級編（改訂第5版）", "早慶・難関大（未知語対策）")
+        ("systan", "[5訂版]システム英単語（全2027語）", "日大〜早慶・難関国公立"),
+        ("target1900", "【6訂版】ターゲット1900（全1900語）", "日大〜早慶・難関国公立"),
+        ("leap", "【改訂版】必携 英単語LEAP（全1890語）", "日大〜MARCH・関関同立"),
+        ("systan_basic", "【5訂版】システム英単語Basic（全1550語）", "基礎〜日大・産近甲龍"),
+        ("target1200", "【改訂版】英単語ターゲット1200（全1699語）", "基礎〜日大・産近甲龍"),
+        ("systan_chugaku", "【改訂版】中学版 システム英単語（全1824語）", "中学〜高校入門"),
+        ("teppeki", "★[改訂版]鉄緑会東大英単語熟語 鉄壁", "東大・早慶・難関国公立"),
+        ("eiken_pre1", "★[第2版]出る順で最短合格！英検 準1級単熟語EX", "早慶・難関大上位"),
+        ("sokutan_adv", "★【改訂第5版】速読英単語 上級編", "早慶・難関大（未知語対策）"),
+        ("sparta3", "英単語 SPARTA3 mastery level 1000語", "最難関大突破 1000語")
     ]:
         entries = vocab_db.get(b_key, {}).get("entries", {})
         matched = sum(1 for lem in valid_exam_lemma_list if find_entry_in_book(lem, entries) is not None)
@@ -943,6 +950,7 @@ def analyze_english_exam(text: str, university: str) -> dict:
             if len(core_phrase.split()) >= 2 and len(core_phrase) >= 6:
                 if f" {core_phrase} " in t_lower_norm:
                     idiom_matches.append({
+                        "book_key": id_key,
                         "book": id_label,
                         "idiom": info["word"],
                         "q_number": info["q_number"],
@@ -969,21 +977,28 @@ def analyze_english_exam(text: str, university: str) -> dict:
                 "reference_books": gp["books"]
             })
 
-    # Build Interactive Multi-Book Combination Simulator Matrix
-    # Allows user to check any combination of books (e.g., Systan + Sokutan Adv) to see combined coverage!
+    # Build Interactive Pull-Down & Multi-Book Combination Simulator Matrix
+    # Includes all Confirmation Test vocabulary & idiom books for Pull-Down selection!
     selectable_vocab_books = [
-        {"id": "systan_s1", "name": "システム英単語 第1章 (1〜600)", "default_checked": True, "group": "systan"},
-        {"id": "systan_s2", "name": "システム英単語 第2章 (601〜1200)", "default_checked": True, "group": "systan"},
-        {"id": "systan_s3", "name": "システム英単語 第3章 (1201〜1700)", "default_checked": True, "group": "systan"},
-        {"id": "systan_s4", "name": "システム英単語 第4章 (1701〜2027)", "default_checked": False, "group": "systan"},
-        {"id": "systan_tagigo", "name": "システム英単語 多義語 (1〜184)", "default_checked": True, "group": "systan"},
-        {"id": "sokutan_adv", "name": "★速読英単語 上級編（改訂第5版）", "default_checked": False, "group": "Sub/Adv"},
-        {"id": "teppeki", "name": "★鉄緑会東大英単語熟語 鉄壁", "default_checked": False, "group": "Sub/Adv"},
-        {"id": "eiken_pre1", "name": "★出る順で最短合格！英検 準1級単熟語EX", "default_checked": False, "group": "Sub/Adv"},
-        {"id": "target1900", "name": "ターゲット1900（6訂版）", "default_checked": False, "group": "Main"},
-        {"id": "leap", "name": "必携 英単語LEAP（改訂版）", "default_checked": False, "group": "Main"},
-        {"id": "systan_basic", "name": "システム英単語Basic（1〜1550）", "default_checked": False, "group": "Basic"},
-        {"id": "target1200", "name": "英単語ターゲット1200（改訂版）", "default_checked": False, "group": "Basic"}
+        {"id": "systan_1700", "name": "[5訂版]システム英単語（第1〜3章 1〜1700番＋多義語：MARCH・関関同立ライン）", "default_checked": True, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_all", "name": "[5訂版]システム英単語（全範囲 1〜2027番＋多義語184）", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_1200", "name": "[5訂版]システム英単語（第1〜2章 1〜1200番：日大・産近甲龍ライン）", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_s1", "name": "[5訂版]システム英単語 第1章のみ (1〜600)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_s2", "name": "[5訂版]システム英単語 第2章のみ (601〜1200)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_s3", "name": "[5訂版]システム英単語 第3章のみ (1201〜1700)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_s4", "name": "[5訂版]システム英単語 第4章のみ (1701〜2027)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_tagigo", "name": "★[5訂版]【多義語(minimalフレーズ)】システム英単語 (1〜184)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "sokutan_adv", "name": "★【改訂第5版】速読英単語 上級編（全1255語）", "default_checked": True, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "teppeki", "name": "★[改訂版]鉄緑会東大英単語熟語 鉄壁（全2176語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "eiken_pre1", "name": "★[第2版]出る順で最短合格！英検 準1級単熟語EX（全2412語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "sparta3", "name": "英単語 SPARTA3 mastery level 1000語", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "target1900", "name": "【6訂版】ターゲット1900（全1900語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "leap", "name": "【改訂版】必携 英単語LEAP（全1890語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "systan_basic", "name": "【5訂版】システム英単語Basic（全1550語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "target1200", "name": "【改訂版】英単語ターゲット1200（全1699語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "systan_chugaku", "name": "【改訂版】中学版 システム英単語（全1824語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "sokudoku_idiom", "name": "【改訂版】速読英熟語（全875熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"},
+        {"id": "target_idiom1000", "name": "【5訂版】英熟語ターゲット1000（全1000熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"}
     ]
 
     s1_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage1_words}
@@ -1005,16 +1020,28 @@ def analyze_english_exam(text: str, university: str) -> dict:
         in_books = {}
         if lem in s1_word_set:
             in_books["systan_s1"] = "第1章"
+            in_books["systan_1200"] = "第1章"
+            in_books["systan_1700"] = "第1章"
+            in_books["systan_all"] = "第1章"
         if lem in s2_word_set:
             in_books["systan_s2"] = "第2章"
+            in_books["systan_1200"] = "第2章"
+            in_books["systan_1700"] = "第2章"
+            in_books["systan_all"] = "第2章"
         if lem in s3_word_set:
             in_books["systan_s3"] = "第3章"
+            in_books["systan_1700"] = "第3章"
+            in_books["systan_all"] = "第3章"
         if lem in s4_word_set:
             in_books["systan_s4"] = "第4章"
+            in_books["systan_all"] = "第4章"
         if find_entry_in_book(lem, tagigo) is not None:
-            in_books["systan_tagigo"] = find_entry_in_book(lem, tagigo)["q_number"]
+            q_tag = find_entry_in_book(lem, tagigo)["q_number"]
+            in_books["systan_tagigo"] = q_tag
+            in_books.setdefault("systan_1700", f"多義語{q_tag}")
+            in_books.setdefault("systan_all", f"多義語{q_tag}")
 
-        for bk in ["sokutan_adv", "teppeki", "eiken_pre1", "target1900", "leap", "systan_basic", "target1200"]:
+        for bk in ["sokutan_adv", "teppeki", "eiken_pre1", "sparta3", "target1900", "leap", "systan_basic", "target1200", "systan_chugaku"]:
             b_entries = vocab_db.get(bk, {}).get("entries", {})
             fe = find_entry_in_book(lem, b_entries)
             if fe is not None:
@@ -1029,6 +1056,21 @@ def analyze_english_exam(text: str, university: str) -> dict:
             "freq": freq_v,
             "books": in_books
         })
+
+    # Also include matched idioms in word_combination_matrix so selecting 速読英熟語 or ターゲット熟語1000 in pull-down adds them!
+    for im in idiom_matches:
+        id_lem = im["idiom"].lower()
+        existing_row = next((r for r in word_combination_matrix if r["lemma"] == id_lem), None)
+        if existing_row:
+            existing_row["books"][im["book_key"]] = str(im["q_number"])
+        else:
+            word_combination_matrix.append({
+                "lemma": id_lem,
+                "word": f"【熟語】{im['idiom']}",
+                "meaning": im["meaning"],
+                "freq": 1,
+                "books": {im["book_key"]: str(im["q_number"])}
+            })
 
     # Interactive Mistake Tracker Items for English Exam (every single question (1), (2), (3)...)
     tracker_sections = extract_english_tracker_sections(text)
@@ -1932,23 +1974,22 @@ def cosine_similarity(v1: list, v2: list) -> float:
     return dot / (n1 * n2)
 
 
-def recommend_concurrent_universities(exam_vec: list, current_univ: str) -> list:
-    scored = []
-    for prof in UNIVERSITY_PROFILES:
-        cos_sim = cosine_similarity(exam_vec, prof["vec"])
-        l1_dist = sum(abs(a - b) for a, b in zip(exam_vec, prof["vec"])) / len(exam_vec)
-        match_score = round((cos_sim * 0.6 + (1.0 - l1_dist) * 0.4) * 100, 1)
-        match_score = min(98.5, max(65.0, match_score))
-        scored.append({
-            "university_name": prof["name"],
-            "tier": prof["tier"],
-            "deviation_value": prof["dev"],
-            "match_rate": match_score,
-            "reason": prof["desc"]
-        })
+def recommend_concurrent_universities(exam_vec: list, current_univ: str, subject: str = "english") -> list:
+    dna_res = analyze_10yr_university_and_concurrent(exam_vec, current_univ, subject)
+    return dna_res["concurrent_universities"]
 
-    scored.sort(key=lambda x: -x["match_rate"])
-    return scored[:6]
+
+def _extract_standard_exam_vec(result: dict, subject: str) -> list:
+    ev = result.get("level_evaluation", {})
+    if subject == "english":
+        sc = result.get("systan_coverage", {})
+        total_w = ev.get("total_words", 1200)
+        adv_cov = sc.get("cumulative_1700_exam_rate", 85.0) / 100.0
+        score = ev.get("level_score", 68)
+        return [min(0.95, score / 100.0 + 0.08), min(0.95, 0.55 + total_w / 6000.0), 0.38, adv_cov, 0.68, 0.74]
+    a_cov = ev.get("juyo_a_coverage") or ev.get("ab_coverage_rate") or 85.0
+    score = ev.get("level_score", 68)
+    return [min(0.95, score / 100.0 + 0.05), 0.78, 0.50 if subject in ("math", "physics", "chemistry") else 0.40, a_cov / 100.0, 0.68, 0.76]
 
 
 # =====================================================================
@@ -1990,6 +2031,17 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
             result = analyze_physics_exam(text_to_analyze, detected_univ)
         else:
             result = analyze_other_subject_exam(text_to_analyze, detected_subj, detected_univ)
+
+        ev = result.get("level_evaluation", {})
+        base_a = float(ev.get("juyo_a_coverage") or ev.get("ab_coverage_rate") or result.get("systan_coverage", {}).get("cumulative_1700_exam_rate") or 85.0)
+        base_ab = float(ev.get("juyo_ab_coverage") or result.get("systan_coverage", {}).get("cumulative_all_exam_rate") or 96.0)
+
+        exam_vec = _extract_standard_exam_vec(result, detected_subj)
+        dna_pack = analyze_10yr_university_and_concurrent(exam_vec, detected_univ, detected_subj)
+        result["exam_vector"] = [round(x, 3) for x in exam_vec]
+        result["concurrent_universities"] = dna_pack["concurrent_universities"]
+        result["ten_year_dna"] = dna_pack
+        result["confirmation_test_books"] = get_subject_confirmation_books(detected_subj, base_a_cov=base_a, base_ab_cov=base_ab)
 
         result["memory_policy"] = {
             "status": "WIPED_CLEAN",

@@ -1,0 +1,1661 @@
+[
+  {
+    "id": "sys_vocab_5th",
+    "subject": "英語",
+    "name": "[5訂版]システム英単語(黒字の訳追加ver)",
+    "description": "駿台文庫・2027語（A4片面100問・赤字黒字・番号指定対応）",
+    "count": 2027
+  },
+  {
+    "id": "sys_vocab_tagigo",
+    "subject": "英語",
+    "name": "★[5訂版]【多義語(minimalフレーズ)】システム英単語",
+    "description": "駿台文庫・全184単語（No.1〜184・各単語の全多義語意味を完全出題・A4片面2列100問レイアウト）",
+    "count": 184
+  },
+  {
+    "id": "sys_vocab_basic",
+    "subject": "英語",
+    "name": "【5訂版】システム英単語Basic",
+    "description": "駿台文庫・基礎1550語（番号指定対応）",
+    "count": 1550
+  },
+  {
+    "id": "target_1900",
+    "subject": "英語",
+    "name": "【6訂版】ターゲット1900",
+    "description": "旺文社・定番1900語（番号指定対応）",
+    "count": 1900
+  },
+  {
+    "id": "target_1200",
+    "subject": "英語",
+    "name": "【改訂版】英単語ターゲット1200",
+    "description": "旺文社・高校基礎1200語",
+    "count": 1699
+  },
+  {
+    "id": "leap_vocab",
+    "subject": "英語",
+    "name": "【改訂版】必携 英単語LEAP",
+    "description": "数研出版・語彙ネットワーク型英単語帳",
+    "count": 1890
+  },
+  {
+    "id": "sokudoku_jukugo",
+    "subject": "英語",
+    "name": "【改訂版】速読英熟語",
+    "description": "Z会・入試頻出英熟語（全74セクション・番号指定対応）",
+    "count": 875
+  },
+  {
+    "id": "target_jukugo_1000",
+    "subject": "英語",
+    "name": "【5訂版】英熟語ターゲット1000",
+    "description": "旺文社・頻出熟語1000",
+    "count": 1000
+  },
+  {
+    "id": "sys_chugaku",
+    "subject": "英語",
+    "name": "【改訂版】中学版 システム英単語",
+    "description": "駿台文庫・中学基礎単語",
+    "count": 1824
+  },
+  {
+    "id": "nyumon_eibun",
+    "subject": "英語",
+    "name": "【4訂版】入門英文問題精講",
+    "description": "旺文社・読解記述全72題（問題文＋広々記述解答枠・番号指定対応）",
+    "count": 72
+  },
+  {
+    "id": "polaris_1",
+    "subject": "英語",
+    "name": "★関正生の英文法ポラリス1 標準レベル",
+    "description": "KADOKAWA・標準レベル英文法（Chapter項目選択＆項目別番号指定対応）",
+    "count": 375
+  },
+  {
+    "id": "pattern_drill_basic",
+    "subject": "英語",
+    "name": "高校英文法パターンドリル 超基礎編",
+    "description": "文英堂・超基礎英文法 全72セクション(1〜1080)（セクション選択＆番号指定対応）",
+    "count": 1080
+  },
+  {
+    "id": "chugaku_hitotsu",
+    "subject": "英語",
+    "name": "★[改訂版]中学英語をもう一度ひとつひとつわかりやすく。",
+    "description": "学研プラス・中学英語総復習 全116項目(1〜837)（項目選択＆番号指定対応）",
+    "count": 837
+  },
+  {
+    "id": "final_polaris_1",
+    "subject": "英語",
+    "name": "関正生の英文法ファイナル演習ポラリス[1 標準レベル]",
+    "description": "KADOKAWA・標準レベル英文法総仕上げ 全30ユニット(1〜286)（ユニット選択＆番号指定対応）",
+    "count": 286
+  },
+  {
+    "id": "oiwa_grammar",
+    "subject": "英語",
+    "name": "★大岩のいちばんはじめの英文法 超基礎文法編",
+    "description": "東進ブックス・超基礎文法（第1講〜第25講 項目選択＆番号指定対応）",
+    "count": 125
+  },
+  {
+    "id": "vintage_4th",
+    "subject": "英語",
+    "name": "★Vintage 4th Edition",
+    "description": "いいずな書店・文法語法1596問（第1章〜第30章 項目選択＆項目別番号指定対応）",
+    "count": 1596
+  },
+  {
+    "id": "douga_exercise",
+    "subject": "英語",
+    "name": "【Exercise】動画でわかる英文法[読解入門編]",
+    "description": "大学入試 Basic Lecture・読解演習72問（セクション選択対応）",
+    "count": 72
+  },
+  {
+    "id": "douga_reibun",
+    "subject": "英語",
+    "name": "【例文】動画でわかる英文法[読解入門編]",
+    "description": "大学入試 Basic Lecture・基本例文読解86問（セクション選択対応）",
+    "count": 86
+  },
+  {
+    "id": "teppeki",
+    "subject": "英語",
+    "name": "★[改訂版]鉄緑会東大英単語熟語 鉄壁",
+    "description": "KADOKAWA・東大/難関大対策 2176語（赤字黒字・100問レイアウト・番号指定対応）",
+    "count": 2176
+  },
+  {
+    "id": "grammar_final_std",
+    "subject": "英語",
+    "name": "★(問題文付き_推奨)英文法ファイナル問題集 標準編",
+    "description": "桐原書店・全10回 475問（第1回〜第10回・問題番号1〜475＆複数範囲指定対応）",
+    "count": 475
+  },
+  {
+    "id": "sparta_3",
+    "subject": "英語",
+    "name": "英単語 SPARTA3 mastery level 1000語",
+    "description": "学研・最難関大突破 1000語（ZONE 1〜5・赤字黒字・100問レイアウト・番号指定対応）",
+    "count": 1000
+  },
+  {
+    "id": "eiken_jun1_ex",
+    "subject": "英語",
+    "name": "★[第2版]出る順で最短合格！英検 準1級単熟語EX",
+    "description": "ジャパンタイムズ出版・全2412語（赤字・黒字訳、2列50行A4レイアウト対応）",
+    "count": 2412
+  },
+  {
+    "id": "rules_english_1",
+    "subject": "英語",
+    "name": "関正生の The Rules 英語長文問題集 1",
+    "description": "旺文社・入試基礎 全12レッスン（見開きA4問題用紙＆解答解説参照一覧）",
+    "count": 12
+  },
+  {
+    "id": "rules_english_2",
+    "subject": "英語",
+    "name": "関正生の The Rules 英語長文問題集 2",
+    "description": "旺文社・入試標準 全12レッスン（見開きA4問題用紙＆解答解説参照一覧）",
+    "count": 12
+  },
+  {
+    "id": "chobun_polaris_1",
+    "subject": "英語",
+    "name": "大学入試問題集 関正生の英語長文ポラリス1 [標準レベル]",
+    "description": "KADOKAWA・標準レベル長文 全12レッスン（見開きA4問題用紙＆解答解説参照）",
+    "count": 12
+  },
+  {
+    "id": "next_stage_4th",
+    "subject": "英語",
+    "name": "★Next Stage 英文法・語法問題 4th Edition",
+    "description": "桐原書店・英文法・語法1474問（第1章〜第27章 項目選択＆番号指定対応）",
+    "count": 1474
+  },
+  {
+    "id": "scramble_5th",
+    "subject": "英語",
+    "name": "★スクランブル英文法・語法 5th Edition",
+    "description": "旺文社・英文法・語法1365問（第1章〜第29章 項目選択＆番号指定対応）",
+    "count": 1365
+  },
+  {
+    "id": "sokutan_advanced",
+    "subject": "英語",
+    "name": "★【改訂第5版】速読英単語 上級編",
+    "description": "Z会・早慶東大レベル1255語（2列50行A4レイアウト・番号指定対応）",
+    "count": 1255
+  },
+  {
+    "id": "polepole",
+    "subject": "英語",
+    "name": "ポレポレ英文読解プロセス50",
+    "description": "代々木ライブラリー・難関大読解50題（例題1〜50・広々和訳記述解答枠）",
+    "count": 50
+  },
+  {
+    "id": "kaishaku_polaris_1",
+    "subject": "英語",
+    "name": "関正生の英文解釈ポラリス1 [標準〜応用レベル]",
+    "description": "KADOKAWA・MARCH地方国公立レベル75題（1〜75番・広々和訳記述解答枠）",
+    "count": 75
+  },
+  {
+    "id": "kaishaku_polaris_2",
+    "subject": "英語",
+    "name": "大学入試問題集 関正生の英文解釈ポラリス2 [発展レベル]",
+    "description": "KADOKAWA・早慶東大レベル55題（1〜55番・広々和訳記述解答枠）",
+    "count": 55
+  },
+  {
+    "id": "math_ia_basic",
+    "subject": "数学",
+    "name": "Super Quick 数学I+A",
+    "description": "数研出版・例題＆練習問題 全332問（エクセル風解答表・番号範囲指定対応）",
+    "count": 332
+  },
+  {
+    "id": "math_2bc_sq",
+    "subject": "数学",
+    "name": "Super Quick 数学II+B+C",
+    "description": "数研出版・例題197問＋練習197問 全394問（図・問題カード完備）",
+    "count": 394
+  },
+  {
+    "id": "math_nyumon_1a",
+    "subject": "数学",
+    "name": "[改訂版]数学Ⅰ・A 入門問題精講",
+    "description": "旺文社・全9章（練習問題／応用問題 分類対応・章別問題指定）",
+    "count": 112
+  },
+  {
+    "id": "math_nyumon_2b",
+    "subject": "数学",
+    "name": "[改訂版]数学Ⅱ・B 入門問題精講",
+    "description": "旺文社・全8章（練習問題115問／応用問題28問、問題カード完全収録）",
+    "count": 143
+  },
+  {
+    "id": "chart_reidai_1a",
+    "subject": "数学",
+    "name": "【青チャート】基本例題 (数I・A)",
+    "description": "数研出版・数学I(1〜194)＋数学A(1〜156) 全350問（コンパス1〜3/4/5難易度・科目別番号指定対応）",
+    "count": 350
+  },
+  {
+    "id": "chart_reidai_3c",
+    "subject": "数学",
+    "name": "【青チャート】基本例題 (数III・C)",
+    "description": "数研出版・数学III(1〜215)＋数学C(1〜178) 全393問（コンパス1〜3/4/5難易度・科目別番号指定対応）",
+    "count": 393
+  },
+  {
+    "id": "chart_exercises_1a",
+    "subject": "数学",
+    "name": "【青チャート】EXERCISES (数I・A)",
+    "description": "数研出版・数学I(1〜134)＋数学A(1〜107) 全241問（問題番号別カード分割＆範囲指定対応）",
+    "count": 241
+  },
+  {
+    "id": "chart_renshu_2b",
+    "subject": "数学",
+    "name": "【青チャート】練習問題 (数II・B)",
+    "description": "数研出版・数II+B 練習問題 全290問（図・問題カード完備）",
+    "count": 290
+  },
+  {
+    "id": "chart_exercises_2b",
+    "subject": "数学",
+    "name": "【青チャート】EXERCISES (数II・B)",
+    "description": "数研出版・数学II(1〜159)＋数学B(1〜63) 全222問（問題番号別カード分割＆範囲指定対応）",
+    "count": 222
+  },
+  {
+    "id": "chart_sogo_2b",
+    "subject": "数学",
+    "name": "【青チャート】総合演習 (数II・B)",
+    "description": "数研出版・第1部テーマ別(7問)＋第2部実戦演習(数II 1〜38 / 数B 1〜14) 全59問（問題番号別分割対応）",
+    "count": 59
+  },
+  {
+    "id": "math_ryomon_307",
+    "subject": "数学",
+    "name": "【改訂版】数学の良問問題集［数学I+A+II+B+III+C］",
+    "description": "旺文社・佐々木巧 著 全307題（数I・A〜数III・C 全21章・問題画像分割＆番号範囲指定対応）",
+    "count": 307
+  },
+  {
+    "id": "math_hissu101",
+    "subject": "数学",
+    "name": "大学入試数学 落とせない必須 101 題 スタンダードレベル",
+    "description": "旺文社・全101題 網羅（問題カード切り出し＆エクセル風解答用紙・範囲指定対応）",
+    "count": 101
+  },
+  {
+    "id": "kanji_master_1800",
+    "subject": "現代文",
+    "name": "入試漢字マスター1800+ (四訂版)",
+    "description": "河合出版・書き取りA〜C/読みA〜B/四字熟語（A4横向き全文表示・項目別範囲指定対応）",
+    "count": 2544
+  },
+  {
+    "id": "keyword_dokkai",
+    "subject": "現代文",
+    "name": "現代文キーワード読解",
+    "description": "Z会・入試頻出テーマと重要語彙",
+    "count": 68
+  },
+  {
+    "id": "goi_1700",
+    "subject": "現代文",
+    "name": "国語力を伸ばす 語彙1700",
+    "description": "学研・入試基礎から発展までの語彙集",
+    "count": 1700
+  },
+  {
+    "id": "gendaibun_upper_1",
+    "subject": "現代文",
+    "name": "【改訂版】上級現代文 I",
+    "description": "桐原書店・国公立難関大対策 記述全20題（例題7題＋実践問題13題・見開き問題出力対応）",
+    "count": 20
+  },
+  {
+    "id": "access_gendaibun_kiso",
+    "subject": "現代文",
+    "name": "【改訂版】入試現代文へのアクセス 基本編",
+    "description": "河合出版・例題4問＋実践問題12問 全16問（見開きA4問題用紙＆解答書参照一覧）",
+    "count": 16
+  },
+  {
+    "id": "stepup_kiso",
+    "subject": "古文",
+    "name": "【四訂版】ステップアップノート30 基本ドリル",
+    "description": "河合出版・古典文法基礎ドリル 全221問（テーマ1〜30・文法カード式レイアウト・番号指定対応）",
+    "count": 221
+  },
+  {
+    "id": "stepup_renshu",
+    "subject": "古文",
+    "name": "【四訂版】ステップアップノート30 練習ドリル",
+    "description": "河合出版・古典文法練習ドリル 全327問（テーマ1〜30・文法カード式レイアウト・番号指定対応）",
+    "count": 327
+  },
+  {
+    "id": "yasashiku_kakunin",
+    "subject": "古文",
+    "name": "(確認テスト部分)やさしくわかりやすい古典文法",
+    "description": "文英堂・第1課〜第32課 確認テスト全44問（文法カード式レイアウト・番号指定対応）",
+    "count": 44
+  },
+  {
+    "id": "yasashiku_check",
+    "subject": "古文",
+    "name": "(チェック問題)やさしくわかりやすい古典文法",
+    "description": "文英堂・第1課〜第32課 チェック問題全64問（文法カード式レイアウト・番号指定対応）",
+    "count": 64
+  },
+  {
+    "id": "kobun_315",
+    "subject": "古文",
+    "name": "【四訂版】読んで見て覚える 古文単語315",
+    "description": "桐原書店・頻出古文単語315（縦書き・番号指定対応）",
+    "count": 380
+  },
+  {
+    "id": "kobun_330",
+    "subject": "古文",
+    "name": "【四訂版】古文単語330",
+    "description": "いいずな書店・入試標準古文単語330",
+    "count": 330
+  },
+  {
+    "id": "yomitoki_kobun",
+    "subject": "古文",
+    "name": "読み解き古文単語",
+    "description": "Z会・文章の中で覚える古文単語",
+    "count": 402
+  },
+  {
+    "id": "nihonshi_teichaku_std",
+    "subject": "日本史",
+    "name": "★【改訂版】日本史探究用語 ２レベル定着トレーニング",
+    "description": "旺文社・全30テーマ 875問（空欄補充2段組レイアウト・章別番号指定対応）",
+    "count": 875
+  },
+  {
+    "id": "nihonshi_teichaku_red",
+    "subject": "日本史",
+    "name": "★【改訂版】(赤字解答)日本史探究用語 ２レベル定着トレーニング",
+    "description": "旺文社・全30テーマ 1004問（赤字解答2段組レイアウト・章別番号指定対応）",
+    "count": 1004
+  },
+  {
+    "id": "nihonshi_ichimon",
+    "subject": "日本史",
+    "name": "日本史一問一答 完全版 (3rd edition)",
+    "description": "東進ブックス・星の数(★★★/★★/★)難易度調整・番号範囲指定対応",
+    "count": 4079
+  },
+  {
+    "id": "jidai_nihonshi",
+    "subject": "日本史",
+    "name": "時代と流れで覚える！日本史用語",
+    "description": "文英堂・入試頻出の重要用語整理（空欄補充／赤字解答 切り替え対応）",
+    "count": 400
+  },
+  {
+    "id": "historia_nihonshi",
+    "subject": "日本史",
+    "name": "【改訂版】HISTORIA［ヒストリア］日本史探究精選問題集",
+    "description": "学研・全100題（第1章 原始・古代〜第6章 テーマ史・問題画像出力＆番号範囲指定対応）",
+    "count": 100
+  },
+  {
+    "id": "sekaishi_ichimon",
+    "subject": "世界史",
+    "name": "世界史一問一答 完全版 (4th edition)",
+    "description": "東進ブックス・星の数(★★★/★★/★)難易度調整・番号範囲指定対応",
+    "count": 4251
+  },
+  {
+    "id": "jidai_sekaishi",
+    "subject": "世界史",
+    "name": "時代と流れで覚える！世界史用語",
+    "description": "文英堂・入試頻出の重要用語整理（空欄補充／赤字解答 切り替え対応）",
+    "count": 451
+  },
+  {
+    "id": "multi_training_sekaishi",
+    "subject": "世界史",
+    "name": "★【改訂版】世界史探究用語 マルチ・トレーニング",
+    "description": "旺文社・STEP1(文章空欄/赤字)・STEP2(地図)・STEP3(年表) 難易度指定対応",
+    "count": 5018
+  },
+  {
+    "id": "saito_sekaishi_ichimon",
+    "subject": "世界史",
+    "name": "★[探究対応版]斎藤の世界史一問一答",
+    "description": "山川出版社・全3659問（難易度 ★★★/★★/★ 指定対応）",
+    "count": 3659
+  },
+  {
+    "id": "saito_sekaishi_red",
+    "subject": "世界史",
+    "name": "★【探究対応版】(赤字解答)斎藤の世界史一問一答",
+    "description": "山川出版社・全3155問（赤字解答・難易度 ★★★/★★/★ 指定対応）",
+    "count": 3155
+  },
+  {
+    "id": "circuit_sekaishi",
+    "subject": "世界史",
+    "name": "★【改訂版】超効率！世界史年代サーキットトレーニング",
+    "description": "旺文社・全807問（年代・世紀・出来事・重要事項演習）",
+    "count": 807
+  },
+  {
+    "id": "zenlevel_physics",
+    "subject": "物理",
+    "name": "大学入試 全レベル問題集 物理",
+    "description": "旺文社・全105題（第1章 力学〜第6章 実験・考察問題）",
+    "count": 105
+  },
+  {
+    "id": "phys_nyumon_3rd",
+    "subject": "物理",
+    "name": "【三訂版】物理 入門問題精講",
+    "description": "旺文社・全121題（第1章 力学〜第6章 原子・問題番号＆複数範囲指定対応）",
+    "count": 121
+  },
+  {
+    "id": "korede_wakaru_chem_kiso",
+    "subject": "化学",
+    "name": "高校これでわかる基礎問題集 化学基礎",
+    "description": "文英堂・全217題（章別選択 × 基礎の基礎／テストによく出る／入試問題にチャレンジ 3段階対応）",
+    "count": 217
+  },
+  {
+    "id": "chem_nyumon_4th",
+    "subject": "化学",
+    "name": "［四訂版］化学 入門問題精講",
+    "description": "旺文社・全142題（化学基礎〜化学 全13章・問題番号＆複数範囲指定対応）",
+    "count": 142
+  },
+  {
+    "id": "lead_light_kiso_check",
+    "subject": "化学",
+    "name": "【新課程】(基礎CHECK)リードLightノート 化学基礎",
+    "description": "数研出版・基礎CHECK 全69問（第1章〜第7章・打込番号1〜69＆複数範囲指定対応）",
+    "count": 69
+  },
+  {
+    "id": "lead_light_kiso_main",
+    "subject": "化学",
+    "name": "【新課程】リードLightノート 化学基礎",
+    "description": "数研出版・Let's try/CLEAR/編末 全187問（第1章〜第7章・番号範囲指定対応）",
+    "count": 187
+  },
+  {
+    "id": "lead_light_chem_check",
+    "subject": "化学",
+    "name": "【新課程】(基礎CHECK)リードLightノート 化学",
+    "description": "数研出版・基礎CHECK 全131問（第1章〜第17章・打込番号1〜131＆複数範囲指定対応）",
+    "count": 131
+  },
+  {
+    "id": "lead_light_chem_main",
+    "subject": "化学",
+    "name": "【新課程】(Let's try・CLEAR・編末)リードLightノート 化学",
+    "description": "数研出版・Let's try/CLEAR/編末 全339問（第1章〜第17章・番号範囲指定対応）",
+    "count": 339
+  },
+  {
+    "id": "korede_wakaru_bio_kiso",
+    "subject": "生物",
+    "name": "高校これでわかる基礎問題集 生物基礎",
+    "description": "文英堂・全142題（章別選択 × 基礎の基礎／テストによく出る／入試問題にチャレンジ 3段階対応）",
+    "count": 142
+  },
+  {
+    "id": "lead_light_bio_kiso_main",
+    "subject": "生物",
+    "name": "【新課程】(基本・総合・巻末)リードLightノート 生物基礎",
+    "description": "数研出版・基本/章末総合/巻末チャレンジ 全157問（序章〜第4章・番号＆章別範囲指定対応）",
+    "count": 157
+  },
+  {
+    "id": "lead_light_bio_main",
+    "subject": "生物",
+    "name": "【新課程】(基本・総合・巻末)リードLightノート 生物",
+    "description": "数研出版・基本/章末総合/巻末チャレンジ 全253問（第1章〜第7章・番号＆章別範囲指定対応）",
+    "count": 253
+  },
+  {
+    "id": "gmarch_eigo",
+    "subject": "英語",
+    "name": "GMARCH＆関関同立の英語",
+    "description": "英語長文・私大対策 / 全18題 収録",
+    "count": 18
+  },
+  {
+    "id": "yatteokitai_300",
+    "subject": "英語",
+    "name": "【改訂版】やっておきたい英語長文300",
+    "description": "改訂版・全30題 / 全30題 収録",
+    "count": 30
+  },
+  {
+    "id": "yatteokitai_500",
+    "subject": "英語",
+    "name": "【改訂版】やっておきたい英語長文500",
+    "description": "改訂版・全20題 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "yatteokitai_700",
+    "subject": "英語",
+    "name": "【改訂版】やっておきたい英語長文700",
+    "description": "改訂版・全15題 / 全15題 収録",
+    "count": 15
+  },
+  {
+    "id": "yatteokitai_1000",
+    "subject": "英語",
+    "name": "【改訂版】やっておきたい英語長文1000",
+    "description": "改訂版・全10題 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "chobun_polaris_2",
+    "subject": "英語",
+    "name": "【改訂版】大学入試問題集 関正生の英語長文ポラリス2 [応用レベル]",
+    "description": "2 応用レベル [改訂版] / 全12題 収録",
+    "count": 12
+  },
+  {
+    "id": "chobun_polaris_3",
+    "subject": "英語",
+    "name": "【改訂版】大学入試問題集 関正生の英語長文ポラリス3 [発展レベル]",
+    "description": "3 発展レベル [改訂版] / 全12題 収録",
+    "count": 12
+  },
+  {
+    "id": "solution_theme_1",
+    "subject": "英語",
+    "name": "レベル別英語長文問題 Solution 最新テーマ編1 スタンダードレベル",
+    "description": "最新テーマ編 1 スタンダード / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "solution_theme_2",
+    "subject": "英語",
+    "name": "レベル別英語長文問題 Solution 最新テーマ編2 ハイレベル",
+    "description": "最新テーマ編 2 ハイレベル / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "solution_theme_3",
+    "subject": "英語",
+    "name": "レベル別英語長文問題 Solution 最新テーマ編3 トップレベル",
+    "description": "最新テーマ編 3 トップレベル / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "canpass_eigo",
+    "subject": "英語",
+    "name": "国公立標準問題集 CanPass 英語",
+    "description": "国公立標準・全20題 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "hajime_dokkai_drill",
+    "subject": "英語",
+    "name": "大学入試はじめの英文読解ドリル",
+    "description": "SVOC構造分析＆和訳ドリル / 全104問 収録",
+    "count": 104
+  },
+  {
+    "id": "the_rules_3",
+    "subject": "英語",
+    "name": "関正生のThe Rules 英語長文問題集3 入試難関",
+    "description": "Rule 3 入試難関 / 全12題 収録",
+    "count": 12
+  },
+  {
+    "id": "the_rules_4",
+    "subject": "英語",
+    "name": "関正生のThe Rules 英語長文問題集4 入試最難関",
+    "description": "Rule 4 入試最難関 / 全12題 収録",
+    "count": 12
+  },
+  {
+    "id": "zenlevel_eigo_6",
+    "subject": "英語",
+    "name": "【改訂版】大学入試 全レベル問題集 英語長文 6 国公立大レベル",
+    "description": "6 国公立大レベル [改訂版] / 全9題 収録",
+    "count": 9
+  },
+  {
+    "id": "takeoka_supremacy",
+    "subject": "英語",
+    "name": "竹岡の英語長文SUPREMACY 至高の20題",
+    "description": "至高の20題 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "chart_reidai_2b",
+    "subject": "数学",
+    "name": "【新課程】青チャート 基礎からの数学Ⅱ＋B（基本例題）",
+    "description": "基本・重要例題（コンパス対応） / 全356問 収録",
+    "count": 356
+  },
+  {
+    "id": "chart_exercises_3c",
+    "subject": "数学",
+    "name": "【新課程】青チャート 基礎からの数学III+C（EXERCISES）",
+    "description": "EXERCISES / 全174問 収録",
+    "count": 176
+  },
+  {
+    "id": "chart_renshu_3c",
+    "subject": "数学",
+    "name": "【新課程】青チャート 基礎からの数学III+C（練習問題）",
+    "description": "練習問題 / 全422問 収録",
+    "count": 422
+  },
+  {
+    "id": "kaiho_no_theory",
+    "subject": "数学",
+    "name": "入試数学 解法のセオリー 数学I・A・II・B(数列)・C(ベクトル)",
+    "description": "難関国公立・入試数学 / 全211問 収録",
+    "count": 211
+  },
+  {
+    "id": "meimon_physics_1",
+    "subject": "物理",
+    "name": "【四訂版】名問の森 物理 [力学・熱・波動I]",
+    "description": "名問演習（必須問題・実戦問題 分類対応） / 全75問 収録",
+    "count": 75
+  },
+  {
+    "id": "meimon_physics_2",
+    "subject": "物理",
+    "name": "【四訂版】名問の森 物理 [波動II・電磁気・原子]",
+    "description": "名問演習（必須問題・実戦問題 分類対応） / 全69問 収録",
+    "count": 69
+  },
+  {
+    "id": "physics_kiso_seiko",
+    "subject": "物理",
+    "name": "【五訂版】物理［物理基礎・物理］基礎問題精講",
+    "description": "五訂版・新課程（ヒント無し） / 全93問 収録",
+    "count": 151
+  },
+  {
+    "id": "chem_juyo_2026",
+    "subject": "化学",
+    "name": "2026 実戦 化学重要問題集 化学基礎・化学",
+    "description": "2026 実戦（A問題・B問題 別対応） / 全332問 収録",
+    "count": 332
+  },
+  {
+    "id": "chem_shin_enshu_new",
+    "subject": "化学",
+    "name": "【新課程】化学の新演習 改訂版",
+    "description": "新課程・改訂版 / 全292問 収録",
+    "count": 292
+  },
+  {
+    "id": "chem_shin_enshu_old",
+    "subject": "化学",
+    "name": "化学の新演習 [旧課程]",
+    "description": "理系大学受験 [現行・旧課程] / 全328問 収録",
+    "count": 328
+  },
+  {
+    "id": "zenlevel_bio_2",
+    "subject": "生物",
+    "name": "【三訂版】大学入試 全レベル問題集 生物 2 共通テストレベル",
+    "description": "2 共通テストレベル [三訂版] / 全121問 収録",
+    "count": 121
+  },
+  {
+    "id": "zenlevel_bio_3",
+    "subject": "生物",
+    "name": "【改訂版】大学入試 全レベル問題集 生物［生物基礎・生物］ 3 私大標準・国公立大レベル",
+    "description": "3 私大標準・国公立大 [改訂版] / 全86問 収録",
+    "count": 86
+  },
+  {
+    "id": "bio_goukaku_177",
+    "subject": "生物",
+    "name": "生物問題集 合格177問 【入試必修編】",
+    "description": "入試必修編・全177問 / 全173問 収録",
+    "count": 173
+  },
+  {
+    "id": "bio_goukaku_100",
+    "subject": "生物",
+    "name": "生物問題集 合格100問 【定番難問編】",
+    "description": "定番難問編・全100問 / 全100問 収録",
+    "count": 100
+  },
+  {
+    "id": "bio_nyumon_seiko",
+    "subject": "生物",
+    "name": "【四訂版】生物［生物基礎・生物］入門問題精講",
+    "description": "四訂版・新課程（ヒント無し） / 全129問 収録",
+    "count": 129
+  },
+  {
+    "id": "gmarch_gendaibun",
+    "subject": "現代文",
+    "name": "GMARCH＆関関同立の現代文",
+    "description": "私大現代文・実戦演習 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "nittokomasen_gendaibun",
+    "subject": "現代文",
+    "name": "日東駒専＆産近甲龍の現代文",
+    "description": "私大現代文・基礎〜標準 / 全16題 収録",
+    "count": 16
+  },
+  {
+    "id": "canpass_gendaibun",
+    "subject": "現代文",
+    "name": "国公立標準問題集 CanPass 現代文",
+    "description": "国公立記述・全20題 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "access_gendaibun_hatten",
+    "subject": "現代文",
+    "name": "入試現代文へのアクセス 発展編",
+    "description": "発展編・全16題 / 全16題 収録",
+    "count": 16
+  },
+  {
+    "id": "dokkai_kiso_kogi",
+    "subject": "現代文",
+    "name": "【新版】現代文 読解の基礎講義",
+    "description": "新版・記述読解演習 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "gendaibun_kakuto",
+    "subject": "現代文",
+    "name": "【三訂版】現代文と格闘する",
+    "description": "三訂版・難関大読解 / 全9題 収録",
+    "count": 9
+  },
+  {
+    "id": "waseda_kokugo_10",
+    "subject": "現代文",
+    "name": "【第10版】早稲田の国語",
+    "description": "第10版・難関私大対策 / 全15題 収録",
+    "count": 15
+  },
+  {
+    "id": "tokuten_gendaibun_tenkei",
+    "subject": "現代文",
+    "name": "得点奪取 現代文 【典型問題編】",
+    "description": "記述対策【典型問題編】 / 全4題 収録",
+    "count": 4
+  },
+  {
+    "id": "tokuten_gendaibun_renshu",
+    "subject": "現代文",
+    "name": "得点奪取 現代文 【練習問題編】",
+    "description": "記述対策【練習問題編】 / 全6題 収録",
+    "count": 6
+  },
+  {
+    "id": "shin_gendaibun_level_1",
+    "subject": "現代文",
+    "name": "新・現代文レベル別問題集1 超基礎編",
+    "description": "レベル1 超基礎編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "shin_gendaibun_level_2",
+    "subject": "現代文",
+    "name": "新・現代文レベル別問題集2 初級編",
+    "description": "レベル2 初級編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "shin_gendaibun_level_3",
+    "subject": "現代文",
+    "name": "新・現代文レベル別問題集3 標準編",
+    "description": "レベル3 標準編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "shin_gendaibun_level_4",
+    "subject": "現代文",
+    "name": "新・現代文レベル別問題集4 中級編",
+    "description": "レベル4 中級編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "shin_gendaibun_level_5",
+    "subject": "現代文",
+    "name": "新・現代文レベル別問題集5 上級編",
+    "description": "レベル5 上級編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "gendaibun_polaris_1",
+    "subject": "現代文",
+    "name": "柳生好之の現代文ポラリス1 [基礎レベル]",
+    "description": "1 基礎レベル / 全13題 収録",
+    "count": 13
+  },
+  {
+    "id": "gendaibun_polaris_2",
+    "subject": "現代文",
+    "name": "柳生好之の現代文ポラリス2 [標準レベル]",
+    "description": "2 標準レベル / 全12題 収録",
+    "count": 12
+  },
+  {
+    "id": "gendaibun_polaris_3",
+    "subject": "現代文",
+    "name": "柳生好之の現代文ポラリス3 [発展レベル]",
+    "description": "長文読解（全12回・各回独立見開き出題対応） / 全12回 収録",
+    "count": 12
+  },
+  {
+    "id": "jokyu_gendaibun_2",
+    "subject": "現代文",
+    "name": "上級現代文 II",
+    "description": "国公立・難関私大記述演習 / 全13題 収録",
+    "count": 13
+  },
+  {
+    "id": "gmarch_kobun",
+    "subject": "古文",
+    "name": "GMARCH＆関関同立の古文",
+    "description": "私大古文・実戦20題 / 全20題 収録",
+    "count": 20
+  },
+  {
+    "id": "kobun_level_3",
+    "subject": "古文",
+    "name": "古文レベル別問題集3 標準編",
+    "description": "レベル3 標準編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "kobun_level_5",
+    "subject": "古文",
+    "name": "古文レベル別問題集5 上級編",
+    "description": "レベル5 上級編 / 全10題 収録",
+    "count": 10
+  },
+  {
+    "id": "kobun_jotatsu_kiso",
+    "subject": "古文",
+    "name": "古文上達 基礎編 読解と演習45",
+    "description": "基礎編・読解と演習45 / 全45題 収録",
+    "count": 45
+  },
+  {
+    "id": "kobun_jotatsu_56",
+    "subject": "古文",
+    "name": "古文上達 読解と演習56",
+    "description": "読解と演習56（基礎編30題＋演習編26題・文章題のみ収録） / 全56題 収録",
+    "count": 56
+  },
+  {
+    "id": "kobun_polaris_1",
+    "subject": "古文",
+    "name": "大学入試問題集 岡本梨奈の古文ポラリス1 [基礎レベル]",
+    "description": "1 基礎レベル / 全14題 収録",
+    "count": 14
+  },
+  {
+    "id": "kobun_polaris_2",
+    "subject": "古文",
+    "name": "大学入試問題集 岡本梨奈の古文ポラリス2 [標準レベル]",
+    "description": "2 標準レベル / 全14題 収録",
+    "count": 14
+  },
+  {
+    "id": "nihonshi_shiryo_ichimon",
+    "subject": "日本史",
+    "name": "【2nd Edition】日本史史料問題 一問一答 完全版",
+    "description": "2nd Edition・史料完全対策（史料1〜238 番号指定対応） / 全238史料 収録",
+    "count": 238
+  },
+  {
+    "id": "jitsuryoku_nihonshi_100",
+    "subject": "日本史",
+    "name": "【改訂第3版】実力をつける日本史100題",
+    "description": "改訂第3版・全100題 / 全100問 収録",
+    "count": 100
+  },
+  {
+    "id": "mirumiru_sekaishi",
+    "subject": "世界史",
+    "name": "【第2版】みるみる論述力がつく世界史",
+    "description": "第2版・世界史論述対策 / 全146問 収録",
+    "count": 146
+  },
+  {
+    "id": "historia_sekaishi",
+    "subject": "世界史",
+    "name": "【改訂版】HISTORIA［ヒストリア］世界史探究精選問題集",
+    "description": "改訂版・世界史探究100題 / 全104問 収録",
+    "count": 104
+  },
+  {
+    "id": "segawa_chiri_chishi",
+    "subject": "地理",
+    "name": "【改訂版】瀬川聡の 共通テスト 地理総合、地理探究［地誌編］超重要問題の解き方",
+    "description": "改訂版 [地誌編] / 全126問 収録",
+    "count": 126
+  },
+  {
+    "id": "segawa_chiri_keito",
+    "subject": "地理",
+    "name": "【改訂版】瀬川聡の 共通テスト 地理総合、地理探究［系統地理編］超重要問題の解き方",
+    "description": "改訂版 [系統地理編] / 全100問 収録",
+    "count": 100
+  },
+  {
+    "id": "chiri_shuchu_kogi",
+    "subject": "地理",
+    "name": "【改訂版】共通テスト 地理 集中講義［地理総合、地理探究］",
+    "description": "改訂版・チャレンジテスト / 全117問 収録",
+    "count": 117
+  },
+  {
+    "id": "chiri_chizu_tokei_80",
+    "subject": "地理",
+    "name": "【改訂版】共通テスト 地理総合、地理探究 地図・統計の考察問題80",
+    "description": "改訂版・全80題 / 全83問 収録",
+    "count": 83
+  },
+  {
+    "id": "jitsuryoku_chiri_100",
+    "subject": "地理",
+    "name": "【改訂第3版】実力をつける地理100題",
+    "description": "改訂第3版・全100題 / 全100問 収録",
+    "count": 100
+  },
+  {
+    "id": "shidai_seikei_3",
+    "subject": "政治・経済",
+    "name": "【三訂版】私大攻略の政治・経済 要点整理と問題演習",
+    "description": "三訂版・要点整理と問題演習 / 全166問 収録",
+    "count": 166
+  },
+  {
+    "id": "seikei_hyojun_seiko",
+    "subject": "政治・経済",
+    "name": "【四訂版】政治・経済 標準問題精講",
+    "description": "四訂版・難関私大対策 / 全81問 収録",
+    "count": 81
+  },
+  {
+    "id": "kageyama_seikei",
+    "subject": "政治・経済",
+    "name": "【改訂版】蔭山の共通テスト政治・経済",
+    "description": "改訂版・チェック問題演習 / 全47問 収録",
+    "count": 47
+  },
+  {
+    "id": "seikei_keisan_ronjutsu",
+    "subject": "政治・経済",
+    "name": "政治・経済 計算＆論述 特訓問題集",
+    "description": "計算＆論述 完全特訓 / 全111問 収録",
+    "count": 111
+  },
+  {
+    "id": "eureka_math_1a_reidai",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学I・A（例題）",
+    "description": "エウレカ 数学I・A 例題編 全問カード形式",
+    "count": 120
+  },
+  {
+    "id": "eureka_math_1a_jissen",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学I・A（実践問題）",
+    "description": "エウレカ 数学I・A 実践問題編 全問カード形式",
+    "count": 75
+  },
+  {
+    "id": "eureka_math_2bc_reidai",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学II・B+ベクトル（例題）",
+    "description": "エウレカ 数学II・B+ベクトル 例題編 全問カード形式",
+    "count": 191
+  },
+  {
+    "id": "eureka_math_2bc_jissen",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学II・B+ベクトル（実践問題）",
+    "description": "エウレカ 数学II・B+ベクトル 実践問題編 全問カード形式",
+    "count": 83
+  },
+  {
+    "id": "eureka_math_3c_reidai",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学III・C（例題）",
+    "description": "エウレカ 数学III・C 例題編 全問カード形式",
+    "count": 164
+  },
+  {
+    "id": "eureka_math_3c_jissen",
+    "subject": "数学",
+    "name": "解法のエウレカ 数学III・C（実践問題）",
+    "description": "エウレカ 数学III・C 実践問題編 全問カード形式",
+    "count": 72
+  },
+  {
+    "id": "bunkei_sugaku_juyo_reidai",
+    "subject": "数学",
+    "name": "【改訂版】文系の数学 重要事項完全習得編（例題）",
+    "description": "文系の数学 重要事項完全習得編 例題 全158題",
+    "count": 158
+  },
+  {
+    "id": "bunkei_sugaku_juyo_enshu",
+    "subject": "数学",
+    "name": "【改訂版】文系の数学 重要事項完全習得編（演習問題）",
+    "description": "文系の数学 重要事項完全習得編 演習問題 全132題",
+    "count": 132
+  },
+  {
+    "id": "bunkei_sugaku_jissen_reidai",
+    "subject": "数学",
+    "name": "【改訂版】文系の数学 実戦力向上編（例題）",
+    "description": "文系の数学 実戦力向上編 例題 全97題",
+    "count": 97
+  },
+  {
+    "id": "bunkei_sugaku_jissen_enshu",
+    "subject": "数学",
+    "name": "【改訂版】文系の数学 実戦力向上編（演習問題）",
+    "description": "文系の数学 実戦力向上編 演習問題 全116題",
+    "count": 116
+  },
+  {
+    "id": "ichitaiichi_1_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学I（例題）",
+    "description": "1対1対応の演習 数学I 例題 全56題",
+    "count": 56
+  },
+  {
+    "id": "ichitaiichi_a_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学A（例題）",
+    "description": "1対1対応の演習 数学A 例題 全56題",
+    "count": 56
+  },
+  {
+    "id": "ichitaiichi_2_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学II（例題）",
+    "description": "1対1対応の演習 数学II 例題 全83題",
+    "count": 83
+  },
+  {
+    "id": "ichitaiichi_b_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学B（例題）",
+    "description": "1対1対応の演習 数学B 例題 全43題",
+    "count": 43
+  },
+  {
+    "id": "ichitaiichi_3_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学III（例題）",
+    "description": "1対1対応の演習 数学III 例題 全75題",
+    "count": 75
+  },
+  {
+    "id": "ichitaiichi_c_reidai",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学C（例題）",
+    "description": "1対1対応の演習 数学C 例題 全65題",
+    "count": 65
+  },
+  {
+    "id": "ichitaiichi_1_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学I（演習題）",
+    "description": "1対1対応の演習 数学I 演習題 全56題",
+    "count": 56
+  },
+  {
+    "id": "ichitaiichi_a_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学A（演習題）",
+    "description": "1対1対応の演習 数学A 演習題 全56題",
+    "count": 56
+  },
+  {
+    "id": "ichitaiichi_2_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学II（演習題）",
+    "description": "1対1対応の演習 数学II 演習題 全83題",
+    "count": 83
+  },
+  {
+    "id": "ichitaiichi_b_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学B（演習題）",
+    "description": "1対1対応の演習 数学B 演習題 全43題",
+    "count": 43
+  },
+  {
+    "id": "ichitaiichi_3_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学III（演習題）",
+    "description": "1対1対応の演習 数学III 演習題 全75題",
+    "count": 75
+  },
+  {
+    "id": "ichitaiichi_c_enshu",
+    "subject": "数学",
+    "name": "【三訂版】1対1対応の演習 数学C（演習題）",
+    "description": "1対1対応の演習 数学C 演習題 全59題",
+    "count": 59
+  },
+  {
+    "id": "canpass_math_1a2bc",
+    "subject": "数学",
+    "name": "【新課程】国公立標準問題集 CanPass 数学I・A・II・B・C",
+    "description": "国公立標準問題集 CanPass 数学I・A・II・B・C",
+    "count": 126
+  },
+  {
+    "id": "canpass_math_3c",
+    "subject": "数学",
+    "name": "【新課程】国公立標準問題集 CanPass 数学III・C",
+    "description": "国公立標準問題集 CanPass 数学III・C",
+    "count": 55
+  },
+  {
+    "id": "platica_bunkei_math",
+    "subject": "数学",
+    "name": "【新課程】文系数学の良問プラチカ 数学I・A・II・B・C",
+    "description": "文系数学の良問プラチカ 数学I・A・II・B・C",
+    "count": 144
+  },
+  {
+    "id": "physics_juyo_2026",
+    "subject": "物理",
+    "name": "2026 実戦 物理重要問題集 物理基礎・物理",
+    "description": "2026 実戦 物理重要問題集（『A問題』・『B問題』難易度別選択対応）",
+    "count": 194
+  },
+  {
+    "id": "ryomon_no_kaze",
+    "subject": "物理",
+    "name": "【新課程】良問の風 物理 頻出・標準 入試問題集",
+    "description": "良問の風 物理 頻出・標準 入試問題集",
+    "count": 188
+  },
+  {
+    "id": "korede_wakaru_physics_kiso",
+    "subject": "物理",
+    "name": "高校これでわかる基礎問題集 物理基礎",
+    "description": "高校これでわかる基礎問題集 物理基礎（3段階難易度選択対応）",
+    "count": 204
+  },
+  {
+    "id": "korede_wakaru_physics",
+    "subject": "物理",
+    "name": "高校これでわかる基礎問題集 物理",
+    "description": "高校これでわかる基礎問題集 物理（3段階難易度選択対応）",
+    "count": 314
+  },
+  {
+    "id": "physics_shitsumon91_q",
+    "subject": "物理",
+    "name": "物理の質問91［質問編］",
+    "description": "物理の質問91 質問編 全91題",
+    "count": 91
+  },
+  {
+    "id": "physics_shitsumon91_reidai",
+    "subject": "物理",
+    "name": "物理の質問91［例題編］",
+    "description": "物理の質問91 例題編 全112題",
+    "count": 112
+  },
+  {
+    "id": "physics_shitsumon91_ruidai",
+    "subject": "物理",
+    "name": "物理の質問91［類題編］",
+    "description": "物理の質問91 類題編 全57題",
+    "count": 57
+  },
+  {
+    "id": "hyper_training_1",
+    "subject": "英語",
+    "name": "【新々装版】英語長文ハイパートレーニング1 超基礎編",
+    "description": "英語 入試対策 / 全46題 収録",
+    "count": 46
+  },
+  {
+    "id": "hyper_training_2",
+    "subject": "英語",
+    "name": "【新々装版】英語長文ハイパートレーニング2 標準編",
+    "description": "英語 入試対策 / 全46題 収録",
+    "count": 46
+  },
+  {
+    "id": "hyper_training_3",
+    "subject": "英語",
+    "name": "【新々装版】英語長文ハイパートレーニング3 難関編",
+    "description": "英語 入試対策 / 全50題 収録",
+    "count": 50
+  },
+  {
+    "id": "toshizu_challenge",
+    "subject": "英語",
+    "name": "英文読解の透視図 【Challenge問題編】",
+    "description": "英語 入試対策 / 全25問 収録",
+    "count": 25
+  },
+  {
+    "id": "toshizu_theme",
+    "subject": "英語",
+    "name": "英文読解の透視図 【テーマ編】",
+    "description": "英語 入試対策 / 全48問 収録",
+    "count": 48
+  },
+  {
+    "id": "solution_1",
+    "subject": "英語",
+    "name": "大学入試 レベル別英語長文問題 Solution1 スタンダードレベル",
+    "description": "英語 入試対策 / 全10題 収録（長文＆設問・全問完備・見開き）",
+    "count": 10
+  },
+  {
+    "id": "solution_2",
+    "subject": "英語",
+    "name": "大学入試 レベル別英語長文問題 Solution2 ハイレベル",
+    "description": "英語 入試対策 / 全10題 収録（長文＆設問・全問完備・見開き）",
+    "count": 10
+  },
+  {
+    "id": "solution_3",
+    "subject": "英語",
+    "name": "大学入試 レベル別英語長文問題 Solution3 トップレベル",
+    "description": "英語 入試対策 / 全10題 収録（長文＆設問・全問完備・見開き）",
+    "count": 10
+  },
+  {
+    "id": "hijii_kaiwa",
+    "subject": "英語",
+    "name": "肘井学の英語会話問題が面白いほど解ける本",
+    "description": "英語 入試対策 / 全20問 収録（会話文＆選択肢全問完備・見開き）",
+    "count": 20
+  },
+  {
+    "id": "eigo_level_3",
+    "subject": "英語",
+    "name": "【改訂版】英語長文レベル別問題集3 標準編",
+    "description": "英語 入試対策 / 全12題 収録（ダイヤ基準・大問完全一括構成）",
+    "count": 12
+  },
+  {
+    "id": "hijii_kusho_hoju",
+    "subject": "英語",
+    "name": "大学入試 肘井学の 英文空所補充問題が面白いほど解ける本",
+    "description": "英語 入試対策 / 全12題 収録（長文＆選択肢全問完備・見開き）",
+    "count": 12
+  },
+  {
+    "id": "chobun_plus_sokudoku",
+    "subject": "英語",
+    "name": "大学入試 英語長文プラス 速読トレーニング問題集",
+    "description": "英語 入試対策 / 全52題 収録",
+    "count": 52
+  },
+  {
+    "id": "toki_chobun_jikkyo",
+    "subject": "英語",
+    "name": "登木健司 難関大英語長文講義の実況中継",
+    "description": "英語 入試対策 / 全38題 収録",
+    "count": 38
+  },
+  {
+    "id": "toki_moriya_itchi",
+    "subject": "英語",
+    "name": "登木健司・守屋佑真 英語内容一致問題講義の実況中継",
+    "description": "英語 入試対策 / 全10題 収録（長文本文＋設問 見開き完備）",
+    "count": 10
+  },
+  {
+    "id": "chobun_plus_kijutsu",
+    "subject": "英語",
+    "name": "英語長文プラス 記述式トレーニング問題集",
+    "description": "英語 入試対策 / 全34題 収録",
+    "count": 34
+  },
+  {
+    "id": "code_70",
+    "subject": "英語",
+    "name": "難関大に合格する 英文解釈 Code70",
+    "description": "英語 入試対策 / 全63問 収録",
+    "count": 63
+  },
+  {
+    "id": "math_juyo_2026_rikei",
+    "subject": "数学",
+    "name": "2026 実戦 数学重要問題集 数学I・II・III・A・B・C(理系)",
+    "description": "2026 実戦 数学重要問題集（『A問題』・『B問題』難易度別選択対応） / 全300問 収録",
+    "count": 300
+  },
+  {
+    "id": "math_juyo_bunkei",
+    "subject": "数学",
+    "name": "【新課程】実戦 数学重要問題集 数学I・II・A・B・C〔ベクトル〕(文系)",
+    "description": "【新課程】実戦 数学重要問題集（『A問題』・『B問題』難易度別選択対応） / 全209問 収録",
+    "count": 209
+  },
+  {
+    "id": "math_kiso_3c_enshu",
+    "subject": "数学",
+    "name": "【五訂版】数学III・C 基礎問題精講（演習問題）",
+    "description": "数学 入試対策 / 全129問 収録",
+    "count": 129
+  },
+  {
+    "id": "math_3c_juyo_reidai",
+    "subject": "数学",
+    "name": "【改訂版】数学III・C 重要事項完全習得編（例題）",
+    "description": "数学 入試対策 / 全110問 収録",
+    "count": 110
+  },
+  {
+    "id": "math_3c_juyo_enshu",
+    "subject": "数学",
+    "name": "【改訂版】数学III・C 重要事項完全習得編（演習問題）",
+    "description": "数学 入試対策 / 全28問 収録",
+    "count": 28
+  },
+  {
+    "id": "math_kiso_1a_reidai",
+    "subject": "数学",
+    "name": "【新課程】数学I・A 基礎問題精講（例題）",
+    "description": "数学 入試対策 / 全154問 収録",
+    "count": 154
+  },
+  {
+    "id": "math_kiso_2b_reidai",
+    "subject": "数学",
+    "name": "【新課程】数学II・B＋ベクトル 基礎問題精講（例題）",
+    "description": "数学 入試対策 / 全184問 収録",
+    "count": 184
+  },
+  {
+    "id": "yasashii_math_1a_reidai",
+    "subject": "数学",
+    "name": "【新課程】やさしい高校数学 数学I・A（例題）",
+    "description": "数学 入試対策 / 全52問 収録",
+    "count": 52
+  },
+  {
+    "id": "yasashii_math_2b",
+    "subject": "数学",
+    "name": "【新課程】やさしい高校数学 数学II・B",
+    "description": "数学 入試対策 / 全62問 収録",
+    "count": 62
+  },
+  {
+    "id": "yasashii_math_3c",
+    "subject": "数学",
+    "name": "やさしい高校数学 数学III・C",
+    "description": "数学 入試対策 / 全68問 収録",
+    "count": 68
+  },
+  {
+    "id": "yasashii_chugaku_math",
+    "subject": "数学",
+    "name": "【改訂版】やさしい中学数学",
+    "description": "数学 入試対策 / 全724問 収録",
+    "count": 724
+  },
+  {
+    "id": "highlevel_math_1a2bc",
+    "subject": "数学",
+    "name": "【新課程】ハイレベル数学I・A・II・B・C［ベクトル］の完全攻略",
+    "description": "数学 入試対策 / 全17問 収録",
+    "count": 17
+  },
+  {
+    "id": "highlevel_math_3c",
+    "subject": "数学",
+    "name": "【新課程】ハイレベル数学III・C［平面上の曲線と複素数平面］の完全攻略",
+    "description": "数学 入試対策 / 全16問 収録",
+    "count": 16
+  },
+  {
+    "id": "golden_route_math_1a2b",
+    "subject": "数学",
+    "name": "ゴールデンルート 数学I・A・II・B 応用編",
+    "description": "数学 入試対策 / 全39問 収録",
+    "count": 39
+  },
+  {
+    "id": "golden_route_physics_kiso",
+    "subject": "物理",
+    "name": "ゴールデンルート 物理［物理基礎・物理］基礎編",
+    "description": "物理 入試対策 / 全60問 収録",
+    "count": 60
+  },
+  {
+    "id": "physics_level_3",
+    "subject": "物理",
+    "name": "物理レベル別問題集 3 上級編",
+    "description": "物理 入試対策 / 全31題 収録（ダイヤ基準・大問完全一括構成）",
+    "count": 31
+  },
+  {
+    "id": "zenlevel_chem_2",
+    "subject": "化学",
+    "name": "【三訂版】大学入試 全レベル問題集 化学 2 共通テストレベル",
+    "description": "化学 入試対策 / 全123問 収録",
+    "count": 123
+  },
+  {
+    "id": "canpass_chem",
+    "subject": "化学",
+    "name": "【改訂版】国公立標準問題集 CanPass 化学基礎＋化学",
+    "description": "化学 入試対策 / 全196問 収録",
+    "count": 196
+  },
+  {
+    "id": "korede_wakaru_chem",
+    "subject": "化学",
+    "name": "高校これでわかる基礎問題集 化学",
+    "description": "化学 入試対策 / 全125問 収録",
+    "count": 125
+  },
+  {
+    "id": "tamura_gendaibun",
+    "subject": "現代文",
+    "name": "【改訂版】田村のやさしく語る現代文",
+    "description": "国語 入試対策 / 全44題 収録",
+    "count": 44
+  },
+  {
+    "id": "zero_kakusei_gendaibun",
+    "subject": "現代文",
+    "name": "ゼロから覚醒 はじめよう現代文（実践問題）",
+    "description": "国語 入試対策 / 全14題 収録",
+    "count": 14
+  },
+  {
+    "id": "kaihatsu_koza_gendaibun",
+    "subject": "現代文",
+    "name": "現代文読解力の開発講座",
+    "description": "国語 入試対策 / 全61題 収録",
+    "count": 61
+  },
+  {
+    "id": "jokyu_gendaibun_zero",
+    "subject": "現代文",
+    "name": "上級現代文 ZERO＋語彙編",
+    "description": "国語 入試対策 / 全74題 収録",
+    "count": 74
+  },
+  {
+    "id": "funaguchi_zero_saikyo",
+    "subject": "現代文",
+    "name": "船口のゼロから読み解く最強の現代文",
+    "description": "国語 入試対策 / 全39題 収録",
+    "count": 39
+  },
+  {
+    "id": "funaguchi_kijutsu_training",
+    "subject": "現代文",
+    "name": "船口の最強の現代文 記述トレーニング",
+    "description": "国語 入試対策 / 全22題 収録",
+    "count": 22
+  },
+  {
+    "id": "zenlevel_kobun_1",
+    "subject": "古文",
+    "name": "【改訂版】大学入試 全レベル問題集 古文 1 基礎レベル",
+    "description": "国語 入試対策 / 全54題 収録",
+    "count": 54
+  },
+  {
+    "id": "zenlevel_kobun_3",
+    "subject": "古文",
+    "name": "【改訂版】大学入試 全レベル問題集 古文 3 私大標準レベル",
+    "description": "国語 入試対策 / 全74題 収録",
+    "count": 74
+  },
+  {
+    "id": "zenlevel_kobun_4",
+    "subject": "古文",
+    "name": "【新装版】大学入試 全レベル問題集 古文 4 私大上位・最難関・国公立大レベル",
+    "description": "国語 入試対策 / 全98題 収録",
+    "count": 98
+  },
+  {
+    "id": "yumei_shidai_kobun",
+    "subject": "古文",
+    "name": "「有名」私大古文演習",
+    "description": "国語 入試対策 / 全82題 収録",
+    "count": 82
+  },
+  {
+    "id": "kobun_level_2",
+    "subject": "古文",
+    "name": "古文レベル別問題集 2 初級編",
+    "description": "古文 入試対策 / 全26題 収録（ダイヤ基準・大問完全一括構成）",
+    "count": 26
+  },
+  {
+    "id": "kobun_level_4",
+    "subject": "古文",
+    "name": "古文レベル別問題集 4 中級編",
+    "description": "古文 入試対策 / 全12題 収録（ダイヤ基準・大問完全一括構成）",
+    "count": 12
+  },
+  {
+    "id": "kobun_level_6",
+    "subject": "古文",
+    "name": "古文レベル別問題集 6 最上級編",
+    "description": "古文 入試対策 / 全15題 収録（ダイヤ基準・大問完全一括構成）",
+    "count": 15
+  },
+  {
+    "id": "canpass_koten",
+    "subject": "古文",
+    "name": "国公立標準問題集 CanPass 古典",
+    "description": "国語 入試対策 / 全47題 収録",
+    "count": 47
+  },
+  {
+    "id": "shutoken_nankan_kobun",
+    "subject": "古文",
+    "name": "首都圏「難関」私大古文演習",
+    "description": "国語 入試対策 / 全90題 収録",
+    "count": 90
+  },
+  {
+    "id": "chuken_shidai_kobun",
+    "subject": "古文",
+    "name": "中堅私大古文演習",
+    "description": "国語 入試対策 / 全106題 収録",
+    "count": 106
+  },
+  {
+    "id": "tsuji_logical_kobun",
+    "subject": "古文",
+    "name": "大学入試 辻孝宗のロジカル古文読解",
+    "description": "国語 入試対策 / 全47題 収録",
+    "count": 47
+  },
+  {
+    "id": "kobun_polaris_3",
+    "subject": "古文",
+    "name": "大学入試問題集 岡本梨奈の古文ポラリス3 [発展レベル]",
+    "description": "国語 入試対策 / 全64題 収録",
+    "count": 64
+  },
+  {
+    "id": "nittokomasen_kobun",
+    "subject": "古文",
+    "name": "日東駒専＆産近甲龍の古文",
+    "description": "国語 入試対策 / 全79題 収録",
+    "count": 79
+  },
+  {
+    "id": "nihonshi_kiso_seiko",
+    "subject": "日本史",
+    "name": "日本史 基礎問題精講",
+    "description": "社会 入試対策 / 全158問 収録",
+    "count": 158
+  },
+  {
+    "id": "kangaeru_nihonshi_ronjutsu",
+    "subject": "日本史",
+    "name": "考える 日本史論述",
+    "description": "社会 入試対策 / 全16問 収録",
+    "count": 16
+  },
+  {
+    "id": "startup_nihonshi_ronjutsu",
+    "subject": "日本史",
+    "name": "スタートアップ 日本史論述問題集",
+    "description": "社会 入試対策 / 全34問 収録",
+    "count": 34
+  },
+  {
+    "id": "sekaishi_kiso_seiko",
+    "subject": "世界史",
+    "name": "世界史 基礎問題精講",
+    "description": "社会 入試対策 / 全158問 収録",
+    "count": 158
+  },
+  {
+    "id": "jitsuryoku_sekaishi_100",
+    "subject": "世界史",
+    "name": "【改訂第3版】実力をつける世界史100題",
+    "description": "社会 入試対策 / 全199問 収録",
+    "count": 199
+  }
+]
