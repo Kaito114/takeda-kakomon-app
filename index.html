@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>過去問×参考書 網羅率＆合格戦略アナライザー | 全11科目＆実施状況定量分析</title>
+  <style>
+    :root {
+      --brand-red: #b91c1c;
+      --brand-red-dark: #7f1d1d;
+      --brand-red-light: #fef2f2;
+      --navy: #0f172a;
+      --slate-800: #1e293b;
+      --slate-600: #475569;
+      --slate-400: #94a3b8;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --bg: #f8fafc;
+      --emerald: #059669;
+      --emerald-light: #ecfdf5;
+      --amber: #d97706;
+      --amber-light: #fffbeb;
+      --blue: #2563eb;
+      --blue-light: #eff6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background-color: var(--bg);
+      color: var(--slate-800);
+      line-height: 1.6;
+    }
+
+    .zero-storage-bar {
+      background: linear-gradient(90deg, #064e3b, #047857);
+      color: #ecfdf5;
+      font-size: 12.5px;
+      padding: 7px 20px;
+      text-align: center;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .zero-storage-pill {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, #1e1b4b 60%, var(--brand-red-dark) 100%);
+      color: white;
+      padding: 22px 32px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .header-inner {
+      max-width: 1260px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--brand-red);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(185, 28, 28, 0.5);
+    }
+
+    .brand-title h1 {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-title p {
+      font-size: 12.5px;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+
+    .db-stats-badge {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #f8fafc;
+      text-align: right;
+    }
+
+    .db-stats-badge strong {
+      color: #fde047;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1260px;
+      margin: 26px auto 60px;
+      padding: 0 20px;
+    }
+
+    .input-card {
+      background: white;
+      border-radius: 16px;
+      padding: 26px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+      border: 1px solid var(--slate-200);
+      margin-bottom: 26px;
+    }
+
+    .meta-controls {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 768px) {
+      .meta-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-800);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--brand-red);
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .mode-tab {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1.5px solid var(--slate-200);
+      background: var(--slate-100);
+      color: var(--slate-600);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-tab.active {
+      background: var(--navy);
+      color: white;
+      border-color: var(--navy);
+    }
+
+    .dropzone {
+      border: 2.5px dashed #94a3b8;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 38px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--brand-red);
+      background: var(--brand-red-light);
+      transform: translateY(-2px);
+    }
+
+    .dropzone-icon {
+      font-size: 44px;
+      margin-bottom: 10px;
+    }
+
+    .dropzone h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .dropzone p {
+      font-size: 13.5px;
+      color: var(--slate-600);
+    }
+
+    .dropzone .note-pill {
+      display: inline-block;
+      margin-top: 12px;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .text-input-area {
+      display: none;
+    }
+
+    .text-input-area textarea {
+      width: 100%;
+      height: 160px;
+      padding: 14px;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: 12px;
+    }
+
+    .btn-primary {
+      background: var(--brand-red);
+      color: white;
+      border: none;
+      padding: 11px 24px;
+      border-radius: 10px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: var(--brand-red-dark);
+    }
+
+    .demo-bar {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .demo-bar span {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--slate-600);
+      margin-right: 4px;
+    }
+
+    .demo-btn {
+      background: white;
+      border: 1.5px solid var(--slate-200);
+      padding: 6px 13px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-800);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .demo-btn:hover {
+      border-color: var(--brand-red);
+      color: var(--brand-red);
+      background: var(--brand-red-light);
+    }
+
+    #loadingBox {
+      display: none;
+      text-align: center;
+      padding: 40px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      margin-bottom: 28px;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid var(--slate-200);
+      border-top-color: var(--brand-red);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #resultDashboard {
+      display: none;
+    }
+
+    .wipe-confirmation-bar {
+      background: var(--emerald-light);
+      border: 1.5px solid #6ee7b7;
+      color: #065f46;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+
+    .btn-print {
+      background: var(--navy);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-print:hover {
+      background: #334155;
+    }
+
+    .section-card {
+      background: white;
+      border-radius: 16px;
+      padding: 26px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+      border: 1px solid var(--slate-200);
+      margin-bottom: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--slate-100);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section-header h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .num-badge {
+      background: var(--brand-red);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-box {
+      background: var(--slate-100);
+      border-radius: 12px;
+      padding: 16px 18px;
+      border-left: 5px solid var(--brand-red);
+    }
+
+    .kpi-box .kpi-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-600);
+    }
+
+    .kpi-box .kpi-val {
+      font-size: 21px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-top: 4px;
+    }
+
+    .kpi-box .kpi-sub {
+      font-size: 12px;
+      color: var(--slate-600);
+      margin-top: 2px;
+    }
+
+    .cov-highlight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .cov-hero-box {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 14px;
+    }
+
+    .cov-hero-box.red-accent {
+      background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+    }
+
+    .cov-hero-box .hero-title {
+      font-size: 13px;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+
+    .cov-hero-box .hero-MainRate {
+      font-size: 34px;
+      font-weight: 900;
+      color: #fde047;
+      margin: 6px 0;
+    }
+
+    .cov-hero-box .hero-desc {
+      font-size: 12px;
+      color: #e2e8f0;
+    }
+
+    .bar-row {
+      margin-bottom: 14px;
+    }
+
+    .bar-label-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .bar-track {
+      height: 12px;
+      background: var(--slate-200);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--brand-red), #ef4444);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    .bar-fill.blue {
+      background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+    }
+
+    .bar-fill.emerald {
+      background: linear-gradient(90deg, #047857, #10b981);
+    }
+
+    .word-chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .word-chip {
+      background: var(--slate-100);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .word-chip strong {
+      color: var(--navy);
+      font-weight: 800;
+    }
+
+    .word-chip .chip-num {
+      color: var(--brand-red);
+      font-weight: 700;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    .word-chip .chip-mean {
+      color: var(--slate-600);
+      font-size: 11px;
+      margin-left: 4px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin-top: 10px;
+    }
+
+    .data-table th {
+      background: var(--slate-100);
+      color: var(--slate-800);
+      text-align: left;
+      padding: 11px 14px;
+      font-weight: 800;
+      border-bottom: 2px solid var(--slate-200);
+    }
+
+    .data-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--slate-200);
+      vertical-align: top;
+    }
+
+    .prob-card {
+      border: 1.5px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+      background: #fafafa;
+    }
+
+    .prob-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .prob-badge {
+      background: var(--navy);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .diff-pill {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .diff-pill.a-prob {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .diff-pill.b-prob {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .juyo-match-box {
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-left: 4px solid var(--brand-red);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+
+    .border-item {
+      border: 1.5px solid #fecaca;
+      background: #fff5f5;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+    }
+
+    .border-item h4 {
+      color: var(--brand-red-dark);
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .threshold-badge {
+      background: var(--brand-red);
+      color: white;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    /* Interactive Mistake Tracker Styles */
+    .tracker-quick-add {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tracker-quick-add select,
+    .tracker-quick-add input {
+      padding: 7px 11px;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tracker-group {
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: white;
+    }
+
+    .tracker-group-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .subq-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--slate-100);
+      margin-bottom: 8px;
+      transition: background 0.15s;
+    }
+
+    .subq-row.status-wrong {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .subq-row.status-partial {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+
+    .subq-row.status-ok {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+    }
+
+    .state-btn-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .state-btn {
+      padding: 5px 11px;
+      border-radius: 6px;
+      border: 1.5px solid var(--slate-200);
+      background: white;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .state-btn.active-ok {
+      background: #059669;
+      color: white;
+      border-color: #059669;
+    }
+
+    .state-btn.active-partial {
+      background: #d97706;
+      color: white;
+      border-color: #d97706;
+    }
+
+    .state-btn.active-wrong {
+      background: #dc2626;
+      color: white;
+      border-color: #dc2626;
+    }
+
+    .reason-select {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 12px;
+      background: white;
+    }
+
+    .live-diag-box {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      color: white;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-top: 18px;
+    }
+
+    .remedy-alert-card {
+      background: rgba(255, 255, 255, 0.12);
+      border-left: 4px solid #fde047;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    /* Auth & Admin Password Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+
+    .modal-card {
+      background: white;
+      width: 100%;
+      max-width: 460px;
+      border-radius: 18px;
+      padding: 32px 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--slate-200);
+    }
+
+    .modal-card h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .modal-card p.modal-sub {
+      font-size: 13px;
+      color: var(--slate-600);
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .auth-role-box {
+      background: var(--slate-100);
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .auth-role-box h4 {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .role-badge {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .role-badge.admin {
+      background: rgba(253, 224, 71, 0.2);
+      border-color: #fde047;
+      color: #fde047;
+    }
+
+    .header-btn {
+      background: rgba(255, 255, 255, 0.14);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.26);
+    }
+
+    @media print {
+      .zero-storage-bar, .input-card, .btn-print, .tracker-quick-add, .modal-overlay, .header-actions {
+        display: none !important;
+      }
+      body {
+        background: white;
+      }
+      .section-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Modal (Shown when unauthenticated) -->
+  <div class="modal-overlay" id="loginModal" style="display: none;">
+    <div class="modal-card">
+      <div style="width:52px;height:52px;background:var(--brand-red);color:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 12px;">🔒</div>
+      <h2>過去問×参考書 合格戦略アナライザー</h2>
+      <p class="modal-sub">利用者または管理者のID・パスワードでログインしてください</p>
+      <div id="loginErrorMsg" style="display:none;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:700;margin-bottom:14px;text-align:center;"></div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label for="loginUsername">👤 ログインID</label>
+        <input type="text" id="loginUsername" placeholder="利用者ID または 管理者ID" onkeydown="if(event.key==='Enter') submitLogin()" />
+      </div>
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="loginPassword">🔑 パスワード</label>
+        <input type="password" id="loginPassword" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter') submitLogin()" />
+      </div>
+      <button class="btn-primary" style="width: 100%; padding: 13px;" onclick="submitLogin()">🚀 ログインして開始</button>
+    </div>
+  </div>
+
+  <!-- Admin Password Settings Modal (Admin Only) -->
+  <div class="modal-overlay" id="passwordModal" style="display: none;">
+    <div class="modal-card" style="max-width: 520px;">
+      <h2>🔑 アカウント・パスワード管理（管理者専用）</h2>
+      <p class="modal-sub">一般利用者（講師・校舎用）と管理者（本部用）のID・パスワードを個別に設定できます</p>
+
+      <div class="auth-role-box">
+        <h4>👤 一般利用者アカウント（過去問解析・レポート出力のみ可能）</h4>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>利用者 ログインID</label>
+          <input type="text" id="cfgUserId" />
+        </div>
+        <div class="form-group">
+          <label>利用者 パスワード</label>
+          <input type="text" id="cfgUserPw" />
+        </div>
+      </div>
+
+      <div class="auth-role-box" style="background:#fffbeb;border-color:#fde68a;">
+        <h4 style="color:#92400e;">👑 管理者アカウント（全機能＋パスワード変更権限）</h4>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>管理者 ログインID</label>
+          <input type="text" id="cfgAdminId" />
+        </div>
+        <div class="form-group">
+          <label>管理者 パスワード</label>
+          <input type="text" id="cfgAdminPw" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button class="mode-tab" onclick="closePasswordModal()">キャンセル</button>
+        <button class="btn-primary" onclick="savePasswordConfig()">💾 設定を保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Zero Storage Guarantee Banner -->
+  <div class="zero-storage-bar">
+    <span>🛡️ オンメモリ超軽量モード稼働中</span>
+    <span>確認テストサイト搭載の【全11科目・570冊】と高速照合し、出力完了と同時に過去問データをメモリから自動破棄します</span>
+    <span class="zero-storage-pill">サーバー保存容量 0 Byte 維持</span>
+  </div>
+
+  <!-- 2. Header -->
+  <header>
+    <div class="header-inner">
+      <div class="brand-title">
+        <div class="brand-icon">📊</div>
+        <div>
+          <h1>大学過去問 × 参考書データ 網羅率＆合格戦略アナライザー</h1>
+          <p>全11科目完全対応｜網羅率・類題特定・実施状況（ミス箇所）からのリアルタイム定量合否分析＆併願校推薦</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="role-badge" id="userRoleBadge">未ログイン</span>
+        <button class="header-btn" id="btnAdminPw" style="display: none;" onclick="openPasswordModal()">🔑 パスワード管理</button>
+        <button class="header-btn" id="btnLogout" style="display: none;" onclick="logoutApp()">🚪 ログアウト</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 3. Input Panel -->
+    <div class="input-card">
+      <div class="meta-controls">
+        <div class="form-group">
+          <label for="univInput">🏫 大学・学部名（任意・空欄でもPDF表紙や問題コードから自動検出）</label>
+          <input type="text" id="univInput" placeholder="例：関西大学 システム理工学部 / 明治大学 経営学部 / 早稲田大学 など" />
+        </div>
+        <div class="form-group">
+          <label for="subjectSelect">📚 科目選択（確認テストサイト搭載の【全11科目】自動識別対応）</label>
+          <select id="subjectSelect">
+            <option value="auto">✨ 自動判定（PDFの表紙・本文から全11科目を自動識別）</option>
+            <option value="english">🇬🇧 1. 英語（シス単1〜1200/1700網羅率・熟語・文法構文・長文照合）</option>
+            <option value="math">📐 2. 数学（実戦数学重要問題集A/B・青チャート・基礎問題精講 類題照合）</option>
+            <option value="gendai">📖 3. 現代文（漢字マスター1800+・語彙1700・キーワード読解・ポラリス照合）</option>
+            <option value="kobun">📜 4. 古文（古文単語315/330・ステップアップノート30・古文ポラリス照合）</option>
+            <option value="physics">⚡ 5. 物理（物理重要問題集・名問の森・物理基礎問題精講 類題照合）</option>
+            <option value="chemistry">🧪 6. 化学（化学重要問題集332問・リードLight・化学入門/基礎問・新演習照合）</option>
+            <option value="biology">🧬 7. 生物（生物合格177問・合格100問・生物入門問題精講・全レベル照合）</option>
+            <option value="nihonshi">🏯 8. 日本史（日本史一問一答・時代と流れ・2レベル定着・HISTORIA照合）</option>
+            <option value="sekaishi">🌍 9. 世界史（世界史一問一答・マルチトレーニング・時代と流れ・HISTORIA照合）</option>
+            <option value="chiri">🗺️ 10. 地理（瀬川聡の共通テスト地理・集中講義・地図統計80・地理100題照合）</option>
+            <option value="seikei">⚖️ 11. 政治・経済（蔭山の共通テスト政経・私大攻略・政経標準問題精講照合）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabPdf" onclick="switchMode('pdf')">📄 過去問PDFをドラッグ＆ドロップ</button>
+        <button class="mode-tab" id="tabText" onclick="switchMode('text')">📝 過去問テキストを直接貼り付け</button>
+      </div>
+
+      <div id="pdfDropSection">
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept=".pdf" style="display: none" onchange="handleFileSelect(this.files)" />
+          <div class="dropzone-icon">📥</div>
+          <h2>ここに大学の過去問PDFをドラッグ＆ドロップ</h2>
+          <p>スキャン画像PDF（英語・数学・理科・国語・社会）も自動で高速並列OCR解析します</p>
+          <span class="note-pill">⚡ 解析完了と同時にインプットPDFはメモリから完全消去されます</span>
+        </div>
+      </div>
+
+      <div class="text-input-area" id="textInputSection">
+        <textarea id="rawTextInput" placeholder="ここに過去問の本文や問題文を貼り付けてください..."></textarea>
+        <button class="btn-primary" onclick="analyzeRawText()">🔍 貼り付けた過去問を参考書DBと照合する</button>
+      </div>
+
+      <div class="demo-bar">
+        <span>💡 ワンクリック実演デモ：</span>
+        <button class="demo-btn" onclick="runDemo('waseda_eng')">🇬🇧 英語過去問</button>
+        <button class="demo-btn" onclick="runDemo('rikei_math')">📐 理系数学過去問</button>
+        <button class="demo-btn" onclick="runDemo('bunkei_math')">📐 文系数学過去問</button>
+        <button class="demo-btn" onclick="runDemo('physics_demo')">⚡ 物理過去問</button>
+        <button class="demo-btn" onclick="runDemo('chem_demo')">🧪 化学過去問</button>
+        <button class="demo-btn" onclick="runDemo('kobun_demo')">📜 古文過去問</button>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingBox">
+      <div class="spinner"></div>
+      <h3 style="color: var(--navy); font-weight: 800;">過去問をオンメモリ展開し、全11科目・570冊の参考書DBと高速照合中...</h3>
+      <p style="font-size: 13px; color: var(--slate-600); margin-top: 6px;">スキャン画像PDFの並列OCR・大問分割・網羅率算出後にメモリを自動解放します</p>
+    </div>
+
+    <!-- 4. Output Results Dashboard -->
+    <div id="resultDashboard">
+      <div class="wipe-confirmation-bar">
+        <span id="memoryStatusText">✅ インプットされた過去問データはオンメモリ照合完了後に完全破棄されました（サーバー保存容量 0 Byte 維持）</span>
+        <button class="btn-print" onclick="window.print()">🖨️ 診断＆ミス分析レポートを印刷 / PDF保存</button>
+      </div>
+
+      <!-- Section 1: Reference Book Level & KPIs -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3><span class="num-badge">1</span> 参考書レベル判定 ＆ 過去問プロファイル</h3>
+          <span id="resSubjBadge" style="font-size: 13.5px; font-weight: 800; color: var(--brand-red);"></span>
+        </div>
+        <div class="kpi-grid" id="kpiGrid"></div>
+      </div>
+
+      <!-- Section 2: Interactive Past Exam Execution & Mistake Tracker -->
+      <div class="section-card" style="border: 2px solid #cbd5e1;">
+        <div class="section-header">
+          <h3><span class="num-badge" style="background:#1d4ed8;">2</span> 過去問の実施状況・ミス箇所入力（「大問〇番の(▲)でミス」からリアルタイム定量分析）</h3>
+          <span style="font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:4px 10px;border-radius:999px;">✨ ミス箇所を選択すると下の定量診断と復習リストが即時更新されます</span>
+        </div>
+
+        <!-- Quick Mistake Input Bar -->
+        <div class="tracker-quick-add">
+          <strong style="font-size:13px;color:var(--navy);">⚡ ミス箇所をクイック記録：</strong>
+          <select id="quickProbSelect" onchange="populateQuickSubSelect()"></select>
+          <span>の</span>
+          <select id="quickSubSelect"></select>
+          <span>で</span>
+          <select id="quickReasonSelect">
+            <option value="知識・単語・公式抜け">📚 知識・単語・公式抜けミス</option>
+            <option value="解法・方針立たず">🧭 解法・方針が立たなかった</option>
+            <option value="計算・ケアレス・ひっかけ">🔢 計算ミス・ひっかけ・ケアレス</option>
+            <option value="時間切れ・未着手">⏱️ 時間切れ・手が回らなかった</option>
+          </select>
+          <button class="btn-primary" style="padding:7px 16px;font-size:13px;" onclick="applyQuickMistake()">❌ ミスとして記録・定量再分析</button>
+        </div>
+
+        <!-- Detailed Interactive Sub-question Rows -->
+        <div id="trackerContainer"></div>
+
+        <!-- Live Dynamic Quantitative Feedback Panel -->
+        <div class="live-diag-box" id="liveDiagBox"></div>
+      </div>
+
+      <!-- Section 3: Coverage Rate & Similar Problem Mapping -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3><span class="num-badge">3</span> 蓄積参考書データ照合：網羅率（カバー率）＆ 類題マッピング</h3>
+        </div>
+        <div id="coverageContent"></div>
+      </div>
+
+      <!-- Section 4: Quantitative Pass Border Analysis -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3><span class="num-badge">4</span> 定量的合否ボーダー（「何がどの程度できていないと合格可能性がないか」）</h3>
+        </div>
+        <div id="borderContent"></div>
+      </div>
+
+      <!-- Section 5: Next Reference Books & What to Learn -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3><span class="num-badge">5</span> 次にやるべき参考書・学ぶべき範囲一覧（武田塾ルート逆算）</h3>
+        </div>
+        <div id="roadmapContent"></div>
+      </div>
+
+      <!-- Section 6: Concurrent University Recommendations -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3><span class="num-badge">6</span> 似た出題傾向から導く「併願推奨大学・学部」ランキング</h3>
+        </div>
+        <div id="concurrentContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentAnalysisData = null;
+    let trackerState = {};
+    let authToken = localStorage.getItem("kakomon_app_token") || "";
+    let currentRole = localStorage.getItem("kakomon_app_role") || "";
+
+    function getAuthHeaders(extra = {}) {
+      const h = { ...extra };
+      if (authToken) {
+        h["X-Auth-Token"] = authToken;
+      }
+      return h;
+    }
+
+    async function checkAuthOnLoad() {
+      try {
+        const res = await fetch("/api/auth-check", { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error("unauth");
+        const data = await res.json();
+        applyAuthenticatedUI(data.username, data.role);
+      } catch (e) {
+        document.getElementById("loginModal").style.display = "flex";
+      }
+    }
+
+    function applyAuthenticatedUI(username, role) {
+      currentRole = role;
+      document.getElementById("loginModal").style.display = "none";
+      const badge = document.getElementById("userRoleBadge");
+      const btnPw = document.getElementById("btnAdminPw");
+      const btnOut = document.getElementById("btnLogout");
+      btnOut.style.display = "inline-block";
+
+      if (role === "admin") {
+        badge.className = "role-badge admin";
+        badge.innerText = `👑 管理者モード (${username})`;
+        btnPw.style.display = "inline-block";
+      } else {
+        badge.className = "role-badge";
+        badge.innerText = `👤 利用者モード (${username})`;
+        btnPw.style.display = "none";
+      }
+    }
+
+    async function submitLogin() {
+      const u = document.getElementById("loginUsername").value.trim();
+      const p = document.getElementById("loginPassword").value;
+      const errBox = document.getElementById("loginErrorMsg");
+      errBox.style.display = "none";
+
+      if (!u || !p) {
+        errBox.innerText = "IDとパスワードを入力してください。";
+        errBox.style.display = "block";
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "ログインに失敗しました。");
+        }
+        authToken = data.token;
+        localStorage.setItem("kakomon_app_token", data.token);
+        localStorage.setItem("kakomon_app_role", data.role);
+        document.getElementById("loginPassword").value = "";
+        applyAuthenticatedUI(data.username, data.role);
+      } catch (err) {
+        errBox.innerText = err.message;
+        errBox.style.display = "block";
+      }
+    }
+
+    function logoutApp() {
+      authToken = "";
+      currentRole = "";
+      localStorage.removeItem("kakomon_app_token");
+      localStorage.removeItem("kakomon_app_role");
+      document.cookie = "kakomon_app_token=; max-age=0; path=/";
+      document.getElementById("loginModal").style.display = "flex";
+    }
+
+    async function openPasswordModal() {
+      try {
+        const res = await fetch("/api/auth-config", { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "権限がありません");
+        document.getElementById("cfgUserId").value = data.user_username || "";
+        document.getElementById("cfgUserPw").value = data.user_password || "";
+        document.getElementById("cfgAdminId").value = data.admin_username || "";
+        document.getElementById("cfgAdminPw").value = data.admin_password || "";
+        document.getElementById("passwordModal").style.display = "flex";
+      } catch (err) {
+        alert("エラー: " + err.message);
+      }
+    }
+
+    function closePasswordModal() {
+      document.getElementById("passwordModal").style.display = "none";
+    }
+
+    async function savePasswordConfig() {
+      const payload = {
+        user_username: document.getElementById("cfgUserId").value.trim(),
+        user_password: document.getElementById("cfgUserPw").value.trim(),
+        admin_username: document.getElementById("cfgAdminId").value.trim(),
+        admin_password: document.getElementById("cfgAdminPw").value.trim()
+      };
+      try {
+        const res = await fetch("/api/update-password", {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "保存に失敗しました");
+        authToken = data.token;
+        localStorage.setItem("kakomon_app_token", data.token);
+        applyAuthenticatedUI(data.username, "admin");
+        closePasswordModal();
+        alert("✅ 利用者および管理者のID・パスワード設定を更新・永続保存しました！");
+      } catch (err) {
+        alert("エラー: " + err.message);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", checkAuthOnLoad);
+
+    function switchMode(mode) {
+      document.getElementById("tabPdf").classList.toggle("active", mode === "pdf");
+      document.getElementById("tabText").classList.toggle("active", mode === "text");
+      document.getElementById("pdfDropSection").style.display = mode === "pdf" ? "block" : "none";
+      document.getElementById("textInputSection").style.display = mode === "text" ? "block" : "none";
+    }
+
+    const dropzone = document.getElementById("dropzone");
+    ["dragenter", "dragover", "dragleave", "drop"].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+    ["dragenter", "dragover"].forEach(evt => {
+      dropzone.addEventListener(evt, () => dropzone.classList.add("dragover"));
+    });
+    ["dragleave", "drop"].forEach(evt => {
+      dropzone.addEventListener(evt, () => dropzone.classList.remove("dragover"));
+    });
+    dropzone.addEventListener("drop", e => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleFileSelect(files);
+      }
+    });
+
+    async function handleFileSelect(files) {
+      const file = files[0];
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        alert("PDFファイル（.pdf）をドラッグ＆ドロップしてください。");
+        return;
+      }
+
+      showLoading(true);
+      try {
+        const b64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = err => reject(err);
+          reader.readAsDataURL(file);
+        });
+
+        const res = await fetch("/api/analyze-pdf", {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            pdf_base64: b64,
+            filename: file.name,
+            subject: document.getElementById("subjectSelect").value,
+            university: document.getElementById("univInput").value
+          })
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          document.getElementById("loginModal").style.display = "flex";
+          throw new Error("ログインが必要です。");
+        }
+        if (!res.ok) throw new Error(data.detail || "解析に失敗しました");
+        renderResults(data);
+      } catch (err) {
+        alert("エラー: " + err.message);
+      } finally {
+        document.getElementById("fileInput").value = "";
+        showLoading(false);
+      }
+    }
+
+    async function analyzeRawText() {
+      const txt = document.getElementById("rawTextInput").value;
+      if (!txt || txt.trim().length < 15) {
+        alert("解析する過去問のテキストを入力してください。");
+        return;
+      }
+      showLoading(true);
+      try {
+        const res = await fetch("/api/analyze-text", {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            text: txt,
+            subject: document.getElementById("subjectSelect").value,
+            university: document.getElementById("univInput").value
+          })
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          document.getElementById("loginModal").style.display = "flex";
+          throw new Error("ログインが必要です。");
+        }
+        if (!res.ok) throw new Error(data.detail || "解析に失敗しました");
+        renderResults(data);
+      } catch (err) {
+        alert("エラー: " + err.message);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function showLoading(flag) {
+      document.getElementById("loadingBox").style.display = flag ? "block" : "none";
+      if (flag) {
+        document.getElementById("resultDashboard").style.display = "none";
+      }
+    }
+
+    function renderResults(data) {
+      currentAnalysisData = data;
+      document.getElementById("resultDashboard").style.display = "block";
+      if (data.memory_policy && data.memory_policy.message) {
+        document.getElementById("memoryStatusText").innerText =
+          `🗑️ ${data.memory_policy.message}（総ページ: ${data.memory_policy.processed_pages}P / 問題抽出: ${data.memory_policy.problem_pages || data.memory_policy.processed_pages}P / 文字数: ${data.memory_policy.processed_chars}字）`;
+      }
+      document.getElementById("resSubjBadge").innerText = `${data.university} ｜ ${data.subject_label}`;
+
+      const lv = data.level_evaluation || {};
+      const kpiGrid = document.getElementById("kpiGrid");
+
+      if (data.subject === "english") {
+        const sc = data.systan_coverage;
+        kpiGrid.innerHTML = `
+          <div class="kpi-box">
+            <div class="kpi-label">参考書レベル判定</div>
+            <div class="kpi-val">${lv.level_label}</div>
+            <div class="kpi-sub">難易度ランク: ${lv.level_rank} (スコア ${lv.level_score}/100)</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">シス単 1〜1200番（日大レベル）網羅率</div>
+            <div class="kpi-val" style="color: var(--brand-red);">${sc.passage_token_cov_1200}% <span style="font-size:13px;color:#475569;">(重要語 ${sc.cumulative_1200_exam_rate}%)</span></div>
+            <div class="kpi-sub">本文全語数の ${sc.passage_token_cov_1200}% を第1・2章でカバー</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">シス単 1〜1700番（MARCHレベル）網羅率</div>
+            <div class="kpi-val" style="color: var(--emerald);">${sc.passage_token_cov_1700}% <span style="font-size:13px;color:#475569;">(重要語 ${sc.cumulative_1700_exam_rate}%)</span></div>
+            <div class="kpi-sub">第3章まで完成で本文の ${sc.passage_token_cov_1700}% に到達</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">総語数 ＆ 要求読解スピード</div>
+            <div class="kpi-val">${lv.total_words} 語 / ${lv.required_wpm} WPM</div>
+            <div class="kpi-sub">全 ${lv.sentence_count} 文（1文平均 ${lv.avg_sentence_length} 語）</div>
+          </div>
+        `;
+        renderEnglishCoverage(data);
+      } else if (data.subject in {"nihonshi":1, "sekaishi":1}) {
+        kpiGrid.innerHTML = `
+          <div class="kpi-box">
+            <div class="kpi-label">参考書レベル判定</div>
+            <div class="kpi-val">${lv.level_label}</div>
+            <div class="kpi-sub">${lv.level_rank}</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">一問一答 基本・標準（★★★/★★）網羅率</div>
+            <div class="kpi-val" style="color: var(--brand-red);">${lv.ab_coverage_rate || 88.0}%</div>
+            <div class="kpi-sub">検出用語数: ${lv.total_matched_terms || 0} 語</div>
+          </div>
+        `;
+        renderHistoryCoverage(data);
+      } else {
+        kpiGrid.innerHTML = `
+          <div class="kpi-box">
+            <div class="kpi-label">参考書レベル判定</div>
+            <div class="kpi-val" style="font-size:17px;">${lv.level_label}</div>
+            <div class="kpi-sub">ランク: ${lv.level_rank} (難易度スコア ${lv.level_score}/100)</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">標準必修参考書（基礎問・A問題等）網羅率</div>
+            <div class="kpi-val" style="color: var(--brand-red);">${lv.juyo_a_coverage}%</div>
+            <div class="kpi-sub">全 ${lv.total_problems} 大問/セクションを構造化解析</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">上位・実戦参考書（B問題・名問等）含む網羅率</div>
+            <div class="kpi-val" style="color: var(--emerald);">${lv.juyo_ab_coverage}%</div>
+            <div class="kpi-sub">応用・考察問題を含む完全カバー率</div>
+          </div>
+        `;
+        renderMathAndStructuredCoverage(data);
+      }
+
+      // Initialize Section 2: Interactive Past Exam Execution & Mistake Tracker
+      initMistakeTracker(data.tracker_sections || []);
+
+      // Section 4: Quantitative Borders
+      const borderEl = document.getElementById("borderContent");
+      borderEl.innerHTML = (data.quantitative_borders || []).map(b => `
+        <div class="border-item">
+          <h4>
+            <span>⚠️ ${b.category}</span>
+            <span class="threshold-badge">合格必須基準: ${b.threshold}</span>
+          </h4>
+          <p style="font-size: 13.5px; color: var(--slate-800); margin-bottom: 6px;"><strong>【定量照合データ】</strong> ${b.current_analysis}</p>
+          <p style="font-size: 13.5px; color: var(--brand-red-dark); font-weight: 700;">👉 ${b.verdict}</p>
+        </div>
+      `).join("");
+
+      // Section 5: Next Reference Books Roadmap
+      const roadEl = document.getElementById("roadmapContent");
+      roadEl.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 18%;">優先ステップ</th>
+              <th style="width: 30%;">取り組むべき参考書</th>
+              <th style="width: 26%;">重点学習範囲・章・番号</th>
+              <th style="width: 26%;">合格に向けたクリア基準</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.next_books_roadmap || []).map(r => `
+              <tr>
+                <td><strong style="color: var(--brand-red);">${r.priority}</strong></td>
+                <td><strong>${r.book}</strong></td>
+                <td>${r.target_range}</td>
+                <td>${r.goal}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+
+      // Section 6: Concurrent Universities
+      const concEl = document.getElementById("concurrentContent");
+      concEl.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 14%;">傾向一致度</th>
+              <th style="width: 28%;">併願推奨大学・学部</th>
+              <th style="width: 16%;">レベル帯</th>
+              <th style="width: 42%;">出題傾向が似ている理由・対策の共通点</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.concurrent_universities || []).map(u => `
+              <tr>
+                <td><span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-weight:800;">一致度 ${u.match_rate}%</span></td>
+                <td><strong>${u.university_name}</strong></td>
+                <td>${u.tier} (偏差値${u.deviation_value}帯)</td>
+                <td>${u.reason}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById("resultDashboard").scrollIntoView({ behavior: "smooth" });
+    }
+
+    // =====================================================================
+    // Interactive Mistake Tracker Logic
+    // =====================================================================
+    function initMistakeTracker(sections) {
+      trackerState = {};
+      sections.forEach(sec => {
+        (sec.sub_questions || []).forEach(sq => {
+          trackerState[sq.id] = {
+            status: "ok", // default: ⭕ 正解
+            reason: "知識・単語・公式抜け",
+            item: sq
+          };
+        });
+      });
+
+      // Populate Quick Select dropdowns
+      const probSel = document.getElementById("quickProbSelect");
+      probSel.innerHTML = sections.map((sec, idx) => `<option value="${idx}">${sec.problem_no}（${sec.unit.slice(0, 18)}...）</option>`).join("");
+      populateQuickSubSelect();
+
+      renderTrackerUI(sections);
+      updateLiveMistakeDiagnosis();
+    }
+
+    function populateQuickSubSelect() {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const pIdx = parseInt(document.getElementById("quickProbSelect").value || "0", 10);
+      const subSel = document.getElementById("quickSubSelect");
+      const sec = sections[pIdx];
+      if (!sec) {
+        subSel.innerHTML = "";
+        return;
+      }
+      subSel.innerHTML = (sec.sub_questions || []).map(sq => `<option value="${sq.id}">${sq.label}</option>`).join("");
+    }
+
+    function applyQuickMistake() {
+      const sqId = document.getElementById("quickSubSelect").value;
+      const reason = document.getElementById("quickReasonSelect").value;
+      if (!sqId || !trackerState[sqId]) return;
+      trackerState[sqId].status = "wrong";
+      trackerState[sqId].reason = reason;
+      renderTrackerUI(currentAnalysisData.tracker_sections || []);
+      updateLiveMistakeDiagnosis();
+    }
+
+    function setSubQuestionStatus(sqId, newStatus) {
+      if (!trackerState[sqId]) return;
+      trackerState[sqId].status = newStatus;
+      renderTrackerUI(currentAnalysisData.tracker_sections || []);
+      updateLiveMistakeDiagnosis();
+    }
+
+    function setSubQuestionReason(sqId, newReason) {
+      if (!trackerState[sqId]) return;
+      trackerState[sqId].reason = newReason;
+      updateLiveMistakeDiagnosis();
+    }
+
+    function renderTrackerUI(sections) {
+      const container = document.getElementById("trackerContainer");
+      container.innerHTML = sections.map(sec => `
+        <div class="tracker-group">
+          <div class="tracker-group-title">
+            <span>📌 ${sec.problem_no}：${sec.unit}</span>
+          </div>
+          ${(sec.sub_questions || []).map(sq => {
+            const st = trackerState[sq.id] || { status: "ok", reason: "知識・単語・公式抜け" };
+            return `
+              <div class="subq-row status-${st.status}">
+                <div>
+                  <strong style="font-size:13.5px;color:var(--navy);">${sq.label}</strong>
+                  <span style="margin-left:8px;font-size:11.5px;font-weight:700;">${sq.tier_label}</span>
+                  <div style="font-size:11.5px;color:#475569;margin-top:2px;">対応参考書: ${sq.remedy_book}</div>
+                </div>
+                <div class="state-btn-group">
+                  <button class="state-btn ${st.status === 'ok' ? 'active-ok' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'ok')">⭕ 正解</button>
+                  <button class="state-btn ${st.status === 'partial' ? 'active-partial' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'partial')">🔺 部分点・惜しい</button>
+                  <button class="state-btn ${st.status === 'wrong' ? 'active-wrong' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'wrong')">❌ ミス・不正解</button>
+                  ${st.status !== 'ok' ? `
+                    <select class="reason-select" onchange="setSubQuestionReason('${sq.id}', this.value)">
+                      <option value="知識・単語・公式抜け" ${st.reason === '知識・単語・公式抜け' ? 'selected' : ''}>📚 知識・単語・公式抜け</option>
+                      <option value="解法・方針立たず" ${st.reason === '解法・方針立たず' ? 'selected' : ''}>🧭 解法・方針立たず</option>
+                      <option value="計算・ケアレス・ひっかけ" ${st.reason === '計算・ケアレス・ひっかけ' ? 'selected' : ''}>🔢 計算・ケアレス・ひっかけ</option>
+                      <option value="時間切れ・未着手" ${st.reason === '時間切れ・未着手' ? 'selected' : ''}>⏱️ 時間切れ・未着手</option>
+                    </select>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `).join("");
+    }
+
+    function updateLiveMistakeDiagnosis() {
+      const entries = Object.values(trackerState);
+      if (entries.length === 0) return;
+
+      let totalPts = 0;
+      let earnedPts = 0;
+      let lostMustPts = 0;
+      let lostBorderPts = 0;
+      const wrongItems = [];
+      const reasonCounts = {};
+
+      entries.forEach(e => {
+        const pts = e.item.points || 10;
+        totalPts += pts;
+        if (e.status === "ok") {
+          earnedPts += pts;
+        } else if (e.status === "partial") {
+          earnedPts += pts * 0.5;
+          const lost = pts * 0.5;
+          if (e.item.tier === "must_score") lostMustPts += lost;
+          else if (e.item.tier === "border_line") lostBorderPts += lost;
+          wrongItems.push({ ...e, lostPts: lost });
+          reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1;
+        } else {
+          const lost = pts;
+          if (e.item.tier === "must_score") lostMustPts += lost;
+          else if (e.item.tier === "border_line") lostBorderPts += lost;
+          wrongItems.push({ ...e, lostPts: lost });
+          reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1;
+        }
+      });
+
+      const scoreRate = Math.round((earnedPts / Math.max(1, totalPts)) * 1000) / 10;
+      const mustRecoverRate = Math.round(((earnedPts + lostMustPts) / Math.max(1, totalPts)) * 1000) / 10;
+      const passBorder = 65.0;
+      const gap = Math.round((passBorder - scoreRate) * 10) / 10;
+
+      const box = document.getElementById("liveDiagBox");
+      if (wrongItems.length === 0) {
+        box.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h4 style="font-size:16px;font-weight:800;color:#fde047;">📊 過去問実施状況リアルタイム定量分析（現在：全問⭕設定）</h4>
+              <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">上のリストまたはクイック記録バーで、生徒が間違えた箇所（❌ミス または 🔺部分点）をクリックしてください。落とした問題に応じた定量合否シミュレーションと緊急復習リストがここに出力されます。</p>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:28px;font-weight:900;color:#6ee7b7;">推定得点率 ${scoreRate}%</div>
+              <div style="font-size:12px;color:#cbd5e1;">合格最低点目安: ${passBorder}%</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const reasonSummary = Object.entries(reasonCounts).map(([r, c]) => `${r}: ${c}箇所`).join(" ／ ");
+
+      box.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:14px;margin-bottom:14px;">
+          <div>
+            <h4 style="font-size:17px;font-weight:800;color:#fde047;">📊 ミス箇所に基づくリアルタイム定量合否・失点分析（ミス記録: ${wrongItems.length}箇所）</h4>
+            <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">
+              <strong>失点原因の内訳:</strong> ${reasonSummary}
+            </p>
+            <p style="font-size:13.5px;color:#fff;margin-top:6px;font-weight:700;">
+              ${lostMustPts > 0
+                ? `🚨 【重要定量インサイト】🟢必答基礎問題での失点が全体の <strong>-${Math.round(lostMustPts/totalPts*100)}%分</strong> 発生しています！応用問題に手を出す前に、この必答ミスを潰すだけで得点率が <strong>${scoreRate}% → ${mustRecoverRate}%</strong> に跳ね上がります！`
+                : `💡 🟢必答基礎問題はすべてクリアできています！あとは🟡合否分岐問題の精度を上げれば確実に合格安全圏です。`}
+            </p>
+          </div>
+          <div style="background:rgba(0,0,0,0.25);padding:12px 18px;border-radius:12px;text-align:right;min-width:210px;">
+            <div style="font-size:12px;color:#cbd5e1;">現在の推定得点率</div>
+            <div style="font-size:30px;font-weight:900;color:${scoreRate >= passBorder ? '#6ee7b7' : '#fca5a5'};">${scoreRate}%</div>
+            <div style="font-size:12.5px;font-weight:700;color:#fde047;">
+              ${gap > 0 ? `合格ライン(${passBorder}%)まで あと +${gap}%` : `🎉 合格最低ライン(${passBorder}%)突破！`}
+            </div>
+          </div>
+        </div>
+
+        <h5 style="font-size:14px;font-weight:800;color:#fde047;margin-bottom:8px;">🎯 ミスした設問から逆算した「ピンポイント緊急復習処方箋」：</h5>
+        ${wrongItems.map(w => `
+          <div class="remedy-alert-card">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+              <strong>❌ ${w.item.label}（${w.item.tier_label} ｜ 原因: ${w.reason}）</strong>
+              <span style="color:#fde047;font-weight:800;">優先復習ターゲット</span>
+            </div>
+            <div style="margin-top:4px;color:#f8fafc;">
+              👉 <strong>今すぐ戻るべき参考書・範囲:</strong> ${w.item.remedy_book}
+            </div>
+          </div>
+        `).join("")}
+      `;
+    }
+
+    function renderEnglishCoverage(data) {
+      const sc = data.systan_coverage;
+      const el = document.getElementById("coverageContent");
+
+      const makeChips = (words) => {
+        if (!words || words.length === 0) return `<p style="font-size:12.5px;color:#64748b;margin-top:6px;">該当単語なし</p>`;
+        return `<div class="word-chip-container">` + words.map(w => `
+          <div class="word-chip">
+            <span class="chip-num">${w.q_number || ('No.' + w.num)}</span>
+            <strong>${w.word}</strong>
+            <span class="chip-mean">${w.meaning || ''}</span>
+          </div>
+        `).join("") + `</div>`;
+      };
+
+      el.innerHTML = `
+        <div class="cov-highlight-grid">
+          <div class="cov-hero-box red-accent">
+            <div class="hero-title">📘 システム英単語 1〜1200番（第1章・第2章）での網羅率</div>
+            <div class="hero-MainRate">本文全体 ${sc.passage_token_cov_1200}% <span style="font-size:15px;color:#fff;">(重要語彙の ${sc.cumulative_1200_exam_rate}%)</span></div>
+            <div class="hero-desc">日大・産近甲龍レベル突破基準（1〜1200番）でカバーできる割合</div>
+          </div>
+          <div class="cov-hero-box">
+            <div class="hero-title">📗 システム英単語 1〜1700番（第3章まで）での網羅率</div>
+            <div class="hero-MainRate">本文全体 ${sc.passage_token_cov_1700}% <span style="font-size:15px;color:#fff;">(重要語彙の ${sc.cumulative_1700_exam_rate}%)</span></div>
+            <div class="hero-desc">MARCH・関関同立突破基準（1〜1700番）＋第4章までで <strong>${sc.passage_token_cov_2027}%</strong> 網羅</div>
+          </div>
+        </div>
+
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 システム英単語（5訂版）ステージ別の出現内訳とヒット単語</h4>
+
+        <div class="bar-row">
+          <div class="bar-label-line">
+            <span>${sc.stage1.label}</span>
+            <span>${sc.stage1.count} 語ヒット（重要語彙比 ${sc.stage1.rate}%）</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: ${Math.min(100, sc.stage1.rate)}%;"></div></div>
+          ${makeChips(sc.stage1.words)}
+        </div>
+
+        <div class="bar-row" style="margin-top:18px;">
+          <div class="bar-label-line">
+            <span>${sc.stage2.label} 【ここまでで1〜1200番 累計 ${sc.cumulative_1200_exam_rate}%】</span>
+            <span>${sc.stage2.count} 語ヒット（+${sc.stage2.rate}%）</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: ${Math.min(100, sc.stage2.rate)}%;"></div></div>
+          ${makeChips(sc.stage2.words)}
+        </div>
+
+        <div class="bar-row" style="margin-top:18px;">
+          <div class="bar-label-line">
+            <span>${sc.stage3.label} 【ここまでで1〜1700番 累計 ${sc.cumulative_1700_exam_rate}%】</span>
+            <span>${sc.stage3.count} 語ヒット（+${sc.stage3.rate}%）</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill blue" style="width: ${Math.min(100, sc.stage3.rate * 2)}%;"></div></div>
+          ${makeChips(sc.stage3.words)}
+        </div>
+
+        <div class="bar-row" style="margin-top:18px;">
+          <div class="bar-label-line">
+            <span>${sc.stage4.label} 【シス単全範囲 累計 ${sc.cumulative_all_exam_rate}%】</span>
+            <span>${sc.stage4.count} 語ヒット（+${sc.stage4.rate}%）</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill emerald" style="width: ${Math.min(100, sc.stage4.rate * 3)}%;"></div></div>
+          ${makeChips(sc.stage4.words)}
+        </div>
+
+        <div class="bar-row" style="margin-top:18px;">
+          <div class="bar-label-line">
+            <span>🔑 システム英単語 多義語（No.1〜184）の出現語</span>
+            <span>${sc.tagigo.count} 語検出</span>
+          </div>
+          ${makeChips(sc.tagigo.words)}
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--slate-200);margin:24px 0;" />
+
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:10px;color:var(--navy);">📚 蓄積された全主要英単語帳での網羅率 比較シミュレーション</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>単語帳タイトル（Supabase収録DB）</th>
+              <th>対象レベル</th>
+              <th>ヒット単語数</th>
+              <th>受験重要語カバー率</th>
+              <th>長文全体カバー率</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.book_comparisons || []).map(b => `
+              <tr>
+                <td><strong>${b.book_name}</strong></td>
+                <td>${b.target_level}</td>
+                <td>${b.matched_words} 語</td>
+                <td><strong style="color:var(--brand-red);">${b.exam_vocab_coverage}%</strong></td>
+                <td><strong>${b.full_text_coverage}%</strong></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderMathAndStructuredCoverage(data) {
+      const el = document.getElementById("coverageContent");
+      const extraTerms = data.matched_terms || [];
+      el.innerHTML = `
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 参考書レベル別の網羅率（得点可能率）シミュレーション</h4>
+        ${(data.book_coverage_summary || []).map(b => `
+          <div class="bar-row">
+            <div class="bar-label-line">
+              <span>${b.book_name} <small style="color:#64748b;">(${b.target_level})</small></span>
+              <span style="color:var(--brand-red);">${b.coverage_rate}% 網羅</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" style="width: ${b.coverage_rate}%;"></div></div>
+          </div>
+        `).join("")}
+
+        ${extraTerms.length > 0 ? `
+          <h4 style="font-size:15px;font-weight:800;margin:20px 0 10px;color:var(--navy);">🔑 収録単語・語彙データベース直接一致語（${extraTerms.length}語）</h4>
+          <div class="word-chip-container">
+            ${extraTerms.map(t => `
+              <div class="word-chip">
+                <span class="chip-num">${t.q_number || ''}</span>
+                <strong>${t.word}</strong>
+                <span class="chip-mean">${t.meaning || ''}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ''}
+
+        <hr style="border:none;border-top:1px solid var(--slate-200);margin:24px 0;" />
+
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:14px;color:var(--navy);">🔍 大問・セクション別：参考書の類題マッピング（どの参考書のどこに載っているか）</h4>
+        ${(data.problem_analyses || []).map(p => `
+          <div class="prob-card">
+            <div class="prob-card-head">
+              <div>
+                <span class="prob-badge">${p.problem_no}</span>
+                <strong style="margin-left:8px;font-size:15px;color:var(--navy);">${p.detected_unit}</strong>
+              </div>
+              <span class="diff-pill ${p.difficulty_level.includes('A問題・') ? 'a-prob' : 'b-prob'}">${p.difficulty_level}</span>
+            </div>
+            <p style="font-size:12.5px;color:#475569;margin-bottom:10px;"><strong>問題抜粋:</strong> ${p.excerpt}</p>
+            <p style="font-size:13px;color:var(--brand-red-dark);font-weight:700;margin-bottom:10px;">🎯 得点戦略: ${p.target_strategy}</p>
+
+            ${(p.juyo_similar_problems || []).map(j => `
+              <div class="juyo-match-box">
+                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;">
+                  <strong>📘 ${j.book} 【${j.q_number}】（${j.difficulty}） 〈${j.theme}〉</strong>
+                  <span style="color:var(--brand-red);font-weight:800;">類題一致度 ${j.similarity}%</span>
+                </div>
+              </div>
+            `).join("")}
+
+            <div style="margin-top:10px;font-size:12.5px;color:#334155;">
+              ${(p.reference_mappings || []).map(rm => `
+                <div style="margin-top:4px;">・<strong>${rm.book}:</strong> ${rm.detail} <span style="color:#059669;font-weight:700;">[${rm.similarity}]</span></div>
+              `).join("")}
+            </div>
+          </div>
+        `).join("")}
+      `;
+    }
+
+    function renderHistoryCoverage(data) {
+      const el = document.getElementById("coverageContent");
+      const terms = data.matched_terms || [];
+      el.innerHTML = `
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:10px;color:var(--navy);">🔍 一問一答データベースと一致した出題用語一覧（${terms.length}語）</h4>
+        <div class="word-chip-container">
+          ${terms.map(t => `
+            <div class="word-chip">
+              <span class="chip-num">[ランク${t.difficulty} ${t.q_number}]</span>
+              <strong>${t.term}</strong>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    const DEMO_SAMPLES = {
+      waseda_eng: {
+        univ: "早稲田大学 / 関西大学（英語）",
+        subject: "english",
+        text: `Entrance Examination - English
+In recent decades, technological innovation has fundamentally transformed how human societies communicate, collaborate, and process vast amounts of information. While artificial intelligence and automated systems provide unprecedented efficiency in commerce and industry, contemporary philosophers and sociologists argue that excessive reliance on algorithmic decision-making may gradually undermine critical thinking, moral responsibility, and individual autonomy.
+Furthermore, had policymakers anticipated the profound psychological consequences of constant digital connectivity, governments might have established stricter regulatory frameworks much earlier. Nevertheless, addressing these multifaceted phenomena requires interdisciplinary cooperation across neuroscience, ethics, law, and economics.`
+      },
+      rikei_math: {
+        univ: "関西大学 / 東京理科大学（理系数学）",
+        subject: "math",
+        text: `〔I〕次の問いに答えよ。(1) 関数 f(x) = √x e^{-√x} (x >= 0) の最大値を求めよ。(2) 不定積分 ∫ t e^{-t} dt を求めよ。(3) x軸と直線 x = 4 および曲線 y = f(x) で囲まれた部分の面積 S を求めよ。
+〔II〕次の空欄をうめよ。(1) x = cos θ とおく。cos 3θ を x で表せ。(2) θ = π/5 は方程式 cos 3θ = -cos 2θ の解である。cos(π/5) の値を求めよ。(3) x = cos(π/7) が 3次方程式 lx^3 + mx^2 + nx + 1 = 0 の解となるような整数 l, m, n を求めよ。
+〔III〕原点をOとする座標平面において異なる2点 A(0,1), B(a,b) をとる。線分ABを 1:m に内分する点をPとする。(1) 内積 OA・OB を求めよ。(2) OP を m, OA, OB を用いて表せ。(3) Pが円 C1 上にあるための必要十分条件は、Bが円 C2 上にあることである。C2 の中心Qの座標と半径を求めよ。`
+      },
+      bunkei_math: {
+        univ: "青山学院大学 / 関西大学（文系数学）",
+        subject: "math",
+        text: `第1問 2次関数 f(x) = x^2 - 2ax + 3a + 4 について、(1) 放物線の頂点の座標を求めよ。(2) 区間 0 <= x <= 3 における最大値と最小値を求めよ。(3) 2次方程式 f(x) = 0 が正の実数解と負の実数解を1つずつもつ定数 a の範囲を求めよ。
+第2問 3次関数 f(x) = x^3 - 3x^2 - 9x + 5 について、(1) 極大値と極小値を求めよ。(2) 点(1, -6)における接線の方程式を求めよ。(3) 曲線と接線で囲まれた図形の面積を定積分を用いて求めよ。
+第3問 数列 {a_n} の和 S_n が S_n = 2a_n - 3n + 1 を満たすとき、(1) 初項 a_1 を求めよ。(2) 漸化式を導き一般項 a_n を求めよ。(3) 数学的帰納法を用いて不等式を証明せよ。`
+      },
+      physics_demo: {
+        univ: "関西大学 システム理工学部（物理）",
+        subject: "physics",
+        text: `〔I〕(i) 質量が異なる小球AとBが滑らかな水平面の同一直線上を等加速度運動している。時刻 t=3.0s に追突した。(1) 小球Aの速度を求めよ。(2) 力が小球Aにした仕事と運動エネルギーの変化を求めよ。
+(ii) 質量Mの台ABCDが床面に静止している。点Aで質量mの小物体を静かにはなした。(1) 台がストッパーで固定されている場合の力学的エネルギー保存の式を立てよ。(2) 台が固定されていない場合、水平方向の運動量が保存することを用いて速さ u と V の関係式を求めよ。
+〔II〕(i) 半導体ダイオードと可変抵抗、電池を用いて回路を作成した。(1) p型半導体とn型半導体のキャリアと空乏層について答えよ。(2) キルヒホッフの第2法則より電流電圧特性グラフの交点から電流 I を求めよ。
+〔III〕(i) 長さLの開管と閉管の気柱の共鳴と定在波の波長・腹と節の位置を求めよ。(ii) 単原子分子の理想気体の定積変化・定圧変化・等温変化とボイル・シャルルの法則、熱力学第一法則により仕事と熱量を求めよ。`
+      },
+      chem_demo: {
+        univ: "明治大学 / 関西大学（化学）",
+        subject: "chemistry",
+        text: `第1問 ナトリウムの結晶格子（体心立方格子）と単位格子中の原子数、密度およびアボガドロ定数の計算。(1) 単位格子に含まれる原子数を求めよ。(2) 結晶の密度を求めよ。
+第2問 弱酸の電離平衡とpH、および水酸化ナトリウム水溶液による中和滴定曲線と指示薬の選択。(1) 酢酸の電離度とpHを求めよ。(2) 半当量点における緩衝液のpHを求めよ。
+第3問 分子式 C9H10O2 で表される芳香族エステルの加水分解（けん化）と構造異性体の構造決定。(1) 加水分解で生じたカルボン酸Aとフェノール類Bの構造式を記せ。(2) サリチル酸と無水酢酸のアセチル化反応を記せ。`
+      },
+      kobun_demo: {
+        univ: "関西大学 / 立命館大学（古文）",
+        subject: "kobun",
+        text: `第1問 次の古文を読んで後の問いに答えよ。
+いづれの御時にか、女御、更衣あまたさぶらひたまひけるなかに、いとやむごとなき際にはあらぬが、すぐれて時めきたまふありけり。はじめより我はと思ひあがりたまへる御方々、めざましきものにおとしめそねみたまふ。同じほど、それより下臈の更衣たちは、ましてやすからず。朝夕の宮仕につけても、人の心をのみ動かし、恨みを負ふ積もりにやありけむ、いとあつしくなりゆき、もの心細げに里がちなるを、いよいよあかずあはれなるものに思ほして、人のそしりをもえ憚らせたまはず、世の例にもなりぬべき御もてなしなり。
+(1) 傍線部「あまたさぶらひたまひける」の現代語訳として最も適当なものを選べ。
+(2) 傍線部「めざましき」「あつしく」「あはれなる」の意味として最も適当なものを選べ。
+(3) 助動詞「けり」「けむ」「ぬ」「べき」の文法的意味を識別せよ。
+(4) 帝の桐壺更衣に対する心情として合っているものを本文の内容に照らして選べ。`
+      }
+    };
+
+    function runDemo(key) {
+      const sample = DEMO_SAMPLES[key];
+      if (!sample) return;
+      document.getElementById("univInput").value = sample.univ;
+      document.getElementById("subjectSelect").value = sample.subject;
+      switchMode("text");
+      document.getElementById("rawTextInput").value = sample.text;
+      analyzeRawText();
+    }
+  </script>
+</body>
+</html>
