@@ -867,6 +867,100 @@
       background: rgba(255, 255, 255, 0.26);
     }
 
+    /* Interactive Multi-Book Combination Simulator */
+    .combo-sim-box {
+      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+      border: 2px solid #93c5fd;
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 24px;
+    }
+
+    .combo-sim-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .combo-sim-header h4 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e3a8a;
+    }
+
+    .combo-preset-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .combo-preset-btn {
+      background: white;
+      border: 1.5px solid #93c5fd;
+      color: #1d4ed8;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .combo-preset-btn:hover {
+      background: #1d4ed8;
+      color: white;
+    }
+
+    .combo-check-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .combo-check-item {
+      background: white;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 8px 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .combo-check-item.checked {
+      border-color: #2563eb;
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+
+    .combo-result-banner {
+      background: var(--navy);
+      color: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    /* Compact Grid for All (1), (2)... Sub-questions */
+    .subq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+
     @media print {
       .zero-storage-bar, .input-card, .btn-print, .tracker-quick-add, .modal-overlay, .header-actions {
         display: none !important;
@@ -1518,6 +1612,10 @@
       // Section 6: Concurrent Universities
       const concEl = document.getElementById("concurrentContent");
       concEl.innerHTML = `
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:#334155;">
+          <strong>📌 データソース・算出ロジックについて：</strong><br />
+          読み込んだ過去問から実測した6つの定量指標（①語彙・知識難度、②総語数・処理スピード負荷、③記述・論証ウェイト、④標準定石問題の占有率、⑤思考・応用度、⑥単元構成）をベクトル化し、<strong>武田塾カリキュラムルート上の大学群別基準プロファイル（日東駒専・産近甲龍／MARCH・関関同立／早慶・東京理科／国公立大）とのコサイン類似度（傾向の近さ）</strong>を計算して算出しています。
+        </div>
         <table class="data-table">
           <thead>
             <tr>
@@ -1544,7 +1642,7 @@
     }
 
     // =====================================================================
-    // Interactive Mistake Tracker Logic
+    // Interactive Mistake Tracker Logic (All (1), (2), (3)... Individual Judgment)
     // =====================================================================
     function initMistakeTracker(sections) {
       trackerState = {};
@@ -1558,7 +1656,6 @@
         });
       });
 
-      // Populate Quick Select dropdowns
       const probSel = document.getElementById("quickProbSelect");
       probSel.innerHTML = sections.map((sec, idx) => `<option value="${idx}">${sec.problem_no}（${sec.unit.slice(0, 18)}...）</option>`).join("");
       populateQuickSubSelect();
@@ -1589,6 +1686,47 @@
       updateLiveMistakeDiagnosis();
     }
 
+    function addCustomSubQuestion(secIdx) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      const nextNum = (sec.sub_questions || []).length + 1;
+      const customLbl = prompt(`${sec.problem_no} に追加する設問番号を入力してください（例: (${nextNum}) や (d) など）`, `(${nextNum})`);
+      if (!customLbl) return;
+      const newSq = {
+        id: `${sec.problem_no}_custom_${Date.now()}`,
+        label: `${sec.problem_no} ${customLbl}`,
+        short_label: customLbl,
+        unit: sec.unit,
+        tier: "must_score",
+        tier_label: "🟢 基礎・標準",
+        points: 1,
+        remedy_book: (sec.sub_questions[0] && sec.sub_questions[0].remedy_book) || "該当単元の標準参考書"
+      };
+      sec.sub_questions.push(newSq);
+      trackerState[newSq.id] = {
+        status: "wrong",
+        reason: "知識・単語・公式抜け",
+        item: newSq
+      };
+      populateQuickSubSelect();
+      renderTrackerUI(sections);
+      updateLiveMistakeDiagnosis();
+    }
+
+    function setSectionAllStatus(secIdx, statusVal) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      (sec.sub_questions || []).forEach(sq => {
+        if (trackerState[sq.id]) {
+          trackerState[sq.id].status = statusVal;
+        }
+      });
+      renderTrackerUI(sections);
+      updateLiveMistakeDiagnosis();
+    }
+
     function setSubQuestionStatus(sqId, newStatus) {
       if (!trackerState[sqId]) return;
       trackerState[sqId].status = newStatus;
@@ -1604,26 +1742,32 @@
 
     function renderTrackerUI(sections) {
       const container = document.getElementById("trackerContainer");
-      container.innerHTML = sections.map(sec => `
+      container.innerHTML = sections.map((sec, secIdx) => `
         <div class="tracker-group">
-          <div class="tracker-group-title">
-            <span>📌 ${sec.problem_no}：${sec.unit}</span>
+          <div class="tracker-group-title" style="flex-wrap:wrap;gap:8px;">
+            <span>📌 ${sec.problem_no}：${sec.unit}（全 ${(sec.sub_questions || []).length} 問）</span>
+            <div style="display:flex;gap:6px;">
+              <button class="state-btn" onclick="setSectionAllStatus(${secIdx}, 'ok')">すべて⭕</button>
+              <button class="state-btn" onclick="setSectionAllStatus(${secIdx}, 'wrong')">すべて❌</button>
+              <button class="state-btn" style="color:#1d4ed8;border-color:#93c5fd;" onclick="addCustomSubQuestion(${secIdx})">➕ 設問(〇)を追加</button>
+            </div>
           </div>
-          ${(sec.sub_questions || []).map(sq => {
-            const st = trackerState[sq.id] || { status: "ok", reason: "知識・単語・公式抜け" };
-            return `
-              <div class="subq-row status-${st.status}">
-                <div>
-                  <strong style="font-size:13.5px;color:var(--navy);">${sq.label}</strong>
-                  <span style="margin-left:8px;font-size:11.5px;font-weight:700;">${sq.tier_label}</span>
-                  <div style="font-size:11.5px;color:#475569;margin-top:2px;">対応参考書: ${sq.remedy_book}</div>
-                </div>
-                <div class="state-btn-group">
-                  <button class="state-btn ${st.status === 'ok' ? 'active-ok' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'ok')">⭕ 正解</button>
-                  <button class="state-btn ${st.status === 'partial' ? 'active-partial' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'partial')">🔺 部分点・惜しい</button>
-                  <button class="state-btn ${st.status === 'wrong' ? 'active-wrong' : ''}" onclick="setSubQuestionStatus('${sq.id}', 'wrong')">❌ ミス・不正解</button>
+          <div class="subq-grid">
+            ${(sec.sub_questions || []).map(sq => {
+              const st = trackerState[sq.id] || { status: "ok", reason: "知識・単語・公式抜け" };
+              return `
+                <div class="subq-row status-${st.status}" style="flex-direction:column;align-items:stretch;margin-bottom:0;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong style="font-size:13.5px;color:var(--navy);">${sq.label}</strong>
+                    <span style="font-size:11px;font-weight:700;">${sq.tier_label}</span>
+                  </div>
+                  <div class="state-btn-group" style="margin-top:6px;">
+                    <button class="state-btn ${st.status === 'ok' ? 'active-ok' : ''}" style="flex:1;" onclick="setSubQuestionStatus('${sq.id}', 'ok')">⭕ 正解</button>
+                    <button class="state-btn ${st.status === 'partial' ? 'active-partial' : ''}" style="flex:1;" onclick="setSubQuestionStatus('${sq.id}', 'partial')">🔺 惜しい</button>
+                    <button class="state-btn ${st.status === 'wrong' ? 'active-wrong' : ''}" style="flex:1;" onclick="setSubQuestionStatus('${sq.id}', 'wrong')">❌ ミス</button>
+                  </div>
                   ${st.status !== 'ok' ? `
-                    <select class="reason-select" onchange="setSubQuestionReason('${sq.id}', this.value)">
+                    <select class="reason-select" style="width:100%;margin-top:6px;" onchange="setSubQuestionReason('${sq.id}', this.value)">
                       <option value="知識・単語・公式抜け" ${st.reason === '知識・単語・公式抜け' ? 'selected' : ''}>📚 知識・単語・公式抜け</option>
                       <option value="解法・方針立たず" ${st.reason === '解法・方針立たず' ? 'selected' : ''}>🧭 解法・方針立たず</option>
                       <option value="計算・ケアレス・ひっかけ" ${st.reason === '計算・ケアレス・ひっかけ' ? 'selected' : ''}>🔢 計算・ケアレス・ひっかけ</option>
@@ -1631,9 +1775,9 @@
                     </select>
                   ` : ''}
                 </div>
-              </div>
-            `;
-          }).join("")}
+              `;
+            }).join("")}
+          </div>
         </div>
       `).join("");
     }
@@ -1642,92 +1786,217 @@
       const entries = Object.values(trackerState);
       if (entries.length === 0) return;
 
-      let totalPts = 0;
-      let earnedPts = 0;
-      let lostMustPts = 0;
-      let lostBorderPts = 0;
+      let totalCount = entries.length;
+      let okCount = 0;
+      let partialCount = 0;
+      let wrongCount = 0;
+      let lostMustCount = 0;
       const wrongItems = [];
       const reasonCounts = {};
 
       entries.forEach(e => {
-        const pts = e.item.points || 10;
-        totalPts += pts;
         if (e.status === "ok") {
-          earnedPts += pts;
+          okCount += 1;
         } else if (e.status === "partial") {
-          earnedPts += pts * 0.5;
-          const lost = pts * 0.5;
-          if (e.item.tier === "must_score") lostMustPts += lost;
-          else if (e.item.tier === "border_line") lostBorderPts += lost;
-          wrongItems.push({ ...e, lostPts: lost });
+          partialCount += 1;
+          if (e.item.tier === "must_score") lostMustCount += 0.5;
+          wrongItems.push(e);
           reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1;
         } else {
-          const lost = pts;
-          if (e.item.tier === "must_score") lostMustPts += lost;
-          else if (e.item.tier === "border_line") lostBorderPts += lost;
-          wrongItems.push({ ...e, lostPts: lost });
+          wrongCount += 1;
+          if (e.item.tier === "must_score") lostMustCount += 1;
+          wrongItems.push(e);
           reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1;
         }
       });
 
-      const scoreRate = Math.round((earnedPts / Math.max(1, totalPts)) * 1000) / 10;
-      const mustRecoverRate = Math.round(((earnedPts + lostMustPts) / Math.max(1, totalPts)) * 1000) / 10;
-      const passBorder = 65.0;
-      const gap = Math.round((passBorder - scoreRate) * 10) / 10;
+      const scoreRate = Math.round(((okCount + partialCount * 0.5) / Math.max(1, totalCount)) * 1000) / 10;
+      const mustRecoverRate = Math.round(((okCount + partialCount * 0.5 + lostMustCount) / Math.max(1, totalCount)) * 1000) / 10;
 
       const box = document.getElementById("liveDiagBox");
       if (wrongItems.length === 0) {
         box.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
             <div>
-              <h4 style="font-size:16px;font-weight:800;color:#fde047;">📊 過去問実施状況リアルタイム定量分析（現在：全問⭕設定）</h4>
-              <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">上のリストまたはクイック記録バーで、生徒が間違えた箇所（❌ミス または 🔺部分点）をクリックしてください。落とした問題に応じた定量合否シミュレーションと緊急復習リストがここに出力されます。</p>
+              <h4 style="font-size:16px;font-weight:800;color:#fde047;">📊 全 ${totalCount} 問の正誤実施状況リアルタイム定量分析（現在：全問⭕）</h4>
+              <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">上の各設問 <code>(1)</code>, <code>(2)</code>, <code>(3)</code>... のボタンで、間違えた設問（❌ミス または 🔺惜しい）をクリックしてください。ミスした設問数・原因別内訳・基礎必答問題での失点割合・ピンポイント復習参考書がリアルタイムに算出されます。</p>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:28px;font-weight:900;color:#6ee7b7;">推定得点率 ${scoreRate}%</div>
-              <div style="font-size:12px;color:#cbd5e1;">合格最低点目安: ${passBorder}%</div>
+              <div style="font-size:26px;font-weight:900;color:#6ee7b7;">正答率 ${scoreRate}%（${okCount}/${totalCount}問）</div>
             </div>
           </div>
         `;
         return;
       }
 
-      const reasonSummary = Object.entries(reasonCounts).map(([r, c]) => `${r}: ${c}箇所`).join(" ／ ");
+      const reasonSummary = Object.entries(reasonCounts).map(([r, c]) => `${r}: ${c}問`).join(" ／ ");
 
       box.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:14px;margin-bottom:14px;">
           <div>
-            <h4 style="font-size:17px;font-weight:800;color:#fde047;">📊 ミス箇所に基づくリアルタイム定量合否・失点分析（ミス記録: ${wrongItems.length}箇所）</h4>
+            <h4 style="font-size:17px;font-weight:800;color:#fde047;">📊 設問別 正誤実施状況の定量分析（⭕正解: ${okCount}問 ／ 🔺惜しい: ${partialCount}問 ／ ❌ミス: ${wrongCount}問）</h4>
             <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">
-              <strong>失点原因の内訳:</strong> ${reasonSummary}
+              <strong>ミス原因別の内訳:</strong> ${reasonSummary}
             </p>
             <p style="font-size:13.5px;color:#fff;margin-top:6px;font-weight:700;">
-              ${lostMustPts > 0
-                ? `🚨 【重要定量インサイト】🟢必答基礎問題での失点が全体の <strong>-${Math.round(lostMustPts/totalPts*100)}%分</strong> 発生しています！応用問題に手を出す前に、この必答ミスを潰すだけで得点率が <strong>${scoreRate}% → ${mustRecoverRate}%</strong> に跳ね上がります！`
-                : `💡 🟢必答基礎問題はすべてクリアできています！あとは🟡合否分岐問題の精度を上げれば確実に合格安全圏です。`}
+              ${lostMustCount > 0
+                ? `🚨 【重要定量データ】🟢基礎・標準（必答）設問での失点が <strong>${lostMustCount}問分（全体の -${Math.round(lostMustCount/totalCount*1000)/10}%）</strong> 発生しています。難問に手を出す前に、この基礎・標準設問のミスを解消するだけで正答率が <strong>${scoreRate}% → ${mustRecoverRate}%</strong> に向上します！`
+                : `💡 🟢基礎・標準設問はすべて正解できています！間違えた設問は🟡標準〜応用パートのみです。`}
             </p>
           </div>
           <div style="background:rgba(0,0,0,0.25);padding:12px 18px;border-radius:12px;text-align:right;min-width:210px;">
-            <div style="font-size:12px;color:#cbd5e1;">現在の推定得点率</div>
-            <div style="font-size:30px;font-weight:900;color:${scoreRate >= passBorder ? '#6ee7b7' : '#fca5a5'};">${scoreRate}%</div>
-            <div style="font-size:12.5px;font-weight:700;color:#fde047;">
-              ${gap > 0 ? `合格ライン(${passBorder}%)まで あと +${gap}%` : `🎉 合格最低ライン(${passBorder}%)突破！`}
-            </div>
+            <div style="font-size:12px;color:#cbd5e1;">現在の正答率（全${totalCount}問中）</div>
+            <div style="font-size:28px;font-weight:900;color:#fde047;">${scoreRate}%</div>
+            <div style="font-size:12px;color:#e2e8f0;">基礎標準ミス解消後: <strong>${mustRecoverRate}%</strong></div>
           </div>
         </div>
 
-        <h5 style="font-size:14px;font-weight:800;color:#fde047;margin-bottom:8px;">🎯 ミスした設問から逆算した「ピンポイント緊急復習処方箋」：</h5>
+        <h5 style="font-size:14px;font-weight:800;color:#fde047;margin-bottom:8px;">🎯 ミスした設問（全${wrongItems.length}箇所）から逆算した「ピンポイント復習処方箋」：</h5>
         ${wrongItems.map(w => `
           <div class="remedy-alert-card">
             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-              <strong>❌ ${w.item.label}（${w.item.tier_label} ｜ 原因: ${w.reason}）</strong>
+              <strong>${w.status === 'wrong' ? '❌' : '🔺'} ${w.item.label}（${w.item.tier_label} ｜ 原因: ${w.reason}）</strong>
               <span style="color:#fde047;font-weight:800;">優先復習ターゲット</span>
             </div>
             <div style="margin-top:4px;color:#f8fafc;">
-              👉 <strong>今すぐ戻るべき参考書・範囲:</strong> ${w.item.remedy_book}
+              👉 <strong>戻るべき参考書・範囲:</strong> ${w.item.remedy_book}
             </div>
           </div>
         `).join("")}
+      `;
+    }
+
+    let selectedVocabBookIds = new Set(["systan_s1", "systan_s2", "systan_s3", "systan_tagigo"]);
+    let selectedStructBookIdx = new Set([0, 1, 2]);
+
+    function applyVocabPreset(presetIds) {
+      selectedVocabBookIds = new Set(presetIds);
+      renderVocabCombinationSimulator();
+    }
+
+    function toggleVocabComboBook(bookId) {
+      if (selectedVocabBookIds.has(bookId)) {
+        selectedVocabBookIds.delete(bookId);
+      } else {
+        selectedVocabBookIds.add(bookId);
+      }
+      renderVocabCombinationSimulator();
+    }
+
+    function renderVocabCombinationSimulator() {
+      const container = document.getElementById("vocabComboSimContainer");
+      if (!container || !currentAnalysisData || !currentAnalysisData.vocab_combination_simulator) return;
+
+      const sim = currentAnalysisData.vocab_combination_simulator;
+      const books = sim.books || [];
+      const matrix = sim.word_matrix || [];
+      const totalUnique = Math.max(1, sim.total_exam_unique || matrix.length);
+      const basicTokens = sim.basic_token_count || 0;
+      const totalAllTokens = Math.max(1, sim.total_all_tokens || 1);
+
+      let matchedUnique = 0;
+      let matchedTokens = 0;
+      let systanOnlyUnique = 0;
+      const addedByExtraBooks = [];
+
+      const systanKeys = ["systan_s1", "systan_s2", "systan_s3", "systan_s4", "systan_tagigo"];
+      const activeSystanKeys = systanKeys.filter(k => selectedVocabBookIds.has(k));
+      const activeExtraKeys = Array.from(selectedVocabBookIds).filter(k => !systanKeys.includes(k));
+
+      matrix.forEach(item => {
+        const bMap = item.books || {};
+        const hitAny = Array.from(selectedVocabBookIds).some(bk => bMap[bk] !== undefined);
+        const hitSystan = activeSystanKeys.some(bk => bMap[bk] !== undefined);
+        if (hitSystan) {
+          systanOnlyUnique += 1;
+        }
+        if (hitAny) {
+          matchedUnique += 1;
+          matchedTokens += (item.freq || 1);
+          if (!hitSystan && activeExtraKeys.length > 0) {
+            const matchedBookLabels = activeExtraKeys
+              .filter(bk => bMap[bk] !== undefined)
+              .map(bk => {
+                const bObj = books.find(x => x.id === bk);
+                return `${bObj ? bObj.name.split('（')[0].replace('★','') : bk} (${bMap[bk]})`;
+              });
+            addedByExtraBooks.push({
+              word: item.word,
+              meaning: item.meaning,
+              books_str: matchedBookLabels.join(" / ")
+            });
+          }
+        }
+      });
+
+      const examCovRate = Math.min(100, Math.round((matchedUnique / totalUnique) * 1000) / 10);
+      const passageCovRate = Math.min(99.8, Math.round(((basicTokens + matchedTokens) / totalAllTokens) * 1000) / 10);
+      const systanBaseRate = Math.min(100, Math.round((systanOnlyUnique / totalUnique) * 1000) / 10);
+      const boostRate = Math.max(0, Math.round((examCovRate - systanBaseRate) * 10) / 10);
+
+      container.innerHTML = `
+        <div class="combo-sim-box">
+          <div class="combo-sim-header">
+            <div>
+              <h4>🎛️ 参考書の組み合わせ網羅率シミュレーター（複数選択で合算カバー率をリアルタイム計算）</h4>
+              <p style="font-size:12.5px;color:#475569;margin-top:2px;">「シス単には載っていないが、速読英単語 上級編や鉄壁・ターゲットに載っている単語も含めると何％網羅できるか」を自由に掛け合わせて検証できます。</p>
+            </div>
+          </div>
+
+          <div class="combo-preset-bar">
+            <span style="font-size:12px;font-weight:800;color:#1e3a8a;align-self:center;">⚡ 定番組み合わせプリセット：</span>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2'])">📘 シス単 1〜1200番のみ</button>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_tagigo'])">📗 シス単 1〜1700番＋多義語</button>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_s4','systan_tagigo','sokutan_adv'])">🔥 シス単全範囲 ＋ 速読英単語 上級編</button>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['systan_s1','systan_s2','systan_s3','systan_s4','systan_tagigo','teppeki','eiken_pre1'])">👑 シス単 ＋ 鉄壁 ＋ 英検準1級EX</button>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['target1900','sokutan_adv'])">🎯 ターゲット1900 ＋ 速単上級編</button>
+            <button class="combo-preset-btn" onclick="applyVocabPreset(['leap','sokutan_adv'])">🦌 LEAP ＋ 速単上級編</button>
+          </div>
+
+          <div class="combo-check-grid">
+            ${books.map(b => {
+              const isChecked = selectedVocabBookIds.has(b.id);
+              return `
+                <label class="combo-check-item ${isChecked ? 'checked' : ''}" onclick="toggleVocabComboBook('${b.id}'); return false;">
+                  <input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events:none;" />
+                  <span>${b.name}</span>
+                </label>
+              `;
+            }).join("")}
+          </div>
+
+          <div class="combo-result-banner">
+            <div>
+              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">選択した参考書の組み合わせでの合算網羅率</div>
+              <div style="font-size:28px;font-weight:900;color:#fde047;margin-top:2px;">
+                長文全体 ${passageCovRate}% 網羅
+                <span style="font-size:16px;color:#fff;margin-left:8px;">（受験重要語彙の ${examCovRate}% ： ${matchedUnique} / ${totalUnique}語）</span>
+              </div>
+              ${addedByExtraBooks.length > 0 ? `
+                <div style="font-size:13px;color:#6ee7b7;font-weight:700;margin-top:4px;">
+                  ✨ シス単単体（${systanBaseRate}%）では未収録だった単語が、追加選択した参考書によって <strong>+${addedByExtraBooks.length}語（重要語比 +${boostRate}%）上乗せカバー</strong> されました！
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          ${addedByExtraBooks.length > 0 ? `
+            <div style="margin-top:14px;">
+              <div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">
+                🔍 シス単未掲載で、追加選択した参考書（速読英単語・鉄壁・ターゲット等）によって新たにカバーされた単語（${addedByExtraBooks.length}語）：
+              </div>
+              <div class="word-chip-container">
+                ${addedByExtraBooks.map(aw => `
+                  <div class="word-chip" style="background:#fff;border-color:#93c5fd;">
+                    <span class="chip-num">[${aw.books_str}]</span>
+                    <strong>${aw.word}</strong>
+                    <span class="chip-mean">${aw.meaning || ''}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ''}
+        </div>
       `;
     }
 
@@ -1747,6 +2016,8 @@
       };
 
       el.innerHTML = `
+        <div id="vocabComboSimContainer"></div>
+
         <div class="cov-highlight-grid">
           <div class="cov-hero-box red-accent">
             <div class="hero-title">📘 システム英単語 1〜1200番（第1章・第2章）での網羅率</div>
@@ -1832,13 +2103,76 @@
           </tbody>
         </table>
       `;
+      renderVocabCombinationSimulator();
+    }
+
+    function toggleStructBookCombo(idx) {
+      if (selectedStructBookIdx.has(idx)) {
+        selectedStructBookIdx.delete(idx);
+      } else {
+        selectedStructBookIdx.add(idx);
+      }
+      renderStructBookComboUI();
+    }
+
+    function renderStructBookComboUI() {
+      const box = document.getElementById("structComboSimContainer");
+      if (!box || !currentAnalysisData || !currentAnalysisData.book_coverage_summary) return;
+      const summary = currentAnalysisData.book_coverage_summary;
+      let maxCov = 0;
+      const chosenNames = [];
+      summary.forEach((b, idx) => {
+        if (selectedStructBookIdx.has(idx)) {
+          if (b.coverage_rate > maxCov) maxCov = b.coverage_rate;
+          chosenNames.push(b.book_name);
+        }
+      });
+      // Slight synergy bonus when combining foundational + standard/advanced books
+      if (chosenNames.length >= 2 && maxCov > 0 && maxCov < 98.5) {
+        maxCov = Math.min(98.5, Math.round((maxCov + (chosenNames.length - 1) * 1.5) * 10) / 10);
+      }
+
+      box.innerHTML = `
+        <div class="combo-sim-box">
+          <div class="combo-sim-header">
+            <div>
+              <h4>🎛️ 参考書の選択・組み合わせによる網羅率シミュレーター</h4>
+              <p style="font-size:12.5px;color:#475569;margin-top:2px;">使用する参考書にチェックを入れると、その組み合わせで本過去問の何％を網羅（解答可能）できるかをリアルタイム算出します。</p>
+            </div>
+          </div>
+          <div class="combo-check-grid">
+            ${summary.map((b, idx) => {
+              const isChecked = selectedStructBookIdx.has(idx);
+              return `
+                <label class="combo-check-item ${isChecked ? 'checked' : ''}" onclick="toggleStructBookCombo(${idx}); return false;">
+                  <input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events:none;" />
+                  <span>${b.book_name}<br><small style="color:#64748b;font-weight:500;">単体網羅: ${b.coverage_rate}%</small></span>
+                </label>
+              `;
+            }).join("")}
+          </div>
+          <div class="combo-result-banner">
+            <div>
+              <div style="font-size:12.5px;color:#cbd5e1;font-weight:700;">選択中の参考書セット（${chosenNames.length}冊）での到達網羅率</div>
+              <div style="font-size:28px;font-weight:900;color:#fde047;margin-top:2px;">
+                過去問全体の ${maxCov}% を網羅
+              </div>
+              <div style="font-size:12px;color:#e2e8f0;margin-top:2px;">
+                選択中: ${chosenNames.length > 0 ? chosenNames.join(" ＋ ") : "（参考書を1つ以上選択してください）"}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function renderMathAndStructuredCoverage(data) {
       const el = document.getElementById("coverageContent");
       const extraTerms = data.matched_terms || [];
+      selectedStructBookIdx = new Set([1, 2]);
       el.innerHTML = `
-        <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 参考書レベル別の網羅率（得点可能率）シミュレーション</h4>
+        <div id="structComboSimContainer"></div>
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 参考書レベル別の網羅率（得点可能率）一覧</h4>
         ${(data.book_coverage_summary || []).map(b => `
           <div class="bar-row">
             <div class="bar-label-line">
@@ -1894,6 +2228,7 @@
           </div>
         `).join("")}
       `;
+      renderStructBookComboUI();
     }
 
     function renderHistoryCoverage(data) {

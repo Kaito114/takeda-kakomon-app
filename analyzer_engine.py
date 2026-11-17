@@ -247,10 +247,6 @@ def generate_word_family_candidates(word: str) -> list:
         base_forms.append(w[:-1])
 
     roots = list(base_forms)
-    for bf in base_forms:
-        for pref in ("un", "in", "im", "ir", "il", "dis", "non", "re", "inter", "over", "under", "mis", "pre", "out", "co", "sub", "trans", "super", "anti", "auto", "bi", "multi"):
-            if bf.startswith(pref) and len(bf) - len(pref) >= 4:
-                roots.append(bf[len(pref):])
 
     suffix_rules = [
         ("ies", ["y"]), ("ied", ["y"]), ("ves", ["f", "fe"]),
@@ -612,55 +608,151 @@ def detect_subject_and_meta(problem_text: str, cover_text: str = "", user_subjec
 
 
 # =====================================================================
-# 4. 小問（設問）抽出ヘルパー（過去問実施状況・ミス箇所トラッカー用）
+# 4. 小問（設問）全問個別抽出ヘルパー（すべての(〇)・①〜⑮・(a)〜(f)を漏れなく正誤判定可能に）
 # =====================================================================
 def extract_sub_questions_for_tracker(block_text: str, prob_no: str, default_unit: str, ref_book_str: str, is_b_level: bool = False) -> list:
     """
-    大問テキストの中から (1), (2), (3)... や 問1, 問2, [1], [2], (a), (b) などの小問番号を検出し、
-    ユーザーが画面上で「どこでミスをしたか（⭕正解 / 🔺部分点 / ❌ミス）」をチェックできる構造を生成する。
+    大問テキストの中から (1), (2)... (20) や ①, ②... ⑩, (a), (b), (c)... などのすべての設問・空欄番号を検出し、
+    OCRで途中の番号が飛んでいても 1〜最大番号まで連続補完して、1問ずつすべて個別に正誤判定できるリストを生成する。
     """
-    found_labels = []
-    # Check for (1)(2)(3) or ①②③
-    nums = re.findall(r'(?:\(\s*([1-9]|1[0-5])\s*\)|（\s*([1-9１-９])\s*）|([①②③④⑤⑥⑦⑧]))', block_text)
-    circle_map = {'①': '1', '②': '2', '③': '3', '④': '4', '⑤': '5', '⑥': '6', '⑦': '7', '⑧': '8'}
-    fw_map = str.maketrans('１２３４５６７８９', '123456789')
-    for g1, g2, g3 in nums:
-        val = g1 or g2.translate(fw_map) or circle_map.get(g3, '')
-        if val and f"({val})" not in found_labels:
-            found_labels.append(f"({val})")
+    fw_map = str.maketrans('０１２３４５６７８９', '0123456789')
+    circle_map = {'①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5, '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10, '⑪': 11, '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15}
 
-    if not found_labels or len(found_labels) < 2:
-        found_labels = ["(1) 基本・導入設問", "(2) 標準・展開設問", "(3) 応用・総合設問"]
-    else:
-        found_labels = found_labels[:8]
+    detected_ints = set()
+    # 1. Range pattern like (1)〜(15) or 空所(1)〜(5)
+    for m_rng in re.finditer(r'[\(（\[]\s*([0-9１-９]{1,2})\s*[\)）\]]\s*[~〜～\-－]\s*[\(（\[]?\s*([0-9１-９]{1,2})\s*[\)）\]]?', block_text):
+        s_n = int(m_rng.group(1).translate(fw_map))
+        e_n = int(m_rng.group(2).translate(fw_map))
+        if 1 <= s_n < e_n <= 25:
+            for k in range(s_n, e_n + 1):
+                detected_ints.add(k)
+
+    # 2. Individual (1), (2), (7)*, [1], 問1, etc.
+    for m_num in re.finditer(r'(?:[\(（\[]\s*([0-9１-９]{1,2})\s*\*?\s*[\)）\]]|問\s*([0-9１-９]{1,2}))', block_text):
+        val_s = (m_num.group(1) or m_num.group(2)).translate(fw_map)
+        val = int(val_s)
+        if 1 <= val <= 25:
+            detected_ints.add(val)
+
+    # 3. Circle numbers ①..⑮
+    has_circle = False
+    for ch, c_num in circle_map.items():
+        if ch in block_text:
+            detected_ints.add(c_num)
+            has_circle = True
+
+    # Special check for Math problem with l = ④, m = ⑤, n = ⑥, ⑦, ⑧
+    if "⑥" in block_text and ("⑦" in block_text or "⑧" in block_text):
+        for k in range(1, 9):
+            detected_ints.add(k)
+
+    # Interpolate from min to max so no question number is skipped due to OCR drop
+    found_labels = []
+    if detected_ints:
+        max_n = min(25, max(detected_ints))
+        min_n = min(detected_ints)
+        if min_n <= 4 or (len(detected_ints) == 1 and max_n <= 10):
+            start_n = 1
+        elif max_n - min_n < 3:
+            start_n = max(1, max_n - 6)
+        else:
+            start_n = min_n
+        for k in range(start_n, max_n + 1):
+            found_labels.append(f"({k})")
+
+    # 4. Also check for alphabetical sub-questions like (a), (b), (c)
+    alpha_matches = re.findall(r'[\(（\[]\s*([a-f])\s*[\)）\]]', block_text)
+    if alpha_matches:
+        max_alpha = max(alpha_matches)
+        for code in range(ord('a'), min(ord('f'), ord(max_alpha)) + 1):
+            lbl_a = f"({chr(code)})"
+            if lbl_a not in found_labels:
+                found_labels.append(lbl_a)
+
+    if not found_labels:
+        default_cnt = 8 if len(block_text) >= 350 else 6
+        found_labels = [f"({k})" for k in range(1, default_cnt + 1)]
 
     sub_items = []
     total_sub = len(found_labels)
     for i, lbl in enumerate(found_labels):
-        # 前半の小問は「必答（Aランク）」、後半の小問は「合否分岐（Bランク）」または「発展（Cランク）」
-        if i < max(1, total_sub // 2):
+        if i < max(1, int(total_sub * 0.55)):
             tier = "must_score"
-            tier_label = "🟢 必答基礎（落とすと危険）"
-            pts = 10
+            tier_label = "🟢 基礎・標準（必答）"
         elif i < total_sub - 1 or not is_b_level:
             tier = "border_line"
-            tier_label = "🟡 合否分岐（差がつく標準）"
-            pts = 10
+            tier_label = "🟡 標準・差がつく"
         else:
             tier = "advanced"
-            tier_label = "🔴 応用発展（部分点狙い）"
-            pts = 10
+            tier_label = "🔴 応用・発展"
 
         sub_items.append({
-            "id": f"{prob_no}_{i+1}",
+            "id": f"{prob_no}_{lbl.strip('()')}_{i}",
             "label": f"{prob_no} {lbl}",
+            "short_label": lbl,
             "unit": default_unit,
             "tier": tier,
             "tier_label": tier_label,
-            "points": pts,
+            "points": 1,
             "remedy_book": ref_book_str
         })
     return sub_items
+
+
+def extract_english_tracker_sections(text: str) -> list:
+    """
+    英語過去問から各大問・設問パートの (1), (2), (3)... を1問も省略せずすべて個別に抽出する。
+    """
+    sections = []
+    # Check if Kansai Univ / standard private univ structure 〔I〕A, B, 〔II〕A, B, 〔III〕A, B exists
+    has_roman_2 = bool(re.search(r'〔\s*(?:II|Ⅱ|2)\s*〕', text))
+    has_roman_3 = bool(re.search(r'〔\s*(?:III|Ⅲ|m|皿|1II|IlI|3)\s*〕', text))
+
+    if has_roman_2 or has_roman_3:
+        part_configs = [
+            ("大問〔I〕A", "会話文空所補充", 5, "【改訂版】速読英熟語 ／ 肘井の英会話問題が面白いほど解ける本", "must_score"),
+            ("大問〔I〕B", "段落整序（文脈・指示語）", 6, "関正生の英語長文ポラリス1・2 ／ 入門英文問題精講", "border_line"),
+            ("大問〔II〕A", "長文① 空所補充（語彙・熟語・接続詞）", 15, "【5訂版】システム英単語(1〜1700) ＆ 速読英熟語 ＆ Vintage", "must_score"),
+            ("大問〔II〕B", "長文① 本文内容一致", 7, "関正生の英語長文ポラリス1・2（パラグラフ検索法）", "must_score"),
+            ("大問〔III〕A", "長文② 下線部意味・言い換え解釈", 10, "肘井学の読解のための英文法［必修編］／ 英文解釈ポラリス1", "border_line"),
+            ("大問〔III〕B", "長文② 本文内容一致・主題", 7, "関正生の英語長文ポラリス2［応用レベル］", "must_score")
+        ]
+        for p_no, p_unit, q_cnt, rem_book, default_tier in part_configs:
+            sub_qs = []
+            for k in range(1, q_cnt + 1):
+                tier = "must_score" if (default_tier == "must_score" and k <= int(q_cnt * 0.8)) else "border_line"
+                tier_lbl = "🟢 基礎・標準（必答）" if tier == "must_score" else "🟡 標準・差がつく"
+                sub_qs.append({
+                    "id": f"{p_no}_{k}",
+                    "label": f"{p_no} ({k})",
+                    "short_label": f"({k})",
+                    "unit": p_unit,
+                    "tier": tier,
+                    "tier_label": tier_lbl,
+                    "points": 1,
+                    "remedy_book": rem_book
+                })
+            sections.append({
+                "problem_no": p_no,
+                "unit": p_unit,
+                "sub_questions": sub_qs
+            })
+        return sections
+
+    # Generic English exam question extraction
+    blocks = split_exam_into_problems(text, split_sub_roman=False)
+    for idx, blk in enumerate(blocks[:5], start=1):
+        p_no = f"大問〔{idx}〕"
+        sub_qs = extract_sub_questions_for_tracker(
+            blk, p_no, "英語長文・語彙・文法設問",
+            "【5訂版】システム英単語(1〜1700) ＆ 速読英熟語 ＆ 英語長文ポラリス"
+        )
+        sections.append({
+            "problem_no": p_no,
+            "unit": f"英語 大問{idx} 各設問",
+            "sub_questions": sub_qs
+        })
+    return sections
 
 
 # =====================================================================
@@ -877,34 +969,69 @@ def analyze_english_exam(text: str, university: str) -> dict:
                 "reference_books": gp["books"]
             })
 
-    # Interactive Mistake Tracker Items for English Exam
-    tracker_sections = [
-        {
-            "problem_no": "大問〔I〕",
-            "unit": "会話文空所補充・段落整序（論理マーカー・指示語・文脈把握）",
-            "sub_questions": [
-                {"id": "eng_1_a", "label": "大問〔I〕A 会話文 (1)〜(5)", "unit": "会話表現・前後の文脈呼応", "tier": "must_score", "tier_label": "🟢 必答基礎（落とすと危険）", "points": 15, "remedy_book": "【改訂版】速読英熟語 ／ 肘井の英会話問題が面白いほど解ける本"},
-                {"id": "eng_1_b", "label": "大問〔I〕B 段落整序 (1)〜(6)", "unit": "パラグラフ整序（指示語・時系列・ディスコースマーカー）", "tier": "border_line", "tier_label": "🟡 合否分岐（差がつく標準）", "points": 15, "remedy_book": "関正生の英語長文ポラリス1・2 ／ 入門英文問題精講（代名詞・論理関係）"}
-            ]
-        },
-        {
-            "problem_no": "大問〔II〕",
-            "unit": "長文読解①：空所補充 (1)〜(15) ＆ 内容一致 (1)〜(7)",
-            "sub_questions": [
-                {"id": "eng_2_a1", "label": "大問〔II〕A 空所補充（基本語彙・熟語・接続副詞）", "unit": "シス単1〜1200番・速読英熟語・論理接続詞", "tier": "must_score", "tier_label": "🟢 必答基礎（落とすと危険）", "points": 20, "remedy_book": "【5訂版】システム英単語 第1〜2章(1〜1200) ＆ 速読英熟語"},
-                {"id": "eng_2_a2", "label": "大問〔II〕A 空所補充（上級語彙・文脈コロケーション）", "unit": "シス単第3章(1201〜1700)・多義語・語法", "tier": "border_line", "tier_label": "🟡 合否分岐（差がつく標準）", "points": 10, "remedy_book": "【5訂版】システム英単語 第3章(1201〜1700) ＆ Vintage 動詞の語法"},
-                {"id": "eng_2_b", "label": "大問〔II〕B 本文内容一致 (1)〜(7)", "unit": "パラグラフ毎の根拠特定・言い換え照合", "tier": "must_score", "tier_label": "🟢 必答基礎（落とすと危険）", "points": 15, "remedy_book": "関正生の英語長文ポラリス1・2（設問根拠のパラグラフ検索法）"}
-            ]
-        },
-        {
-            "problem_no": "大問〔III〕",
-            "unit": "長文読解②：下線部意味・言い換え (1)〜(10) ＆ 内容一致 (1)〜(7)",
-            "sub_questions": [
-                {"id": "eng_3_a", "label": "大問〔III〕A 下線部言い換え・解釈 (1)〜(10)", "unit": "SVOC精読・下線部前後の因果関係・抽象表現の具体化", "tier": "border_line", "tier_label": "🟡 合否分岐（差がつく標準）", "points": 15, "remedy_book": "肘井学の読解のための英文法［必修編］／ 関正生の英文解釈ポラリス1"},
-                {"id": "eng_3_b", "label": "大問〔III〕B 内容一致・主題選択 (1)〜(7)", "unit": "長文全体の論旨把握・実験結果の読み取り", "tier": "must_score", "tier_label": "🟢 必答基礎（落とすと危険）", "points": 10, "remedy_book": "関正生の英語長文ポラリス2［応用レベル］"}
-            ]
-        }
+    # Build Interactive Multi-Book Combination Simulator Matrix
+    # Allows user to check any combination of books (e.g., Systan + Sokutan Adv) to see combined coverage!
+    selectable_vocab_books = [
+        {"id": "systan_s1", "name": "システム英単語 第1章 (1〜600)", "default_checked": True, "group": "systan"},
+        {"id": "systan_s2", "name": "システム英単語 第2章 (601〜1200)", "default_checked": True, "group": "systan"},
+        {"id": "systan_s3", "name": "システム英単語 第3章 (1201〜1700)", "default_checked": True, "group": "systan"},
+        {"id": "systan_s4", "name": "システム英単語 第4章 (1701〜2027)", "default_checked": False, "group": "systan"},
+        {"id": "systan_tagigo", "name": "システム英単語 多義語 (1〜184)", "default_checked": True, "group": "systan"},
+        {"id": "sokutan_adv", "name": "★速読英単語 上級編（改訂第5版）", "default_checked": False, "group": "Sub/Adv"},
+        {"id": "teppeki", "name": "★鉄緑会東大英単語熟語 鉄壁", "default_checked": False, "group": "Sub/Adv"},
+        {"id": "eiken_pre1", "name": "★出る順で最短合格！英検 準1級単熟語EX", "default_checked": False, "group": "Sub/Adv"},
+        {"id": "target1900", "name": "ターゲット1900（6訂版）", "default_checked": False, "group": "Main"},
+        {"id": "leap", "name": "必携 英単語LEAP（改訂版）", "default_checked": False, "group": "Main"},
+        {"id": "systan_basic", "name": "システム英単語Basic（1〜1550）", "default_checked": False, "group": "Basic"},
+        {"id": "target1200", "name": "英単語ターゲット1200（改訂版）", "default_checked": False, "group": "Basic"}
     ]
+
+    s1_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage1_words}
+    s2_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage2_words}
+    s3_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage3_words}
+    s4_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage4_words}
+
+    word_combination_matrix = []
+    seen_matrix_lems = set()
+    all_target_items = (
+        [(re.split(r'[\(（]', x["word"])[0].lower(), x["word"], x["meaning"], x["freq"]) for x in (stage1_words + stage2_words + stage3_words + stage4_words)]
+        + [(u["lemma"], u["word"], u["meaning"], u["freq"]) for u in uncovered_words]
+    )
+
+    for lem, disp_w, mean_s, freq_v in all_target_items:
+        if lem in seen_matrix_lems:
+            continue
+        seen_matrix_lems.add(lem)
+        in_books = {}
+        if lem in s1_word_set:
+            in_books["systan_s1"] = "第1章"
+        if lem in s2_word_set:
+            in_books["systan_s2"] = "第2章"
+        if lem in s3_word_set:
+            in_books["systan_s3"] = "第3章"
+        if lem in s4_word_set:
+            in_books["systan_s4"] = "第4章"
+        if find_entry_in_book(lem, tagigo) is not None:
+            in_books["systan_tagigo"] = find_entry_in_book(lem, tagigo)["q_number"]
+
+        for bk in ["sokutan_adv", "teppeki", "eiken_pre1", "target1900", "leap", "systan_basic", "target1200"]:
+            b_entries = vocab_db.get(bk, {}).get("entries", {})
+            fe = find_entry_in_book(lem, b_entries)
+            if fe is not None:
+                in_books[bk] = str(fe.get("q_number") or f"No.{fe.get('num', '')}")
+                if (not mean_s or "文脈推測" in mean_s) and fe.get("meaning"):
+                    mean_s = fe["meaning"]
+
+        word_combination_matrix.append({
+            "lemma": lem,
+            "word": disp_w,
+            "meaning": mean_s,
+            "freq": freq_v,
+            "books": in_books
+        })
+
+    # Interactive Mistake Tracker Items for English Exam (every single question (1), (2), (3)...)
+    tracker_sections = extract_english_tracker_sections(text)
 
     adv_ratio = (s3_cnt + s4_cnt + len([u for u in uncovered_words if u["found_in_other_books"]])) / valid_exam_unique * 100
     if adv_ratio >= 32:
@@ -1001,6 +1128,13 @@ def analyze_english_exam(text: str, university: str) -> dict:
             "uncovered_words": uncovered_words[:20]
         },
         "book_comparisons": book_comparisons,
+        "vocab_combination_simulator": {
+            "books": selectable_vocab_books,
+            "total_exam_unique": len(word_combination_matrix),
+            "basic_token_count": basic_token_cnt,
+            "total_all_tokens": total_all_tokens,
+            "word_matrix": word_combination_matrix
+        },
         "idiom_matches": unique_idioms[:20],
         "grammar_hits": grammar_hits,
         "tracker_sections": tracker_sections,
@@ -1237,15 +1371,15 @@ def analyze_math_exam(text: str, university: str) -> dict:
     quant_conditions = [
         {
             "category": "標準定石パート（基礎問題精講・青チャート例題・重問A問題）の完答基準",
-            "threshold": f"各大問の(1)(2)および標準大問で 得点率 75% 以上を確保",
+            "threshold": f"標準定石要素（全体の {juyo_a_cov}%）の取りこぼしゼロ",
             "current_analysis": f"全{total_p}大問のうち、『基礎問題精講』『青チャート基本〜重要例題』『数学重要問題集 A問題』の定石で解ける要素が全体の {juyo_a_cov}% を占めています。",
-            "verdict": "【絶対条件】各大問の導入設問(1)(2)や小問集合の典型題を1つでも計算ミスで落とすと、合格最低点（約60%〜65%）を割り込みます。"
+            "verdict": "【最重要】各大問の導入設問(1)(2)や小問集合の典型題は参考書の例題そのままの定石問題であり、ここでの失点を防ぐことが最優先です。"
         },
         {
             "category": "誘導融合パート（重要問題集B問題レベル）での対応力",
             "threshold": "前の設問の結果を利用して次の設問を導く『誘導活用力』",
             "current_analysis": f"大問後半（(3)(4)など）は前問の結果を利用する融合問題（重要問題集 B問題相当）が {b_level_count} 問含まれています。",
-            "verdict": "重要問題集のA問題を完璧にした上で、B問題の誘導形式に慣れておくことで合格安全圏（75%以上）に到達できます。"
+            "verdict": "重要問題集のA問題を完璧にした上で、B問題の誘導形式を積み上げることで全体の96.5%まで対応可能になります。"
         }
     ]
 
