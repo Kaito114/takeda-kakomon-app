@@ -21,6 +21,11 @@ from ten_year_dna_engine import (
     upsert_accumulated_dna_profile,
     analyze_10yr_university_and_concurrent,
 )
+from supabase_sync_engine import (
+    get_admin_sync_overview,
+    sync_all_from_supabase,
+    restore_synced_db_from_supabase_if_newer,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -43,6 +48,7 @@ if SUPABASE_URL and SUPABASE_KEY:
         _sb_client = None
 
 configure_dna_supabase_sync(_sb_client, CONFIG_BUCKET)
+restore_synced_db_from_supabase_if_newer(_sb_client)
 
 
 def _upload_auth_to_supabase(data_bytes: bytes):
@@ -179,7 +185,12 @@ async def auth_middleware(request: Request, call_next):
                 content={"detail": "ログインが必要です。IDとパスワードを入力してください。"},
                 headers=cors_headers,
             )
-        admin_endpoints = ["/api/update-password", "/api/auth-config"]
+        admin_endpoints = [
+            "/api/update-password",
+            "/api/auth-config",
+            "/api/admin/sync-supabase-status",
+            "/api/admin/sync-supabase",
+        ]
         if path in admin_endpoints and auth_info["role"] != "admin":
             return JSONResponse(
                 status_code=403,
@@ -237,7 +248,14 @@ class ExamDnaSaveRequest(BaseModel):
 async def serve_index():
     if not INDEX_HTML_PATH.exists():
         return HTMLResponse("<h1>Initializing UI...</h1>")
-    return HTMLResponse(INDEX_HTML_PATH.read_text(encoding="utf-8"))
+    return HTMLResponse(
+        INDEX_HTML_PATH.read_text(encoding="utf-8"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.post("/api/login")
@@ -317,6 +335,39 @@ def api_update_password(req: PasswordUpdateRequest, request: Request):
     })
     resp.set_cookie(key="kakomon_app_token", value=new_admin_token, max_age=60 * 60 * 24 * 30, httponly=False, samesite="lax")
     return resp
+
+
+def _current_memory_kb_stats() -> dict:
+    vocab = KNOWLEDGE_BASE.get("vocab", {})
+    return {
+        "vocab_books": len(vocab),
+        "total_vocab_entries": sum(v.get("total_unique", 0) for v in vocab.values()),
+        "math_juyo_count": len(KNOWLEDGE_BASE.get("math_juyo", {}).get("rikei", [])) + len(KNOWLEDGE_BASE.get("math_juyo", {}).get("bunkei", [])),
+        "chem_juyo_count": len(KNOWLEDGE_BASE.get("chem_juyo", [])),
+        "history_terms_count": sum(h.get("total_terms", 0) for h in KNOWLEDGE_BASE.get("history", {}).values()),
+        "confirmation_test_books_count": len(CONFIRMATION_TEST_BOOKS),
+    }
+
+
+@app.get("/api/admin/sync-supabase-status")
+def api_admin_sync_supabase_status(request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    return get_admin_sync_overview(_sb_client, _current_memory_kb_stats())
+
+
+@app.post("/api/admin/sync-supabase")
+def api_admin_sync_supabase(request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    try:
+        return sync_all_from_supabase(_sb_client, admin_username=auth_info.get("username", "admin"))
+    except RuntimeError as re_err:
+        raise HTTPException(status_code=409 if "実行中" in str(re_err) else 503, detail=str(re_err))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supabase再同期エラー: {str(e)}")
 
 
 @app.get("/api/health")

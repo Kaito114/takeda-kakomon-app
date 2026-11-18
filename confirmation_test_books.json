@@ -4,7 +4,7 @@
     "subject": "英語",
     "name": "[5訂版]システム英単語(黒字の訳追加ver)",
     "description": "駿台文庫・2027語（A4片面100問・赤字黒字・番号指定対応）",
-    "count": 2027
+    "count": 4052
   },
   {
     "id": "sys_vocab_tagigo",
@@ -39,7 +39,7 @@
     "subject": "英語",
     "name": "【改訂版】必携 英単語LEAP",
     "description": "数研出版・語彙ネットワーク型英単語帳",
-    "count": 1890
+    "count": 2300
   },
   {
     "id": "sokudoku_jukugo",
@@ -305,7 +305,7 @@
     "subject": "現代文",
     "name": "入試漢字マスター1800+ (四訂版)",
     "description": "河合出版・書き取りA〜C/読みA〜B/四字熟語（A4横向き全文表示・項目別範囲指定対応）",
-    "count": 2544
+    "count": 2124
   },
   {
     "id": "keyword_dokkai",

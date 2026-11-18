@@ -1,0 +1,17 @@
+{
+  "synced_at": "2026-11-18T09:17:08.611746+00:00",
+  "synced_at_jst": "2026-11-18 18:17:08 JST",
+  "synced_by": "admin",
+  "duration_sec": 10.53,
+  "total_rows_scanned": 78756,
+  "total_titles_in_supabase": 570,
+  "vocab_books_count": 15,
+  "total_vocab_entries": 22639,
+  "math_juyo_count": 509,
+  "chem_juyo_count": 332,
+  "history_terms_count": 8639,
+  "confirmation_books_count": 237,
+  "updated_book_counts": 0,
+  "added_books": [],
+  "warnings": []
+}

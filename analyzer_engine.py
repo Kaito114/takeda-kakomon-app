@@ -2,9 +2,11 @@ import io
 import gc
 import re
 import os
+import copy
 import json
 import math
 import hashlib
+import threading
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
@@ -25,9 +27,14 @@ except ImportError:
     winocr = None
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageOps, ImageFilter, ImageMath, ImageChops, ImageDraw
 except ImportError:
     Image = None
+    ImageOps = None
+    ImageFilter = None
+    ImageMath = None
+    ImageChops = None
+    ImageDraw = None
 
 _rapid_ocr_engine = None
 def get_rapid_ocr():
@@ -220,18 +227,13 @@ BASIC_FUNCTION_WORDS = {
     "entrance", "passage", "following", "underline", "paragraph", "meaning", "closest", "author"
 }
 
-SYSTAN_HEADWORDS = set(KNOWLEDGE_BASE.get("vocab", {}).get("systan", {}).get("entries", {}).keys())
-SYSTAN_BASIC_ENTRIES = KNOWLEDGE_BASE.get("vocab", {}).get("systan_basic", {}).get("entries", {})
-TARGET1900_ENTRIES = KNOWLEDGE_BASE.get("vocab", {}).get("target1900", {}).get("entries", {})
+_BASE_BASIC_FUNCTION_WORDS = frozenset(BASIC_FUNCTION_WORDS)
+_KB_LOCK = threading.RLock()
 
-for hw_b in SYSTAN_BASIC_ENTRIES.keys():
-    if hw_b not in SYSTAN_HEADWORDS:
-        BASIC_FUNCTION_WORDS.add(hw_b)
-
-ALL_KNOWN_ENGLISH_WORDS = set(BASIC_FUNCTION_WORDS) | SYSTAN_HEADWORDS
-for b_key, b_val in KNOWLEDGE_BASE.get("vocab", {}).items():
-    if b_key not in ("kobun315", "kokugo1700"):
-        ALL_KNOWN_ENGLISH_WORDS.update(b_val.get("entries", {}).keys())
+SYSTAN_HEADWORDS = set()
+SYSTAN_BASIC_ENTRIES = {}
+TARGET1900_ENTRIES = {}
+ALL_KNOWN_ENGLISH_WORDS = set(_BASE_BASIC_FUNCTION_WORDS)
 
 
 def generate_word_family_candidates(word: str) -> list:
@@ -366,30 +368,79 @@ def find_entry_in_book(word_or_lemma: str, entries_dict: dict):
     return None
 
 
-# Build bi-directional word-family lookup tables for all vocab books
-for _b_key, _b_val in KNOWLEDGE_BASE.get("vocab", {}).items():
-    if _b_key in ("kobun315", "kokugo1700", "sokudoku_idiom", "target_idiom1000"):
-        continue
-    _entries = _b_val.get("entries", {})
-    _expanded = dict(_entries)
-    for _hw, _info in list(_entries.items()):
-        for _cand in generate_word_family_candidates(_hw):
-            if _cand not in _expanded:
-                _expanded[_cand] = _info
-    _b_val["entries"] = _expanded
+def reload_knowledge_base(raw_kb: dict = None) -> dict:
+    """
+    Build expanded lookup tables from raw_kb (or KNOWLEDGE_PATH if None) and
+    atomically update in-memory dictionaries/sets in-place so all callers see the refresh.
+    """
+    if raw_kb is None:
+        with open(KNOWLEDGE_PATH, "r", encoding="utf-8") as f:
+            raw_kb = json.load(f)
 
-_systan_entries = KNOWLEDGE_BASE.get("vocab", {}).get("systan", {}).get("entries", {})
-_tagigo_entries = KNOWLEDGE_BASE.get("vocab", {}).get("systan_tagigo", {}).get("entries", {})
-for _tk, _tv in _tagigo_entries.items():
-    if _tk not in _systan_entries:
-        _systan_entries[_tk] = _tv
+    working_kb = copy.deepcopy(raw_kb)
+    vocab = working_kb.get("vocab", {})
 
-SYSTAN_HEADWORDS = set(_systan_entries.keys())
-ALL_KNOWN_ENGLISH_WORDS.update(SYSTAN_HEADWORDS)
+    raw_systan_keys = set(vocab.get("systan", {}).get("entries", {}).keys())
+    raw_systan_basic = dict(vocab.get("systan_basic", {}).get("entries", {}))
+    raw_target1900 = dict(vocab.get("target1900", {}).get("entries", {}))
+
+    new_basic_words = set(_BASE_BASIC_FUNCTION_WORDS)
+    for hw_b in raw_systan_basic.keys():
+        if hw_b not in raw_systan_keys:
+            new_basic_words.add(hw_b)
+
+    # Build bi-directional word-family lookup tables for all vocab books
+    for b_key, b_val in vocab.items():
+        if b_key in ("kobun315", "kokugo1700", "sokudoku_idiom", "target_idiom1000"):
+            continue
+        entries = b_val.get("entries", {})
+        expanded = dict(entries)
+        for hw, info in list(entries.items()):
+            for cand in generate_word_family_candidates(hw):
+                if cand not in expanded:
+                    expanded[cand] = info
+        b_val["entries"] = expanded
+
+    systan_entries = vocab.get("systan", {}).get("entries", {})
+    tagigo_entries = vocab.get("systan_tagigo", {}).get("entries", {})
+    for tk, tv in tagigo_entries.items():
+        if tk not in systan_entries:
+            systan_entries[tk] = tv
+
+    new_systan_headwords = set(systan_entries.keys())
+    new_all_known = set(new_basic_words) | new_systan_headwords
+    for b_key, b_val in vocab.items():
+        if b_key not in ("kobun315", "kokugo1700"):
+            new_all_known.update(b_val.get("entries", {}).keys())
+
+    with _KB_LOCK:
+        KNOWLEDGE_BASE.clear()
+        KNOWLEDGE_BASE.update(working_kb)
+        BASIC_FUNCTION_WORDS.clear()
+        BASIC_FUNCTION_WORDS.update(new_basic_words)
+        SYSTAN_HEADWORDS.clear()
+        SYSTAN_HEADWORDS.update(new_systan_headwords)
+        SYSTAN_BASIC_ENTRIES.clear()
+        SYSTAN_BASIC_ENTRIES.update(vocab.get("systan_basic", {}).get("entries", {}) or raw_systan_basic)
+        TARGET1900_ENTRIES.clear()
+        TARGET1900_ENTRIES.update(vocab.get("target1900", {}).get("entries", {}) or raw_target1900)
+        ALL_KNOWN_ENGLISH_WORDS.clear()
+        ALL_KNOWN_ENGLISH_WORDS.update(new_all_known)
+
+    return {
+        "vocab_books": len(vocab),
+        "total_vocab_entries": sum(v.get("total_unique", 0) for v in vocab.values()),
+        "math_juyo_count": len(working_kb.get("math_juyo", {}).get("rikei", [])) + len(working_kb.get("math_juyo", {}).get("bunkei", [])),
+        "chem_juyo_count": len(working_kb.get("chem_juyo", [])),
+        "history_terms_count": sum(h.get("total_terms", 0) for h in working_kb.get("history", {}).values()),
+    }
+
+
+reload_knowledge_base(KNOWLEDGE_BASE)
 
 
 # =====================================================================
-# 2. オンメモリ PDF テキスト＆並列OCR抽出（表紙・白紙自動判別つき）
+# 2. オンメモリ PDF テキスト＆並列OCR抽出（赤本影除去・見開き分割・白紙自動判別つき）
 # =====================================================================
 def clean_ocr_japanese_spaces(txt: str) -> str:
     if not txt:
@@ -397,17 +448,291 @@ def clean_ocr_japanese_spaces(txt: str) -> str:
     txt = re.sub(r'(?<=[^\x00-\x7F])[ \t]+(?=[^\x00-\x7F])', '', txt)
     txt = re.sub(r'(?<=[^\x00-\x7F])[ \t]+(?=[0-9A-Za-z\(\)〔〕\[\]])', '', txt)
     txt = re.sub(r'(?<=[0-9A-Za-z\(\)〔〕\[\]])[ \t]+(?=[^\x00-\x7F])', '', txt)
+    txt = re.sub(r'([\(（〔\[])[ \t]+', r'\1', txt)
+    txt = re.sub(r'[ \t]+([\)）〕\]])', r'\1', txt)
     txt = txt.replace("c。s", "cos").replace("s i n", "sin").replace("t a n", "tan").replace("10g", "log")
     return txt
 
 
-def _ocr_single_pil_image(img) -> str:
+def _calc_scan_render_dpi(page, target_long_edge: int = 2500) -> int:
+    """Compute optimal render DPI (~214 DPI on A4) while capping memory on oversized pages."""
+    rect = page.rect
+    long_inch = max(float(rect.width), float(rect.height), 100.0) / 72.0
+    dpi = int(round(target_long_edge / long_inch))
+    return max(72, min(240, dpi))
+
+
+def _clear_edge_connected_borders(clean_img) -> None:
+    """Clear dark copier edge strips/wedges connected to outer borders (within 3.5% margin)."""
+    W, H = clean_img.size
+    px = clean_img.load()
+    margin_x = max(6, int(W * 0.035))
+    margin_y = max(6, int(H * 0.035))
+    seed_depth = 6
+
+    for x in range(W):
+        if any(px[x, y] < 170 for y in range(seed_depth)):
+            started = False
+            for y in range(margin_y):
+                if px[x, y] < 195:
+                    px[x, y] = 255
+                    started = True
+                elif started or y >= seed_depth:
+                    break
+        if any(px[x, H - 1 - y] < 170 for y in range(seed_depth)):
+            started = False
+            for y in range(H - 1, H - margin_y - 1, -1):
+                if px[x, y] < 195:
+                    px[x, y] = 255
+                    started = True
+                elif started or (H - 1 - y) >= seed_depth:
+                    break
+
+    for y in range(H):
+        if any(px[x, y] < 170 for x in range(seed_depth)):
+            started = False
+            for x in range(margin_x):
+                if px[x, y] < 195:
+                    px[x, y] = 255
+                    started = True
+                elif started or x >= seed_depth:
+                    break
+        if any(px[W - 1 - x, y] < 170 for x in range(seed_depth)):
+            started = False
+            for x in range(W - 1, W - margin_x - 1, -1):
+                if px[x, y] < 195:
+                    px[x, y] = 255
+                    started = True
+                elif started or (W - 1 - x) >= seed_depth:
+                    break
+
+
+def _detect_vertical_japanese(ink_px, x0: int, x1: int, y0: int, y1: int) -> bool:
+    """Detect vertical Japanese writing strictly inside the active ink bounding box."""
+    if x1 - x0 < 12 or y1 - y0 < 12:
+        return False
+    min_x, max_x = x1, x0
+    min_y, max_y = y1, y0
+    ink_count = 0
+    for cx in range(x0, x1):
+        for cy in range(y0, y1):
+            if ink_px[cx, cy] < 180:
+                ink_count += 1
+                if cx < min_x:
+                    min_x = cx
+                if cx > max_x:
+                    max_x = cx
+                if cy < min_y:
+                    min_y = cy
+                if cy > max_y:
+                    max_y = cy
+    if ink_count < 15 or max_x - min_x < 10 or max_y - min_y < 10:
+        return False
+    bw = max_x - min_x + 1
+    bh = max_y - min_y + 1
+    h_prof = [sum(1 for cx in range(min_x, max_x + 1) if ink_px[cx, cy] < 180) / bw for cy in range(min_y, max_y + 1)]
+    v_prof = [sum(1 for cy in range(min_y, max_y + 1) if ink_px[cx, cy] < 180) / bh for cx in range(min_x, max_x + 1)]
+    h_gap = sum(1 for v in h_prof if v < 0.02) / len(h_prof)
+    v_gap = sum(1 for v in v_prof if v < 0.02) / len(v_prof)
+    return (v_gap > h_gap * 1.45) and (v_gap > 0.18)
+
+
+def _normalize_akahon_scan_image(pil_img, is_cover_page: bool = False):
+    """
+    Remove book-binding gutter shadows, uneven copy illumination, outer black borders,
+    and optional red-pen annotations using pure Pillow morphological background division.
+    Returns (clean_gray_img, bg_small_img) or (None, None) if blank.
+    """
+    if Image is None or ImageOps is None:
+        return pil_img, None
+
+    rgb = pil_img.convert("RGB")
+    W, H = rgb.size
+    gray = ImageOps.grayscale(rgb)
+
+    sw = max(64, min(900, W // 3))
+    sh = max(64, min(900, int(round(H * sw / max(1, W)))))
+    small = gray.resize((sw, sh), Image.Resampling.BILINEAR)
+    bg_small = (
+        small.filter(ImageFilter.MaxFilter(5))
+        .filter(ImageFilter.MinFilter(5))
+        .filter(ImageFilter.GaussianBlur(0.5))
+    )
+    bg = bg_small.resize((W, H), Image.Resampling.BILINEAR)
+
+    def _div_bg(ch):
+        return ImageMath.lambda_eval(
+            lambda args: args["convert"](
+                args["min"](args["float"](args["a"]) * 255.0 / args["max"](args["float"](args["b"]), 8.0), 255.0),
+                "L",
+            ),
+            a=ch,
+            b=bg,
+        )
+
+    norm_gray = _div_bg(gray)
+
+    # Drop red-pen scoring/underlines only on problem pages (preserve red titles on cover pages)
+    if not is_cover_page:
+        sm_rgb = rgb.resize((200, 140), Image.Resampling.BILINEAR)
+        r_s, g_s, b_s = sm_rgb.split()
+        red_diff = ImageChops.subtract(r_s, ImageChops.lighter(g_s, b_s))
+        red_ratio = sum(red_diff.histogram()[35:]) / (200 * 140)
+        if 0.00003 < red_ratio < 0.18:
+            r_ch = rgb.getchannel("R")
+            norm_r = _div_bg(r_ch)
+            norm_gray = ImageChops.lighter(norm_gray, norm_r)
+            norm_r.close()
+            r_ch.close()
+        sm_rgb.close()
+        r_s.close()
+        g_s.close()
+        b_s.close()
+        red_diff.close()
+
+    lut = [0 if i < 75 else (255 if i > 205 else int((i - 75) / 130.0 * 255)) for i in range(256)]
+    clean = norm_gray.point(lut)
+    _clear_edge_connected_borders(clean)
+
+    rgb.close()
+    gray.close()
+    small.close()
+    bg.close()
+    norm_gray.close()
+
+    # Check dark ink after shadow removal so shadowed blank pages are accurately skipped
+    if sum(clean.histogram()[:200]) < 1000:
+        clean.close()
+        bg_small.close()
+        return None, None
+
+    return clean, bg_small
+
+
+def _split_spread_if_needed(clean_img, bg_small=None) -> list:
+    """
+    Detect landscape 2-page Akahon spreads (or 2-column layouts separated by a clean vertical gutter)
+    and split them into single ordered pages (Right->Left for vertical Japanese, Left->Right otherwise).
+    """
+    W, H = clean_img.size
+    if W <= H * 1.08:
+        return [ImageOps.expand(clean_img, border=24, fill=255)]
+
+    tw, th = max(80, W // 6), max(80, H // 6)
+    ink_map = clean_img.filter(ImageFilter.MinFilter(3)).resize((tw, th), Image.Resampling.BILINEAR)
+    tpx = ink_map.load()
+
+    y0, y1 = int(th * 0.03), int(th * 0.97)
+    col_ink_full = [
+        sum(1 for cy in range(y0, y1) if tpx[cx, cy] < 190) / max(1, (y1 - y0))
+        for cx in range(tw)
+    ]
+    active_ys = [
+        cy for cy in range(y0, y1)
+        if sum(1 for cx in range(tw) if tpx[cx, cy] < 190) >= 3
+    ]
+    if len(active_ys) < 4:
+        ink_map.close()
+        return [ImageOps.expand(clean_img, border=24, fill=255)]
+
+    c_start = int(tw * 0.36)
+    c_end = int(tw * 0.64)
+    col_bg = None
+    outer_bg = 255.0
+    if bg_small is not None:
+        bw_s, bh_s = bg_small.size
+        bg_px = bg_small.load()
+        by0, by1 = int(bh_s * 0.1), int(bh_s * 0.9)
+        col_bg = [
+            sum(bg_px[min(bw_s - 1, int(cx * bw_s / tw)), by] for by in range(by0, by1)) / max(1, by1 - by0)
+            for cx in range(tw)
+        ]
+        outer_bg = (sum(col_bg[int(tw * 0.1):int(tw * 0.3)]) + sum(col_bg[int(tw * 0.7):int(tw * 0.9)])) / max(1, int(tw * 0.4))
+
+    cleaned_col_cross = []
+    gutter_core_cols = set()
+    for cx in range(tw):
+        cross = sum(1 for cy in active_ys if tpx[cx, cy] < 190) / len(active_ys)
+        if c_start <= cx <= c_end and col_ink_full[cx] > 0.50:
+            if col_bg is None or col_bg[cx] < outer_bg - 35:
+                gutter_core_cols.add(cx)
+                cross = 0.0
+        cleaned_col_cross.append(cross)
+
+    spans = []
+    cur_s = None
+    for cx in range(c_start, c_end + 1):
+        is_gap = (cx < c_end) and (cleaned_col_cross[cx] <= 0.025)
+        if is_gap and cur_s is None:
+            cur_s = cx
+        elif not is_gap and cur_s is not None:
+            spans.append((cur_s, cx - 1))
+            cur_s = None
+
+    if not spans:
+        ink_map.close()
+        return [ImageOps.expand(clean_img, border=24, fill=255)]
+
+    best_span = max(
+        spans,
+        key=lambda sp: (sp[1] - sp[0] + 1) - abs(((sp[0] + sp[1]) / 2.0) / tw - 0.5) * 15.0,
+    )
+    if (best_span[1] - best_span[0] + 1) < 2:
+        ink_map.close()
+        return [ImageOps.expand(clean_img, border=24, fill=255)]
+
+    left_ink = sum(1 for cx in range(int(tw * 0.03), best_span[0]) if cleaned_col_cross[cx] > 0.05)
+    right_ink = sum(1 for cx in range(best_span[1] + 1, int(tw * 0.97)) if cleaned_col_cross[cx] > 0.05)
+    if left_ink < 6 or right_ink < 6:
+        ink_map.close()
+        return [ImageOps.expand(clean_img, border=24, fill=255)]
+
+    cores_in_span = [cx for cx in gutter_core_cols if best_span[0] <= cx <= best_span[1]]
+    mid_cx = (sum(cores_in_span) / len(cores_in_span)) if cores_in_span else ((best_span[0] + best_span[1]) / 2.0)
+    split_x = int(mid_cx * W / tw)
+
+    if cores_in_span and ImageDraw is not None:
+        gx0 = max(0, int((min(cores_in_span) - 1) * W / tw))
+        gx1 = min(W, int((max(cores_in_span) + 2) * W / tw))
+        ImageDraw.Draw(clean_img).rectangle([gx0, 0, gx1, H], fill=255)
+
+    is_vert_r = _detect_vertical_japanese(tpx, best_span[1] + 1, int(tw * 0.97), y0, y1)
+    is_vert_l = _detect_vertical_japanese(tpx, int(tw * 0.03), best_span[0], y0, y1)
+    is_vertical_jp = is_vert_r or is_vert_l
+    ink_map.close()
+
+    l_crop = clean_img.crop((0, 0, split_x, H))
+    r_crop = clean_img.crop((split_x, 0, W, H))
+    l_img = ImageOps.expand(l_crop, border=24, fill=255)
+    r_img = ImageOps.expand(r_crop, border=24, fill=255)
+    l_crop.close()
+    r_crop.close()
+    return [r_img, l_img] if is_vertical_jp else [l_img, r_img]
+
+
+def _preprocess_akahon_scan_page(pil_img, is_cover_page: bool = False) -> list:
+    """Full preprocessing wrapper returning 1 or 2 cleaned single-page PIL images."""
+    clean_img, bg_small = _normalize_akahon_scan_image(pil_img, is_cover_page=is_cover_page)
+    if clean_img is None:
+        return []
     try:
-        gray = img.convert("L")
-        hist = gray.histogram()
-        dark_pixels = sum(hist[:200])
-        if dark_pixels < 1500:
-            return ""
+        return _split_spread_if_needed(clean_img, bg_small=bg_small)
+    finally:
+        clean_img.close()
+        if bg_small is not None:
+            bg_small.close()
+
+
+def _score_ocr_text_quality(txt: str) -> int:
+    if not txt:
+        return 0
+    en_words = len(re.findall(r'[A-Za-z]{3,}', txt))
+    jp_chunks = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]{2,}', txt))
+    return en_words * 3 + jp_chunks * 2
+
+
+def _ocr_raw_engine(img) -> str:
+    try:
         if winocr is not None:
             res = winocr.recognize_pil_sync(img, "ja")
             return clean_ocr_japanese_spaces((res.get("text") or "").strip())
@@ -422,6 +747,62 @@ def _ocr_single_pil_image(img) -> str:
         return ""
     except Exception:
         return ""
+
+
+def _ocr_single_pil_image(img, allow_rotate_retry: bool = True) -> str:
+    try:
+        gray = img.convert("L") if img.mode != "L" else img
+        dark_pixels = sum(gray.histogram()[:200])
+        if dark_pixels < 1000:
+            return ""
+        txt = _ocr_raw_engine(gray)
+        if allow_rotate_retry and _score_ocr_text_quality(txt) < 6 and dark_pixels >= 2500:
+            best_txt = txt
+            best_score = _score_ocr_text_quality(txt)
+            for deg in (90, 270):
+                rot = gray.rotate(deg, expand=True)
+                try:
+                    cand_txt = _ocr_raw_engine(rot)
+                    cand_score = _score_ocr_text_quality(cand_txt)
+                    if cand_score >= max(8, best_score * 2) and cand_score > best_score:
+                        best_score = cand_score
+                        best_txt = cand_txt
+                finally:
+                    rot.close()
+            return best_txt
+        return txt
+    except Exception:
+        return ""
+
+
+def _ocr_preprocessed_page(clean_img, bg_small=None) -> str:
+    """Split spread if needed, OCR subpages, and fallback to 90/270 deg if sideways scan."""
+    sub_pages = _split_spread_if_needed(clean_img, bg_small=bg_small)
+    try:
+        texts = [_ocr_single_pil_image(sp, allow_rotate_retry=False) for sp in sub_pages]
+        joined = "\n".join(t for t in texts if t).strip()
+        best_score = _score_ocr_text_quality(joined)
+        if best_score < 6 and sum(clean_img.histogram()[:200]) >= 2500:
+            best_txt = joined
+            for deg in (90, 270):
+                rot = clean_img.rotate(deg, expand=True)
+                rot_subs = _split_spread_if_needed(rot, bg_small=None)
+                try:
+                    r_texts = [_ocr_single_pil_image(rs, allow_rotate_retry=False) for rs in rot_subs]
+                    cand_txt = "\n".join(t for t in r_texts if t).strip()
+                    cand_score = _score_ocr_text_quality(cand_txt)
+                    if cand_score >= max(8, best_score * 2) and cand_score > best_score:
+                        best_score = cand_score
+                        best_txt = cand_txt
+                finally:
+                    for rs in rot_subs:
+                        rs.close()
+                    rot.close()
+            return best_txt
+        return joined
+    finally:
+        for sp in sub_pages:
+            sp.close()
 
 
 def is_cover_or_instruction_page(page_text: str, page_idx: int) -> bool:
@@ -443,33 +824,77 @@ def is_cover_or_instruction_page(page_text: str, page_idx: int) -> bool:
     return hits >= 1
 
 
+def _encode_pil_to_data_url(img, quality: int = 82) -> str:
+    import base64
+    buf = io.BytesIO()
+    rgb_or_l = img if img.mode in ("L", "RGB") else img.convert("L")
+    rgb_or_l.save(buf, format="JPEG", quality=quality, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     if not fitz:
         raise RuntimeError("PyMuPDF (fitz) is required for in-memory PDF parsing.")
 
+    has_server_ocr = (winocr is not None or get_rapid_ocr() is not None)
+    scanned_page_images = []
+    max_client_ocr_images = 24
+
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
         page_count = len(doc)
         raw_page_texts = [""] * page_count
-        images_to_ocr = []
+        pending_ocr_pages = []  # Small bounded batch of (page_idx, clean_img, bg_small)
+
+        def _flush_ocr_batch():
+            if not pending_ocr_pages:
+                return
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(
+                    executor.map(
+                        lambda item: (item[0], _ocr_preprocessed_page(item[1], item[2])),
+                        pending_ocr_pages,
+                    )
+                )
+            for idx_r, txt_r in results:
+                raw_page_texts[idx_r] = txt_r
+            for _, c_img, b_img in pending_ocr_pages:
+                c_img.close()
+                if b_img is not None:
+                    b_img.close()
+            pending_ocr_pages.clear()
 
         for i, page in enumerate(doc):
             txt = (page.get_text("text") or "").strip()
             if len(txt) >= 30:
                 raw_page_texts[i] = clean_ocr_japanese_spaces(txt)
-            elif Image is not None and (winocr is not None or get_rapid_ocr() is not None):
-                pix = page.get_pixmap(dpi=150)
-                pil_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                images_to_ocr.append((i, pil_img))
-                del pix
+                continue
 
-    if images_to_ocr:
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            ocr_results = list(executor.map(lambda item: (item[0], _ocr_single_pil_image(item[1])), images_to_ocr))
-        for idx, r_txt in ocr_results:
-            raw_page_texts[idx] = r_txt
-        for _, pil_img in images_to_ocr:
-            pil_img.close()
-        del images_to_ocr
+            if Image is None:
+                continue
+
+            dpi = _calc_scan_render_dpi(page)
+            pix = page.get_pixmap(dpi=dpi)
+            pil_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            del pix
+
+            if has_server_ocr:
+                clean_img, bg_small = _normalize_akahon_scan_image(pil_img, is_cover_page=(i < 2))
+                pil_img.close()
+                if clean_img is not None:
+                    pending_ocr_pages.append((i, clean_img, bg_small))
+                    if len(pending_ocr_pages) >= 4:
+                        _flush_ocr_batch()
+            else:
+                # Server has no OCR engine: prepare shadow-removed & split images for client Tesseract.js
+                if len(scanned_page_images) < max_client_ocr_images:
+                    sub_pages = _preprocess_akahon_scan_page(pil_img, is_cover_page=(i < 2))
+                    for sp in sub_pages:
+                        if len(scanned_page_images) < max_client_ocr_images:
+                            scanned_page_images.append(_encode_pil_to_data_url(sp))
+                        sp.close()
+                pil_img.close()
+
+        _flush_ocr_batch()
 
     cover_text = "\n".join(raw_page_texts[:2])
     problem_pages = []
@@ -485,24 +910,29 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
 
     full_problem_text = "\n\n".join(problem_pages)
 
-    scanned_page_images = []
-    if len(full_problem_text.strip()) < 40 and fitz is not None:
+    # Safety fallback if server OCR was present but yielded nearly nothing
+    if has_server_ocr and len(full_problem_text.strip()) < 40 and not scanned_page_images:
         try:
-            import base64
             with fitz.open(stream=pdf_bytes, filetype="pdf") as doc_img:
                 for p_i, page in enumerate(doc_img):
-                    if len(scanned_page_images) >= 8:
+                    if len(scanned_page_images) >= max_client_ocr_images:
                         break
-                    pix = page.get_pixmap(dpi=120)
+                    dpi = _calc_scan_render_dpi(page, target_long_edge=2100)
+                    pix = page.get_pixmap(dpi=dpi)
                     if Image is not None:
                         pil_im = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                        if sum(pil_im.convert("L").histogram()[:200]) < 1500:
-                            pil_im.close()
-                            continue
+                        del pix
+                        sub_pages = _preprocess_akahon_scan_page(pil_im, is_cover_page=(p_i < 2))
                         pil_im.close()
-                    jpg_bytes = pix.tobytes("jpeg")
-                    scanned_page_images.append("data:image/jpeg;base64," + base64.b64encode(jpg_bytes).decode("ascii"))
-                    del pix
+                        for sp in sub_pages:
+                            if len(scanned_page_images) < max_client_ocr_images:
+                                scanned_page_images.append(_encode_pil_to_data_url(sp))
+                            sp.close()
+                    else:
+                        import base64
+                        jpg_bytes = pix.tobytes("jpeg")
+                        scanned_page_images.append("data:image/jpeg;base64," + base64.b64encode(jpg_bytes).decode("ascii"))
+                        del pix
         except Exception:
             pass
 
@@ -2187,10 +2617,11 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
             scanned_imgs = pdf_info.get("scanned_page_images", [])
             del pdf_bytes
             del pdf_info
-            if len(text_to_analyze.strip()) < 40 and scanned_imgs:
+            if len(text_to_analyze.strip()) < 180 and scanned_imgs:
                 return {
                     "needs_client_ocr": True,
                     "scanned_page_images": scanned_imgs,
+                    "partial_text": (text_to_analyze or cover_text or "").strip(),
                     "page_count": extracted_meta["page_count"]
                 }
         else:

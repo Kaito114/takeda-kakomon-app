@@ -1033,6 +1033,25 @@
     </div>
   </div>
 
+  <!-- Admin Supabase DB Sync Modal (Admin Only) -->
+  <div class="modal-overlay" id="syncModal" style="display: none;">
+    <div class="modal-card" style="max-width: 580px;">
+      <h2>🔄 Supabase 参考書DB 再同期（管理者専用）</h2>
+      <p class="modal-sub">確認テストサイトの Supabase（『テスト作成データ』）から最新の単語帳・重要問題集・一問一答・新刊一覧を取得して即時反映＆クラウド永続保存します</p>
+
+      <div class="auth-role-box" id="syncStatusPanel" style="font-size:13px;line-height:1.7;">
+        状態を読み込み中...
+      </div>
+
+      <div id="syncResultPanel" style="display:none;background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#065f46;line-height:1.6;"></div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+        <button class="mode-tab" id="btnCloseSyncModal" onclick="closeSyncModal()">閉じる</button>
+        <button class="btn-primary" id="btnRunSupabaseSync" onclick="executeSupabaseResync()" style="background:#059669;">🚀 今すぐSupabaseと再同期する</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 1. Zero Storage Guarantee Banner -->
   <div class="zero-storage-bar">
     <span>🛡️ オンメモリ超軽量モード稼働中</span>
@@ -1052,6 +1071,7 @@
       </div>
       <div class="header-actions">
         <span class="role-badge" id="userRoleBadge">未ログイン</span>
+        <button class="header-btn" id="btnAdminSync" style="display: none;" onclick="openSyncModal()">🔄 参考書DB再同期</button>
         <button class="header-btn" id="btnAdminPw" style="display: none;" onclick="openPasswordModal()">🔑 パスワード管理</button>
         <button class="header-btn" id="btnLogout" style="display: none;" onclick="logoutApp()">🚪 ログアウト</button>
       </div>
@@ -1095,7 +1115,7 @@
           <input type="file" id="fileInput" accept=".pdf" multiple style="display: none" onchange="handleFileSelect(this.files)" />
           <div class="dropzone-icon">📥</div>
           <h2>ここに大学の過去問PDFをドラッグ＆ドロップ（1件解析 ／ 複数一括DNA蓄積対応）</h2>
-          <p>スキャン画像PDF（全11科目）も自動OCR解析します。複数年分をまとめてドロップすると自動で1KB傾向DNAだけを抽出・重複統合して蓄積します</p>
+          <p>赤本の見開きA4コピー（中心の本の影・外枠ノイズ・赤ペン書き込み）やスキャン画像PDFも自動で影除去＆見開き分割してOCR解析します。複数年分をまとめてドロップすると自動で1KB傾向DNAだけを抽出・重複統合して蓄積します</p>
           <span class="note-pill">⚡ 解析完了と同時にインプットPDFはメモリから完全消去されます</span>
         </div>
       </div>
@@ -1120,7 +1140,7 @@
     <div id="loadingBox">
       <div class="spinner"></div>
       <h3 style="color: var(--navy); font-weight: 800;">過去問をオンメモリ展開し、全11科目・570冊の参考書DBと高速照合中...</h3>
-      <p style="font-size: 13px; color: var(--slate-600); margin-top: 6px;">スキャン画像PDFの並列OCR・大問分割・網羅率算出後にメモリを自動解放します</p>
+      <p style="font-size: 13px; color: var(--slate-600); margin-top: 6px;">赤本コピーの影除去・見開き分割・並列OCR・網羅率算出後にメモリを自動解放します</p>
     </div>
 
     <!-- 4. Output Results Dashboard -->
@@ -1244,6 +1264,7 @@
       currentRole = role;
       document.getElementById("loginModal").style.display = "none";
       const badge = document.getElementById("userRoleBadge");
+      const btnSync = document.getElementById("btnAdminSync");
       const btnPw = document.getElementById("btnAdminPw");
       const btnOut = document.getElementById("btnLogout");
       btnOut.style.display = "inline-block";
@@ -1251,10 +1272,12 @@
       if (role === "admin") {
         badge.className = "role-badge admin";
         badge.innerText = `👑 管理者モード (${username})`;
+        btnSync.style.display = "inline-block";
         btnPw.style.display = "inline-block";
       } else {
         badge.className = "role-badge";
         badge.innerText = `👤 利用者モード (${username})`;
+        btnSync.style.display = "none";
         btnPw.style.display = "none";
       }
     }
@@ -1298,6 +1321,10 @@
       localStorage.removeItem("kakomon_app_token");
       localStorage.removeItem("kakomon_app_role");
       document.cookie = "kakomon_app_token=; max-age=0; path=/";
+      document.getElementById("btnAdminSync").style.display = "none";
+      document.getElementById("btnAdminPw").style.display = "none";
+      document.getElementById("syncModal").style.display = "none";
+      document.getElementById("passwordModal").style.display = "none";
       document.getElementById("loginModal").style.display = "flex";
     }
 
@@ -1342,6 +1369,123 @@
         alert("✅ 利用者および管理者のID・パスワード設定を更新・永続保存しました！");
       } catch (err) {
         alert("エラー: " + err.message);
+      }
+    }
+
+    function _escHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderSyncStatusBox(statusData) {
+      const panel = document.getElementById("syncStatusPanel");
+      const mem = statusData.current_memory || {};
+      const sbOk = statusData.supabase_connected;
+      const lastAt = statusData.last_synced_at_jst || "まだアプリ経由の再同期は未実行（初期同梱JSONを稼働中）";
+      const lastBy = statusData.last_synced_by ? ` / 実行者: ${_escHtml(statusData.last_synced_by)}` : "";
+      const lastRows = statusData.last_total_rows_scanned ? `（全 ${Number(statusData.last_total_rows_scanned).toLocaleString()} 行スキャン / ${statusData.last_duration_sec}秒）` : "";
+
+      panel.innerHTML = `
+        <div style="margin-bottom:8px;">
+          <strong>🔌 Supabase接続状態:</strong>
+          <span style="color:${sbOk ? '#059669' : '#dc2626'};font-weight:800;">${sbOk ? '✅ 接続可能' : '❌ 未接続（環境変数を確認してください）'}</span>
+        </div>
+        <div style="margin-bottom:8px;">
+          <strong>📚 現在メモリ上で稼働中のDB規模:</strong><br/>
+          ・単語/語彙集: <strong>${mem.vocab_books || 0} 冊</strong>（計 ${(mem.total_vocab_entries || 0).toLocaleString()} 見出し語）<br/>
+          ・数学/化学重要問題集: <strong>${(mem.math_juyo_count || 0) + (mem.chem_juyo_count || 0)} 問</strong> ／ 歴史一問一答: <strong>${(mem.history_terms_count || 0).toLocaleString()} 語</strong><br/>
+          ・確認テスト収録参考書プルダウン: <strong>${mem.confirmation_test_books_count || 0} 冊</strong>
+        </div>
+        <div>
+          <strong>🕒 最終再同期履歴:</strong><br/>
+          ${_escHtml(lastAt)}${lastBy} ${_escHtml(lastRows)}
+        </div>
+      `;
+    }
+
+    async function openSyncModal() {
+      if (currentRole !== "admin") {
+        alert("この機能は管理者専用です。");
+        return;
+      }
+      document.getElementById("syncResultPanel").style.display = "none";
+      document.getElementById("syncStatusPanel").innerHTML = "⏳ Supabase接続状態と現在のDB規模を確認中...";
+      document.getElementById("syncModal").style.display = "flex";
+      try {
+        const res = await fetch("/api/admin/sync-supabase-status", { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "ステータス取得に失敗しました");
+        renderSyncStatusBox(data);
+        document.getElementById("btnRunSupabaseSync").disabled = !data.supabase_connected || data.is_syncing;
+      } catch (err) {
+        document.getElementById("syncStatusPanel").innerHTML = `<span style="color:#dc2626;font-weight:700;">エラー: ${_escHtml(err.message)}</span>`;
+      }
+    }
+
+    function closeSyncModal() {
+      document.getElementById("syncModal").style.display = "none";
+    }
+
+    async function executeSupabaseResync() {
+      if (currentRole !== "admin") {
+        alert("この機能は管理者専用です。");
+        return;
+      }
+      const btnRun = document.getElementById("btnRunSupabaseSync");
+      const btnClose = document.getElementById("btnCloseSyncModal");
+      const resPanel = document.getElementById("syncResultPanel");
+      const origText = btnRun.innerText;
+
+      btnRun.disabled = true;
+      btnClose.disabled = true;
+      btnRun.innerText = "⏳ Supabase全データ取得＆再構築中（約10秒）...";
+      resPanel.style.display = "none";
+
+      try {
+        const res = await fetch("/api/admin/sync-supabase", {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "再同期に失敗しました");
+
+        const rep = data.sync_report || {};
+        renderSyncStatusBox({
+          supabase_connected: true,
+          is_syncing: false,
+          last_synced_at_jst: rep.synced_at_jst,
+          last_synced_by: rep.synced_by,
+          last_duration_sec: rep.duration_sec,
+          last_total_rows_scanned: rep.total_rows_scanned,
+          current_memory: data.current_memory || {}
+        });
+
+        const added = rep.added_books || [];
+        const warns = rep.warnings || [];
+        resPanel.style.background = "#ecfdf5";
+        resPanel.style.borderColor = "#6ee7b7";
+        resPanel.style.color = "#065f46";
+        resPanel.innerHTML = `
+          <strong>✅ 再同期が完了し、メモリ＆ストレージに即時反映されました！</strong><br/>
+          ・スキャン実績: <strong>${(rep.total_rows_scanned || 0).toLocaleString()} 行</strong>（${rep.total_titles_in_supabase || 0} タイトル / ${rep.duration_sec}秒）<br/>
+          ・確認テスト収録数の最新化: <strong>${rep.updated_book_counts || 0} 冊</strong> 更新 ／ 新規参考書追加: <strong>${added.length} 冊</strong><br/>
+          ${added.length > 0 ? `<div style="margin-top:6px;">📘 追加された新刊: ${added.map(b => `${_escHtml(b.name)} [${_escHtml(b.subject)}]`).join("、")}</div>` : ""}
+          ${warns.length > 0 ? `<div style="margin-top:6px;color:#92400e;">⚠️ 注意事項: ${warns.map(w => _escHtml(w)).join(" / ")}</div>` : ""}
+        `;
+        resPanel.style.display = "block";
+      } catch (err) {
+        resPanel.style.background = "#fef2f2";
+        resPanel.style.borderColor = "#fecaca";
+        resPanel.style.color = "#991b1b";
+        resPanel.innerHTML = `❌ 再同期エラー: ${_escHtml(err.message)}`;
+        resPanel.style.display = "block";
+      } finally {
+        btnRun.disabled = false;
+        btnClose.disabled = false;
+        btnRun.innerText = origText;
       }
     }
 
@@ -1401,11 +1545,12 @@
 
       if (data.needs_client_ocr && data.scanned_page_images) {
         const ocrText = await runClientSideOcrFallback(data.scanned_page_images);
+        const mergedText = [data.partial_text || "", ocrText].filter(Boolean).join("\n\n");
         const res2 = await fetch("/api/analyze-text", {
           method: "POST",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
-            text: ocrText,
+            text: mergedText,
             subject: document.getElementById("subjectSelect").value,
             university: document.getElementById("univInput").value,
             filename: file.name
@@ -1526,25 +1671,44 @@
     }
 
     async function runClientSideOcrFallback(imageUrls) {
-      if (!window.Tesseract) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-          s.onload = resolve;
-          s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-      const worker = await window.Tesseract.createWorker(["eng", "jpn"]);
-      const texts = [];
-      for (let i = 0; i < imageUrls.length; i++) {
-        const ret = await worker.recognize(imageUrls[i]);
-        if (ret && ret.data && ret.data.text) {
-          texts.push(ret.data.text);
+      const loadH3 = document.querySelector("#loadingBox h3");
+      const origTitle = loadH3 ? loadH3.innerText : "";
+      try {
+        if (loadH3) {
+          loadH3.innerText = `ブラウザ側でスキャン画像のOCRエンジンを準備中（計 ${imageUrls.length} ページ）...`;
         }
+        if (!window.Tesseract) {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        }
+        const worker = await window.Tesseract.createWorker(["eng", "jpn"]);
+        const texts = [];
+        try {
+          for (let i = 0; i < imageUrls.length; i++) {
+            if (loadH3) {
+              loadH3.innerText = `影除去・分割済みスキャン画像をOCR解析中（${i + 1} / ${imageUrls.length} ページ）...`;
+            }
+            try {
+              const ret = await worker.recognize(imageUrls[i]);
+              if (ret && ret.data && ret.data.text) {
+                texts.push(ret.data.text);
+              }
+            } catch (pageErr) {
+              console.warn("OCR skipped on page", i + 1, pageErr);
+            }
+          }
+        } finally {
+          await worker.terminate();
+        }
+        return texts.join("\n\n");
+      } finally {
+        if (loadH3 && origTitle) loadH3.innerText = origTitle;
       }
-      await worker.terminate();
-      return texts.join("\n\n");
     }
 
     function applyManualUnivName() {

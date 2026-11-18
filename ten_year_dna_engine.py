@@ -23,6 +23,13 @@ def configure_dna_supabase_sync(sb_client, bucket_name: str = "app-config"):
 with open(CONF_BOOKS_PATH, "r", encoding="utf-8") as f:
     CONFIRMATION_TEST_BOOKS = json.load(f)
 
+
+def reload_confirmation_test_books(new_books: list) -> int:
+    """In-place replace CONFIRMATION_TEST_BOOKS so all importing modules see the updated list."""
+    if isinstance(new_books, list) and len(new_books) > 0:
+        CONFIRMATION_TEST_BOOKS[:] = list(new_books)
+    return len(CONFIRMATION_TEST_BOOKS)
+
 SUBJECT_KEY_TO_JP = {
     "english": "英語",
     "math": "数学",
