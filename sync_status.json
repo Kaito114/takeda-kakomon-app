@@ -1,8 +1,8 @@
 {
-  "synced_at": "2026-11-18T09:17:08.611746+00:00",
-  "synced_at_jst": "2026-11-18 18:17:08 JST",
+  "synced_at": "2026-11-18T11:59:19.425081+00:00",
+  "synced_at_jst": "2026-11-18 20:59:19 JST",
   "synced_by": "admin",
-  "duration_sec": 10.53,
+  "duration_sec": 11.11,
   "total_rows_scanned": 78756,
   "total_titles_in_supabase": 570,
   "vocab_books_count": 15,

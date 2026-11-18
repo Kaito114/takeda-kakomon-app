@@ -1425,18 +1425,30 @@ def analyze_english_exam(text: str, university: str) -> dict:
 
     valid_exam_lemma_list = [re.split(r'[\(（]', x["word"])[0].lower() for x in (stage1_words + stage2_words + stage3_words + stage4_words)] + [u["lemma"] for u in uncovered_words]
 
+    def _vcnt(b_key: str, fallback: int) -> int:
+        b = vocab_db.get(b_key, {})
+        if b_key == "systan":
+            entries_s = b.get("entries", {})
+            nums = [v.get("num", 0) for v in entries_s.values() if isinstance(v, dict) and v.get("num", 999999) < 999999]
+            return max(nums) if nums else fallback
+        rc = b.get("raw_count") or b.get("distinct_q_count")
+        if rc:
+            return int(rc)
+        tu = b.get("total_unique")
+        return int(tu) if tu else fallback
+
     book_comparisons = []
     for b_key, b_name, b_target in [
-        ("systan", "[5訂版]システム英単語（全2027語）", "日大〜早慶・難関国公立"),
-        ("target1900", "【6訂版】ターゲット1900（全1900語）", "日大〜早慶・難関国公立"),
-        ("leap", "【改訂版】必携 英単語LEAP（全1890語）", "日大〜MARCH・関関同立"),
-        ("systan_basic", "【5訂版】システム英単語Basic（全1550語）", "基礎〜日大・産近甲龍"),
-        ("target1200", "【改訂版】英単語ターゲット1200（全1699語）", "基礎〜日大・産近甲龍"),
-        ("systan_chugaku", "【改訂版】中学版 システム英単語（全1824語）", "中学〜高校入門"),
-        ("teppeki", "★[改訂版]鉄緑会東大英単語熟語 鉄壁", "東大・早慶・難関国公立"),
-        ("eiken_pre1", "★[第2版]出る順で最短合格！英検 準1級単熟語EX", "早慶・難関大上位"),
-        ("sokutan_adv", "★【改訂第5版】速読英単語 上級編", "早慶・難関大（未知語対策）"),
-        ("sparta3", "英単語 SPARTA3 mastery level 1000語", "最難関大突破 1000語")
+        ("systan", f"[5訂版]システム英単語（全{_vcnt('systan', 2027)}語）", "日大〜早慶・難関国公立"),
+        ("target1900", f"【6訂版】ターゲット1900（全{_vcnt('target1900', 1900)}語）", "日大〜早慶・難関国公立"),
+        ("leap", f"【改訂版】必携 英単語LEAP（全{_vcnt('leap', 2300)}語）", "日大〜MARCH・関関同立"),
+        ("systan_basic", f"【5訂版】システム英単語Basic（全{_vcnt('systan_basic', 1550)}語）", "基礎〜日大・産近甲龍"),
+        ("target1200", f"【改訂版】英単語ターゲット1200（全{_vcnt('target1200', 1699)}語）", "基礎〜日大・産近甲龍"),
+        ("systan_chugaku", f"【改訂版】中学版 システム英単語（全{_vcnt('systan_chugaku', 1824)}語）", "中学〜高校入門"),
+        ("teppeki", f"★[改訂版]鉄緑会東大英単語熟語 鉄壁（全{_vcnt('teppeki', 2176)}語）", "東大・早慶・難関国公立"),
+        ("eiken_pre1", f"★[第2版]出る順で最短合格！英検 準1級単熟語EX（全{_vcnt('eiken_pre1', 2412)}語）", "早慶・難関大上位"),
+        ("sokutan_adv", f"★【改訂第5版】速読英単語 上級編（全{_vcnt('sokutan_adv', 1255)}語）", "早慶・難関大（未知語対策）"),
+        ("sparta3", f"英単語 SPARTA3 mastery level {_vcnt('sparta3', 1000)}語", "最難関大突破 1000語")
     ]:
         entries = vocab_db.get(b_key, {}).get("entries", {})
         matched = sum(1 for lem in valid_exam_lemma_list if find_entry_in_book(lem, entries) is not None)
@@ -1494,24 +1506,24 @@ def analyze_english_exam(text: str, university: str) -> dict:
     # Includes all Confirmation Test vocabulary & idiom books for Pull-Down selection!
     selectable_vocab_books = [
         {"id": "systan_1700", "name": "[5訂版]システム英単語（第1〜3章 1〜1700番＋多義語：MARCH・関関同立ライン）", "default_checked": True, "group": "📘 システム英単語（範囲別・全範囲）"},
-        {"id": "systan_all", "name": "[5訂版]システム英単語（全範囲 1〜2027番＋多義語184）", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_all", "name": f"[5訂版]システム英単語（全範囲 1〜{_vcnt('systan', 2027)}番＋多義語184）", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
         {"id": "systan_1200", "name": "[5訂版]システム英単語（第1〜2章 1〜1200番：日大・産近甲龍ライン）", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
         {"id": "systan_s1", "name": "[5訂版]システム英単語 第1章のみ (1〜600)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
         {"id": "systan_s2", "name": "[5訂版]システム英単語 第2章のみ (601〜1200)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
         {"id": "systan_s3", "name": "[5訂版]システム英単語 第3章のみ (1201〜1700)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
-        {"id": "systan_s4", "name": "[5訂版]システム英単語 第4章のみ (1701〜2027)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
-        {"id": "systan_tagigo", "name": "★[5訂版]【多義語(minimalフレーズ)】システム英単語 (1〜184)", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
-        {"id": "sokutan_adv", "name": "★【改訂第5版】速読英単語 上級編（全1255語）", "default_checked": True, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
-        {"id": "teppeki", "name": "★[改訂版]鉄緑会東大英単語熟語 鉄壁（全2176語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
-        {"id": "eiken_pre1", "name": "★[第2版]出る順で最短合格！英検 準1級単熟語EX（全2412語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
-        {"id": "sparta3", "name": "英単語 SPARTA3 mastery level 1000語", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
-        {"id": "target1900", "name": "【6訂版】ターゲット1900（全1900語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
-        {"id": "leap", "name": "【改訂版】必携 英単語LEAP（全1890語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
-        {"id": "systan_basic", "name": "【5訂版】システム英単語Basic（全1550語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
-        {"id": "target1200", "name": "【改訂版】英単語ターゲット1200（全1699語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
-        {"id": "systan_chugaku", "name": "【改訂版】中学版 システム英単語（全1824語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
-        {"id": "sokudoku_idiom", "name": "【改訂版】速読英熟語（全875熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"},
-        {"id": "target_idiom1000", "name": "【5訂版】英熟語ターゲット1000（全1000熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"}
+        {"id": "systan_s4", "name": f"[5訂版]システム英単語 第4章のみ (1701〜{_vcnt('systan', 2027)})", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "systan_tagigo", "name": f"★[5訂版]【多義語(minimalフレーズ)】システム英単語 (1〜{_vcnt('systan_tagigo', 184)})", "default_checked": False, "group": "📘 システム英単語（範囲別・全範囲）"},
+        {"id": "sokutan_adv", "name": f"★【改訂第5版】速読英単語 上級編（全{_vcnt('sokutan_adv', 1255)}語）", "default_checked": True, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "teppeki", "name": f"★[改訂版]鉄緑会東大英単語熟語 鉄壁（全{_vcnt('teppeki', 2176)}語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "eiken_pre1", "name": f"★[第2版]出る順で最短合格！英検 準1級単熟語EX（全{_vcnt('eiken_pre1', 2412)}語）", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "sparta3", "name": f"英単語 SPARTA3 mastery level {_vcnt('sparta3', 1000)}語", "default_checked": False, "group": "📕 難関・2冊目追加用 英単語帳（確認テスト収録）"},
+        {"id": "target1900", "name": f"【6訂版】ターゲット1900（全{_vcnt('target1900', 1900)}語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "leap", "name": f"【改訂版】必携 英単語LEAP（全{_vcnt('leap', 2300)}語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "systan_basic", "name": f"【5訂版】システム英単語Basic（全{_vcnt('systan_basic', 1550)}語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "target1200", "name": f"【改訂版】英単語ターゲット1200（全{_vcnt('target1200', 1699)}語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "systan_chugaku", "name": f"【改訂版】中学版 システム英単語（全{_vcnt('systan_chugaku', 1824)}語）", "default_checked": False, "group": "📗 定番メイン・基礎英単語帳（確認テスト収録）"},
+        {"id": "sokudoku_idiom", "name": f"【改訂版】速読英熟語（全{_vcnt('sokudoku_idiom', 875)}熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"},
+        {"id": "target_idiom1000", "name": f"【5訂版】英熟語ターゲット1000（全{_vcnt('target_idiom1000', 1000)}熟語）", "default_checked": False, "group": "📙 英熟語帳（確認テスト収録）"}
     ]
 
     s1_word_set = {re.split(r'[\(（]', x["word"])[0].lower() for x in stage1_words}

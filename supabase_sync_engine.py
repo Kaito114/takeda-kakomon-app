@@ -188,21 +188,34 @@ def get_admin_sync_overview(sb_client, mem_stats: dict) -> dict:
     }
 
 
+_CYRILLIC_HOMOGLYPHS = str.maketrans({
+    "а": "a", "с": "c", "е": "e", "і": "i", "ј": "j", "о": "o", "р": "p", "ѕ": "s", "х": "x", "у": "y",
+    "А": "A", "В": "B", "С": "C", "Е": "E", "Н": "H", "І": "I", "К": "K", "М": "M", "О": "O", "Р": "P", "Т": "T", "Х": "X",
+})
+
+
 def _build_vocab_entry(key: str, title: str, rows: list) -> dict:
     seen = {}
     is_word_book = key in WORD_BOOK_KEYS
+    is_english_book = key not in ("kobun315", "kokugo1700")
+    q_nums = set()
     for r in rows:
         hw = _clean_headword(r.get("question_text", ""))
         if not hw:
             continue
+        if is_english_book:
+            hw = hw.translate(_CYRILLIC_HOMOGLYPHS)
         hw_low = hw.lower()
-        num = _extract_num(r.get("q_number", ""))
+        q_num_str = str(r.get("q_number") or "").strip()
+        if q_num_str:
+            q_nums.add(q_num_str)
+        num = _extract_num(q_num_str)
         chap = r.get("chapter") or ""
         ans = r.get("ref_answer") or ""
         entry_obj = {
             "word": hw,
             "num": num,
-            "q_number": r.get("q_number") or "",
+            "q_number": q_num_str,
             "chapter": chap,
             "meaning": str(ans)[:80] if ans else "",
         }
@@ -215,6 +228,8 @@ def _build_vocab_entry(key: str, title: str, rows: list) -> dict:
                     seen[base_w] = entry_obj
     return {
         "title": title,
+        "raw_count": len(rows),
+        "distinct_q_count": len(q_nums),
         "total_unique": len(seen),
         "entries": seen,
     }
