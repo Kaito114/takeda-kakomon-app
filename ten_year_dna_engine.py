@@ -729,10 +729,20 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
             "subject": subject,
             "display_name": f"{univ}（{faculty}・{exam_type}）",
             "deviation_value": record.get("deviation_value") or 60,
+            "source_role": record.get("source_role") or "admin",
+            "submitted_by": record.get("submitted_by") or "system",
+            "review_status": record.get("review_status") or ("approved" if (record.get("source_role") or "admin") == "admin" else "auto_submitted"),
             "year_slots": {}
         }
 
     prof = profiles[pkey]
+    if record.get("source_role"):
+        prof["source_role"] = record["source_role"]
+    if record.get("submitted_by"):
+        prof["submitted_by"] = record["submitted_by"]
+    if record.get("review_status"):
+        prof["review_status"] = record["review_status"]
+
     if year in prof["year_slots"] and duplicate_status == "CREATED_NEW_YEAR":
         duplicate_status = "OVERWROTE_SAME_YEAR_SLOT"
         duplicate_message = f"同じ『{univ}｜{faculty}｜{exam_type}｜{year}年』が既に登録済みだったため、二重加算せず該当年度スロットを上書き更新しました。"
@@ -743,6 +753,8 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
         "content_fingerprint": fp,
         "book_rates": record.get("book_rates") or {},
         "topics": record.get("topics") or [],
+        "source_role": record.get("source_role") or prof.get("source_role", "admin"),
+        "submitted_by": record.get("submitted_by") or prof.get("submitted_by", "system"),
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
@@ -758,6 +770,89 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
         "profile": prof,
         "total_profiles": len(profiles),
         "total_year_slots": sum(len(p.get("year_slots", {})) for p in profiles.values())
+    }
+
+
+def delete_accumulated_dna_profile(profile_key: str) -> dict:
+    store = load_dna_store()
+    profiles = store.setdefault("profiles", {})
+    fingerprints = store.setdefault("fingerprints", {})
+    if profile_key not in profiles:
+        return {"deleted": False, "message": "対象プロファイルが見つかりません。"}
+    removed = profiles.pop(profile_key)
+    for fp_k in [fk for fk, fv in fingerprints.items() if fv.get("profile_key") == profile_key]:
+        fingerprints.pop(fp_k, None)
+    save_dna_store(store)
+    return {
+        "deleted": True,
+        "message": f"プロファイル『{removed.get('display_name', profile_key)}』を削除しました。",
+        "total_profiles": len(profiles),
+        "total_year_slots": sum(len(p.get("year_slots", {})) for p in profiles.values()),
+    }
+
+
+def update_accumulated_dna_profile(profile_key: str, updates: dict) -> dict:
+    """
+    Update metadata (university/faculty/exam_type/review_status/deviation_value) on a stored profile.
+    If key attributes change to match an existing profile, merges year_slots cleanly (alias consolidation).
+    """
+    store = load_dna_store()
+    profiles = store.setdefault("profiles", {})
+    fingerprints = store.setdefault("fingerprints", {})
+    if profile_key not in profiles:
+        return {"updated": False, "message": "対象プロファイルが見つかりません。"}
+
+    prof = profiles[profile_key]
+    new_univ = _normalize_key_part(updates.get("university"), prof.get("university", "大学名未指定"))
+    new_fac = _normalize_key_part(updates.get("faculty"), prof.get("faculty", "共通・標準"))
+    new_et = _normalize_key_part(updates.get("exam_type"), prof.get("exam_type", "一般・標準"))
+    subj = prof.get("subject", "english")
+    new_pkey = make_profile_key(new_univ, new_fac, new_et, subj)
+
+    if updates.get("review_status"):
+        prof["review_status"] = updates["review_status"]
+    if updates.get("deviation_value") is not None:
+        prof["deviation_value"] = int(updates["deviation_value"])
+
+    merged_into_existing = False
+    if new_pkey != profile_key:
+        old_prof = profiles.pop(profile_key)
+        if new_pkey in profiles:
+            merged_into_existing = True
+            target_prof = profiles[new_pkey]
+            for yr, slot in (old_prof.get("year_slots") or {}).items():
+                if yr not in target_prof.get("year_slots", {}):
+                    target_prof["year_slots"][yr] = slot
+            if updates.get("review_status"):
+                target_prof["review_status"] = updates["review_status"]
+            prof = target_prof
+        else:
+            old_prof["profile_key"] = new_pkey
+            old_prof["university"] = new_univ
+            old_prof["faculty"] = new_fac
+            old_prof["exam_type"] = new_et
+            old_prof["display_name"] = f"{new_univ}（{new_fac}・{new_et}）"
+            profiles[new_pkey] = old_prof
+            prof = old_prof
+        for fp_k, fv in fingerprints.items():
+            if fv.get("profile_key") == profile_key:
+                fv["profile_key"] = new_pkey
+                fv["university"] = new_univ
+
+    recompute_profile_centroid(prof)
+    save_dna_store(store)
+    msg = (
+        f"『{prof.get('display_name')}』へ統合しました。"
+        if merged_into_existing
+        else f"『{prof.get('display_name')}』を更新しました。"
+    )
+    return {
+        "updated": True,
+        "merged": merged_into_existing,
+        "message": msg,
+        "profile": prof,
+        "total_profiles": len(profiles),
+        "total_year_slots": sum(len(p.get("year_slots", {})) for p in profiles.values()),
     }
 
 

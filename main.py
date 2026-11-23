@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from analyzer_engine import analyze_past_exam_on_memory, KNOWLEDGE_BASE
+from analyzer_engine import analyze_past_exam_on_memory, KNOWLEDGE_BASE, get_curriculum_routes_with_db_status
 from ten_year_dna_engine import (
     CONFIRMATION_TEST_BOOKS,
     MAJOR_UNIVERSITIES_10YR_DNA,
@@ -19,6 +19,8 @@ from ten_year_dna_engine import (
     load_dna_store,
     load_accumulated_dna_records,
     upsert_accumulated_dna_profile,
+    delete_accumulated_dna_profile,
+    update_accumulated_dna_profile,
     analyze_10yr_university_and_concurrent,
 )
 from supabase_sync_engine import (
@@ -190,8 +192,9 @@ async def auth_middleware(request: Request, call_next):
             "/api/auth-config",
             "/api/admin/sync-supabase-status",
             "/api/admin/sync-supabase",
+            "/api/admin/dna-profiles",
         ]
-        if path in admin_endpoints and auth_info["role"] != "admin":
+        if (path in admin_endpoints or path.startswith("/api/admin/")) and auth_info["role"] != "admin":
             return JSONResponse(
                 status_code=403,
                 content={"detail": "この操作には管理者権限が必要です。"},
@@ -222,6 +225,9 @@ class PdfBase64AnalyzeRequest(BaseModel):
     filename: str = "uploaded.pdf"
     subject: str = "auto"
     university: str = ""
+    faculty: str = ""
+    exam_type: str = ""
+    year: str = ""
 
 
 class TextAnalyzeRequest(BaseModel):
@@ -229,6 +235,9 @@ class TextAnalyzeRequest(BaseModel):
     subject: str = "auto"
     university: str = ""
     filename: str = ""
+    faculty: str = ""
+    exam_type: str = ""
+    year: str = ""
 
 
 class ExamDnaSaveRequest(BaseModel):
@@ -241,6 +250,16 @@ class ExamDnaSaveRequest(BaseModel):
     content_fingerprint: str = ""
     book_rates: dict = {}
     topics: list = []
+    deviation_value: Optional[int] = None
+    char_count: int = 1000
+
+
+class AdminDnaUpdateRequest(BaseModel):
+    profile_key: str
+    university: Optional[str] = None
+    faculty: Optional[str] = None
+    exam_type: Optional[str] = None
+    review_status: Optional[str] = None
     deviation_value: Optional[int] = None
 
 
@@ -401,8 +420,75 @@ def get_10yr_dna_list():
     }
 
 
+@app.get("/api/curriculum-routes")
+def get_curriculum_routes_endpoint():
+    return {
+        "status": "ok",
+        "routes": get_curriculum_routes_with_db_status(),
+    }
+
+
+@app.get("/api/admin/dna-profiles")
+def admin_list_dna_profiles(request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    records = load_accumulated_dna_records()
+    return {
+        "status": "ok",
+        "total_profiles": len(records),
+        "total_year_slots": sum(p.get("sample_years_count", len(p.get("year_slots", {}))) for p in records),
+        "profiles": records,
+    }
+
+
+@app.put("/api/admin/dna-profiles")
+def admin_update_dna_profile(req: AdminDnaUpdateRequest, request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    res = update_accumulated_dna_profile(
+        req.profile_key,
+        {
+            "university": req.university,
+            "faculty": req.faculty,
+            "exam_type": req.exam_type,
+            "review_status": req.review_status,
+            "deviation_value": req.deviation_value,
+        },
+    )
+    if not res.get("updated"):
+        raise HTTPException(status_code=404, detail=res.get("message", "更新対象が見つかりません。"))
+    return {"status": "ok", **res}
+
+
+@app.delete("/api/admin/dna-profiles")
+def admin_delete_dna_profile(profile_key: str, request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    res = delete_accumulated_dna_profile(profile_key)
+    if not res.get("deleted"):
+        raise HTTPException(status_code=404, detail=res.get("message", "削除対象が見つかりません。"))
+    return {"status": "ok", **res}
+
+
 @app.post("/api/save-exam-dna")
-def save_exam_dna_endpoint(req: ExamDnaSaveRequest):
+def save_exam_dna_endpoint(req: ExamDnaSaveRequest, request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request)) or {}
+    role = auth_info.get("role", "user")
+    username = auth_info.get("username", "user")
+
+    # Guard against low-quality / empty OCR data polluting accumulated DNA
+    if req.char_count < 80:
+        return {
+            "status": "skipped_low_quality",
+            "duplicate_status": "SKIPPED",
+            "message": "抽出文字数が少なすぎるため（80文字未満）、DNA品質保護のため自動蓄積はスキップしました。",
+        }
+    if not req.university or "未検出" in req.university or "未指定" in req.university:
+        raise HTTPException(status_code=400, detail="大学名が未設定のため蓄積できません。")
+
     res = upsert_accumulated_dna_profile({
         "university": req.university,
         "faculty": req.faculty,
@@ -413,7 +499,10 @@ def save_exam_dna_endpoint(req: ExamDnaSaveRequest):
         "content_fingerprint": req.content_fingerprint,
         "book_rates": req.book_rates,
         "topics": req.topics,
-        "deviation_value": req.deviation_value
+        "deviation_value": req.deviation_value,
+        "source_role": role,
+        "submitted_by": username,
+        "review_status": "approved" if role == "admin" else "auto_submitted",
     })
     updated_dna = analyze_10yr_university_and_concurrent(
         req.exam_vector,
@@ -451,7 +540,10 @@ def analyze_pdf_endpoint(req: PdfBase64AnalyzeRequest):
             pdf_bytes=pdf_bytes,
             subject=req.subject,
             university=req.university,
-            filename=req.filename
+            filename=req.filename,
+            faculty=req.faculty,
+            exam_type=req.exam_type,
+            year=req.year,
         )
         return JSONResponse(result)
     except Exception as e:
@@ -472,7 +564,10 @@ def analyze_text_endpoint(req: TextAnalyzeRequest):
             raw_text=req.text,
             subject=req.subject,
             university=req.university,
-            filename=req.filename
+            filename=req.filename,
+            faculty=req.faculty,
+            exam_type=req.exam_type,
+            year=req.year,
         )
         return JSONResponse(result)
     except Exception as e:

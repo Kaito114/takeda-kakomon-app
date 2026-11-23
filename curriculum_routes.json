@@ -1,0 +1,311 @@
+{
+  "english": {
+    "subject_jp": "英語",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル（基礎〜標準）",
+        "vocab_keys": ["systan_1200"],
+        "base_coverage_target": 85.0,
+        "steps": [
+          {"step": "Step 1", "category": "単語", "book": "[5訂版]システム英単語(黒字の訳追加ver)", "target_range": "第1〜2章（No.1〜1200）", "goal": "1語1秒で第1義を即答（確認テスト95%以上）", "conf_match": "システム英単語"},
+          {"step": "Step 2", "category": "熟語", "book": "【改訂版】速読英熟語", "target_range": "全74セクション（重要熟語875）", "goal": "熟語・前置詞の識別を即答", "conf_match": "速読英熟語"},
+          {"step": "Step 3", "category": "英文法", "book": "関正生の英文法ポラリス1 / Vintage 4th Edition", "target_range": "時制・態・準動詞・関係詞・仮定法", "goal": "4択・整序問題で根拠を説明して85%以上", "conf_match": "Vintage"},
+          {"step": "Step 4", "category": "解釈・長文", "book": "肘井学の読解のための英文法［必修編］ → 英語長文ポラリス1", "target_range": "全テーマ（SVOC振り・段落要旨）", "goal": "1文を正確に和訳し日大レベル長文で75%以上", "conf_match": "ポラリス1"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・地方国公立レベル",
+        "vocab_keys": ["systan_1700", "sokudoku_idiom"],
+        "base_coverage_target": 92.0,
+        "steps": [
+          {"step": "Step 1", "category": "単語", "book": "[5訂版]システム英単語(黒字の訳追加ver)", "target_range": "第1〜3章（No.1〜1700）＋多義語184", "goal": "抽象語・多義語まで完全定着（重要語90%超カバー）", "conf_match": "システム英単語"},
+          {"step": "Step 2", "category": "熟語・文法", "book": "【改訂版】速読英熟語 ＋ Vintage 4th / 英文法ポラリス2", "target_range": "全範囲＋語法・正誤問題", "goal": "空所補充・語法設問をノーミスで突破", "conf_match": "速読英熟語"},
+          {"step": "Step 3", "category": "英文解釈", "book": "関正生の英文解釈ポラリス1 / 入門英文問題精講", "target_range": "全例題（倒置・省略・挿入・強調）", "goal": "長文中の難構文を一読で正確に把握", "conf_match": "英文解釈"},
+          {"step": "Step 4", "category": "長文演習", "book": "英語長文ポラリス2 / The Rules 英語長文問題集2・3 / CanPass英語", "target_range": "全12題（音読・パラグラフリーディング）", "goal": "115〜125 WPMで75〜80%以上を安定確保", "conf_match": "The Rules"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・旧帝大・最難関レベル",
+        "vocab_keys": ["systan_all", "sokutan_adv", "teppeki", "sokudoku_idiom"],
+        "base_coverage_target": 96.5,
+        "steps": [
+          {"step": "Step 1", "category": "上位単語", "book": "★【改訂第5版】速読英単語 上級編 ／ ★鉄緑会 鉄壁 ／ 準1級単熟語EX", "target_range": "シス単全2027＋上級単語帳1冊", "goal": "難関大特有の抽象語・未知語推測を96%以上カバー", "conf_match": "速読英単語 上級編"},
+          {"step": "Step 2", "category": "難関解釈", "book": "英文読解の透視図 ／ ポレポレ英文読解プロセス50", "target_range": "全50題（ライオンマーク・Challenge編含む）", "goal": "早慶・旧帝大の下線部和訳・文脈精読で減点を防ぐ", "conf_match": "ポレポレ"},
+          {"step": "Step 3", "category": "超長文演習", "book": "英語長文ポラリス3 / The Rules 4 / やっておきたい英語長文1000", "target_range": "全題（130WPM以上の速読演習）", "goal": "時間制限内で情報処理しきり合格点を確保", "conf_match": "ポラリス3"}
+        ]
+      }
+    ]
+  },
+  "math": {
+    "subject_jp": "数学",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍・共通テスト基礎レベル",
+        "steps": [
+          {"step": "Step 1", "category": "導入", "book": "数学I・A / II・B / III・C 入門問題精講", "target_range": "全範囲（公式の成り立ちと基本例題）", "goal": "教科書〜入試入門レベルの基本計算を確実にする", "conf_match": "入門問題精講"},
+          {"step": "Step 2", "category": "基礎定石", "book": "数学I・A / II・B＋ベクトル / III・C 基礎問題精講", "target_range": "全基礎問（解法パターン150〜170題）", "goal": "典型問題を見て30秒以内に立式できる状態にする", "conf_match": "基礎問題精講"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・地方国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "標準網羅", "book": "【青チャート】基本例題・重要例題 ／ 文系の数学 重要事項完全習得編", "target_range": "コンパス3〜4の重要例題全問", "goal": "頻出典型パターンの取りこぼしをゼロにする", "conf_match": "青チャート"},
+          {"step": "Step 2", "category": "入試演習", "book": "2026 実戦 数学重要問題集（A問題） ／ 国公立標準問題集 CanPass 数学", "target_range": "A問題全問（誘導付き標準問題）", "goal": "各大問の前半〜中盤(1)(2)を100%完答する", "conf_match": "数学重要問題集"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・旧帝大・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "応用演習", "book": "2026 実戦 数学重要問題集（B問題） ／ 文系数学の良問プラチカ", "target_range": "B問題・総合融合問題", "goal": "誘導の少ない融合問題・論証記述で部分点〜完答を取る", "conf_match": "良問プラチカ"},
+          {"step": "Step 2", "category": "最難関攻略", "book": "ハイレベル数学I・A・II・B・C / III・Cの完全攻略 ／ やさしい理系数学", "target_range": "存在領域・確率漸化式・整数・微積評価", "goal": "差がつく難問での得点力を完成させる", "conf_match": "ハイレベル数学"}
+        ]
+      }
+    ]
+  },
+  "physics": {
+    "subject_jp": "物理",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "導入", "book": "【三訂版】物理 入門問題精講 ／ 秘伝の物理問題集", "target_range": "力学・熱・波動・電磁気・原子の基本問題", "goal": "物理法則の意味と作図（力の図示・閉回路）を定着", "conf_match": "物理 入門問題精講"},
+          {"step": "Step 2", "category": "標準基礎", "book": "【五訂版】物理 基礎問題精講", "target_range": "必修基礎問全105問", "goal": "典型設定の立式をノーミスで行えるようにする", "conf_match": "物理 基礎問題精講"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "入試標準", "book": "2026 実戦 物理重要問題集（A問題） ／ 良問の風", "target_range": "A問題全問", "goal": "実験設定・誘導空所を正確に解き切る（75%以上）", "conf_match": "物理重要問題集"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・旧帝大・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関実戦", "book": "2026 実戦 物理重要問題集（B問題） ／ 【四訂版】名問の森 物理", "target_range": "必須問題・B問題（動く台・電磁誘導・単振動融合）", "goal": "初見の複雑設定でも保存則と近似を駆使して完答する", "conf_match": "名問の森"}
+        ]
+      }
+    ]
+  },
+  "chemistry": {
+    "subject_jp": "化学",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "暗記・基礎", "book": "リードLightノート 化学基礎・化学", "target_range": "基本用語・反応式・基本mol計算", "goal": "知識・化学反応式を即答できるようにする", "conf_match": "リードLightノート 化学"},
+          {"step": "Step 2", "category": "基礎定石", "book": "［四訂版］化学 入門問題精講 ／ 基礎問題精講", "target_range": "理論計算・無機・有機の基本例題", "goal": "標準計算（滴定・気体・平衡）の基礎を固める", "conf_match": "化学 入門問題精講"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "入試標準", "book": "2026 実戦 化学重要問題集 化学基礎・化学（A問題）", "target_range": "A問題全問（第1〜17章）", "goal": "理論・無機・有機の標準問題87%以上を完答", "conf_match": "化学重要問題集"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・旧帝大・難関大レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関応用", "book": "2026 実戦 化学重要問題集（B問題） ／ 【新課程】化学の新演習", "target_range": "電離平衡・有機構造決定・高分子計算", "goal": "重厚な計算と複雑な構造決定で合格点を上回る", "conf_match": "化学の新演習"}
+        ]
+      }
+    ]
+  },
+  "biology": {
+    "subject_jp": "生物",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "知識定着", "book": "リードLightノート 生物 ／ 生物 入門問題精講", "target_range": "全範囲の用語・代謝・遺伝基本", "goal": "知識問題での失点をゼロにする", "conf_match": "リードLightノート"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "必修演習", "book": "生物問題集 合格177問【入試必修編】 ／ 全レベル問題集 生物3", "target_range": "全177問（知識＋実験考察基本）", "goal": "私大・国公立標準の知識・データ読解を完成", "conf_match": "合格177問"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "考察・論述", "book": "生物問題集 合格100問【定番難問編】", "target_range": "遺伝子発現調節・発生・生態の実験考察", "goal": "初見の対照実験問題・字数制限論述を攻略", "conf_match": "合格100問"}
+        ]
+      }
+    ]
+  },
+  "gendai": {
+    "subject_jp": "現代文",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "漢字・語彙", "book": "入試漢字マスター1800+ ＆ 現代文キーワード読解 / 語彙1700", "target_range": "書き取りA/B ＋ 評論重要語", "goal": "漢字・語句問題を100%得点源にする", "conf_match": "漢字マスター"},
+          {"step": "Step 2", "category": "読解法", "book": "柳生好之の現代文ポラリス1 / 入試現代文へのアクセス 基本編", "target_range": "全題（対比・言い換え・因果）", "goal": "論理構造に沿って選択肢を絞れるようにする", "conf_match": "現代文ポラリス1"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "標準〜応用", "book": "柳生好之の現代文ポラリス2 ／ GMARCH＆関関同立の現代文 ／ アクセス発展編", "target_range": "評論文・小説全題", "goal": "抽象度の高い評論文で75〜80%を安定確保", "conf_match": "現代文ポラリス2"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関実戦", "book": "現代文ポラリス3 ／ 上級現代文I ／ 早稲田の国語", "target_range": "難解評論・記述論述", "goal": "紛らわしい消去法・要旨記述で合格点を取る", "conf_match": "現代文ポラリス3"}
+        ]
+      }
+    ]
+  },
+  "kobun": {
+    "subject_jp": "古文",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "単語・文法", "book": "読んで見て覚える 古文単語315 ＆ ステップアップノート30 古典文法基礎ドリル", "target_range": "単語315全語 ＋ 助動詞・敬語・識別", "goal": "文法と基本語訳を即答する", "conf_match": "古文単語315"},
+          {"step": "Step 2", "category": "読解基礎", "book": "岡本梨奈の古文ポラリス1 / 古文上達 基礎編45", "target_range": "主語省略補完と接続助詞追跡", "goal": "主語を取り違えず基本ストーリーを掴む", "conf_match": "古文ポラリス1"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "標準演習", "book": "岡本梨奈の古文ポラリス2 ／ GMARCH＆関関同立の古文", "target_range": "和歌・敬語識別・心情説明", "goal": "傍線部解釈・内容一致で8割を確保", "conf_match": "古文ポラリス2"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関実戦", "book": "古文上達 読解と演習56 ／ 古文レベル別問題集5", "target_range": "和歌修辞・融合・記述問題", "goal": "難関古文の文脈と和歌の含意を正確に読み解く", "conf_match": "古文上達"}
+        ]
+      }
+    ]
+  },
+  "nihonshi": {
+    "subject_jp": "日本史",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "通史基礎", "book": "時代と流れで覚える！日本史用語 ／ 日本史2レベル定着トレーニング", "target_range": "全時代の流れと赤字基本用語", "goal": "時代順序と基本事項（★★★ランク）を網羅", "conf_match": "時代と流れ"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "用語網羅", "book": "【日本史一問一答 完全版 (3rd edition)】", "target_range": "★★★（A）・★★（B）ランク全問", "goal": "標準用語の漢字書き取りと正誤知識を完成", "conf_match": "日本史一問一答"},
+          {"step": "Step 2", "category": "実戦演習", "book": "HISTORIA［ヒストリア］日本史探究精選問題集", "target_range": "正誤判定・文化史・史料問題", "goal": "私大・二次試験で75〜80%を確保", "conf_match": "HISTORIA"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関大レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関用語・史料", "book": "日本史一問一答（★1含む全範囲） ／ 実力をつける日本史100題", "target_range": "テーマ史・未見史料・細部用語（★1）", "goal": "早慶の正誤・史料・論述で合格点を突破", "conf_match": "実力をつける日本史"}
+        ]
+      }
+    ]
+  },
+  "sekaishi": {
+    "subject_jp": "世界史",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "通史基礎", "book": "時代と流れで覚える！世界史用語 ／ 世界史マルチ・トレーニング", "target_range": "地域別の基本歴史展開と地図", "goal": "タテとヨコの歴史の流れ（★★★ランク）を整理", "conf_match": "マルチ・トレーニング"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "用語網羅", "book": "【世界史一問一答 完全版 (4th edition)】", "target_range": "★★★（A）・★★（B）ランク全問", "goal": "標準用語を正確に記述・識別できる状態にする", "conf_match": "世界史一問一答"},
+          {"step": "Step 2", "category": "実戦演習", "book": "HISTORIA［ヒストリア］世界史精選問題集", "target_range": "正誤・年号・文化史", "goal": "私大標準レベルで8割以上を狙う", "conf_match": "HISTORIA"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関大レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関演習", "book": "世界史一問一答（★1含む） ／ 実力をつける世界史100題", "target_range": "細部用語（★1）・現代史・各国史論述", "goal": "難関私大・国公立二次の正誤・論述を突破", "conf_match": "実力をつける世界史"}
+        ]
+      }
+    ]
+  },
+  "chiri": {
+    "subject_jp": "地理",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・共通テスト基礎レベル",
+        "steps": [
+          {"step": "Step 1", "category": "系統・要点", "book": "共通テスト 地理 集中講義 ／ 瀬川聡の 共通テスト地理［系統地理編］", "target_range": "地形・気候・農工業の因果関係", "goal": "暗記ではなく因果関係で選択肢を絞る", "conf_match": "地理"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "地誌・統計", "book": "瀬川聡の 共通テスト地理［地誌編］ ＆ 地図・統計の考察問題80", "target_range": "世界地誌と統計・読図ルール", "goal": "初見統計データ・地形図の読み取りを8割突破", "conf_match": "地図・統計"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関国公立レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関演習", "book": "【改訂第3版】実力をつける地理100題", "target_range": "私大・二次論述全100題", "goal": "難関私大・論述試験で75%以上を確保", "conf_match": "実力をつける地理"}
+        ]
+      }
+    ]
+  },
+  "seikei": {
+    "subject_jp": "政治・経済",
+    "levels": [
+      {
+        "level_id": "nichidai",
+        "level_name": "日大・産近甲龍レベル",
+        "steps": [
+          {"step": "Step 1", "category": "仕組み理解", "book": "【改訂版】蔭山の共通テスト政治・経済", "target_range": "憲法・統治・経済基礎・国際政治", "goal": "政治経済の基本メカニズムを理解する", "conf_match": "蔭山"}
+        ]
+      },
+      {
+        "level_id": "march",
+        "level_name": "MARCH・関関同立・国公立標準レベル",
+        "steps": [
+          {"step": "Step 1", "category": "標準演習", "book": "【三訂版】私大攻略の政治・経済", "target_range": "政治・経済分野の要点と演習全問", "goal": "標準私大の正誤・空欄問題を85%以上得点", "conf_match": "私大攻略"}
+        ]
+      },
+      {
+        "level_id": "sokei",
+        "level_name": "早慶・難関私大レベル",
+        "steps": [
+          {"step": "Step 1", "category": "難関正誤・計算", "book": "【四訂版】政治・経済 標準問題精講 ＆ 計算＆論述 特訓問題集", "target_range": "全81題＋経済計算・時事テーマ", "goal": "早慶レベルの細かい正誤判定・計算を攻略", "conf_match": "政治・経済 標準問題精講"}
+        ]
+      }
+    ]
+  }
+}

@@ -961,8 +961,165 @@
       gap: 8px;
     }
 
+    /* Top App Navigation Tabs */
+    .top-nav-bar {
+      background: white;
+      border-bottom: 2px solid var(--slate-200);
+      padding: 10px 20px 0;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .top-nav-inner {
+      max-width: 1260px;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .top-nav-tab {
+      padding: 10px 18px;
+      border: 1.5px solid transparent;
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+      background: var(--slate-100);
+      color: var(--slate-600);
+      font-size: 13.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .top-nav-tab:hover {
+      background: #e2e8f0;
+      color: var(--navy);
+    }
+
+    .top-nav-tab.active {
+      background: var(--navy);
+      color: white;
+      border-color: var(--navy);
+    }
+
+    /* Validation & Missing Metadata Highlight */
+    .field-invalid {
+      border-color: #dc2626 !important;
+      background-color: #fef2f2 !important;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16) !important;
+    }
+
+    .error-inline-msg {
+      color: #dc2626;
+      font-size: 12.5px;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+
+    .staged-files-box {
+      margin-top: 14px;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .staged-file-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      font-weight: 700;
+      margin: 4px 6px 4px 0;
+    }
+
+    .missing-meta-card {
+      background: #fff5f5;
+      border: 2.5px solid #dc2626;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(220, 38, 38, 0.12);
+    }
+
+    .missing-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+
+    .route-gap-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-top: 18px;
+    }
+
+    .route-level-card {
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+
+    .badge-ok {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .badge-warn {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .badge-muted {
+      display: inline-block;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tracker-adjust-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--slate-200);
+      font-size: 12px;
+    }
+
+    .tracker-adjust-bar input[type="number"] {
+      width: 62px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     @media print {
-      .zero-storage-bar, .input-card, .btn-print, .tracker-quick-add, .modal-overlay, .header-actions {
+      .zero-storage-bar, .top-nav-bar, .input-card, .btn-print, .tracker-quick-add, .tracker-adjust-bar, .missing-meta-card, .modal-overlay, .header-actions {
         display: none !important;
       }
       body {
@@ -1078,18 +1235,41 @@
     </div>
   </header>
 
+  <nav class="top-nav-bar" id="topNavBar">
+    <button class="top-nav-tab active" id="tabNavAnalyze" onclick="switchTopView('analyze')">🔍 過去問分析</button>
+    <button class="top-nav-tab" id="tabNavRoutes" onclick="switchTopView('routes')">📚 ルート表参照・未収録確認</button>
+    <button class="top-nav-tab" id="tabNavAdminProfiles" style="display:none;" onclick="switchTopView('adminProfiles')">👑 蓄積プロファイル管理（管理者）</button>
+  </nav>
+
   <div class="container">
+    <div id="viewAnalyze">
     <!-- 3. Input Panel -->
     <div class="input-card">
       <div class="meta-controls">
         <div class="form-group">
-          <label for="univInput">🏫 大学・学部名（任意・空欄でもPDF表紙や問題コードから自動検出）</label>
-          <input type="text" id="univInput" placeholder="例：関西大学 システム理工学部 / 明治大学 経営学部 / 早稲田大学 など" />
+          <label for="univInput">🏫 大学・学部名（任意・未入力でもファイル名とPDF本文から自動抽出）</label>
+          <input type="text" id="univInput" list="univSuggestList" placeholder="例：関西大学 システム理工学部 / 明治大学 経営学部 / 早稲田大学 など" />
+          <datalist id="univSuggestList">
+            <option value="早稲田大学"></option>
+            <option value="慶應義塾大学"></option>
+            <option value="明治大学"></option>
+            <option value="青山学院大学"></option>
+            <option value="立教大学"></option>
+            <option value="中央大学"></option>
+            <option value="法政大学"></option>
+            <option value="関西大学"></option>
+            <option value="関西学院大学"></option>
+            <option value="同志社大学"></option>
+            <option value="立命館大学"></option>
+            <option value="日本大学"></option>
+            <option value="東洋大学"></option>
+            <option value="近畿大学"></option>
+          </datalist>
         </div>
         <div class="form-group">
-          <label for="subjectSelect">📚 科目選択（確認テストサイト搭載の【全11科目】自動識別対応）</label>
-          <select id="subjectSelect">
-            <option value="auto">✨ 自動判定（PDFの表紙・本文から全11科目を自動識別）</option>
+          <label for="subjectSelect">📚 科目選択 <span style="color:var(--brand-red);font-weight:800;">【必須】</span></label>
+          <select id="subjectSelect" onchange="clearInputErrors()">
+            <option value="">-- 科目を選択してください（必須） --</option>
             <option value="english">🇬🇧 1. 英語（シス単1〜1200/1700網羅率・熟語・文法構文・長文照合）</option>
             <option value="math">📐 2. 数学（実戦数学重要問題集A/B・青チャート・基礎問題精講 類題照合）</option>
             <option value="gendai">📖 3. 現代文（漢字マスター1800+・語彙1700・キーワード読解・ポラリス照合）</option>
@@ -1105,24 +1285,48 @@
         </div>
       </div>
 
+      <div class="meta-controls" style="margin-top:-6px;margin-bottom:14px;">
+        <div class="form-group">
+          <label for="facultyInput">🎓 学部・系統（任意・空欄でも自動抽出）</label>
+          <input type="text" id="facultyInput" placeholder="例：法学部 / システム理工学部 / 商学部 / 全学部" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;">
+          <div class="form-group">
+            <label for="examTypeInput">📝 受験方式・日程（任意）</label>
+            <input type="text" id="examTypeInput" placeholder="例：一般選抜 / 全学部日程 / A方式" />
+          </div>
+          <div class="form-group">
+            <label for="yearInput">📅 年度（任意）</label>
+            <input type="text" id="yearInput" placeholder="例：2025" />
+          </div>
+        </div>
+      </div>
+
       <div class="mode-tabs">
-        <button class="mode-tab active" id="tabPdf" onclick="switchMode('pdf')">📄 過去問PDFをドラッグ＆ドロップ</button>
+        <button class="mode-tab active" id="tabPdf" onclick="switchMode('pdf')">📄 過去問PDFをアップロード（選択＋分析開始）</button>
         <button class="mode-tab" id="tabText" onclick="switchMode('text')">📝 過去問テキストを直接貼り付け</button>
       </div>
+
+      <div id="inputValidationMsg" class="error-inline-msg" style="display:none;margin-bottom:10px;"></div>
 
       <div id="pdfDropSection">
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
           <input type="file" id="fileInput" accept=".pdf" multiple style="display: none" onchange="handleFileSelect(this.files)" />
           <div class="dropzone-icon">📥</div>
-          <h2>ここに大学の過去問PDFをドラッグ＆ドロップ（1件解析 ／ 複数一括DNA蓄積対応）</h2>
-          <p>赤本の見開きA4コピー（中心の本の影・外枠ノイズ・赤ペン書き込み）やスキャン画像PDFも自動で影除去＆見開き分割してOCR解析します。複数年分をまとめてドロップすると自動で1KB傾向DNAだけを抽出・重複統合して蓄積します</p>
+          <h2>ここに大学の過去問PDFをドラッグ＆ドロップ（セット後に「分析開始」で実行）</h2>
+          <p>赤本の見開きA4コピー（影・外枠・書き込み）やスキャンPDFも自動で影除去＆見開き分割してOCR解析します。ドロップだけでは開始せず、科目選択を確認後に「分析開始」ボタンで正確に照合・蓄積します</p>
           <span class="note-pill">⚡ 解析完了と同時にインプットPDFはメモリから完全消去されます</span>
+        </div>
+        <div id="stagedFilesArea" class="staged-files-box" style="display:none;"></div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn-primary" id="btnStartPdfAnalyze" onclick="startPdfAnalysis()">🚀 分析開始（選択した科目でPDFを照合する）</button>
+          <span style="font-size:12px;color:var(--slate-600);">※ 大学・学部・受験方式・年度が不明な場合は解析抽出後に不足項目のみ赤枠で補完を求めます</span>
         </div>
       </div>
 
       <div class="text-input-area" id="textInputSection">
         <textarea id="rawTextInput" placeholder="ここに過去問の本文や問題文を貼り付けてください..."></textarea>
-        <button class="btn-primary" onclick="analyzeRawText()">🔍 貼り付けた過去問を参考書DBと照合する</button>
+        <button class="btn-primary" onclick="analyzeRawText()">🚀 分析開始（貼り付けたテキストを参考書DBと照合する）</button>
       </div>
 
       <div class="demo-bar">
@@ -1139,8 +1343,42 @@
     <!-- Loading Indicator -->
     <div id="loadingBox">
       <div class="spinner"></div>
-      <h3 style="color: var(--navy); font-weight: 800;">過去問をオンメモリ展開し、全11科目・570冊の参考書DBと高速照合中...</h3>
+      <h3 style="color: var(--navy); font-weight: 800;">過去問をオンメモリ展開し、全11科目・参考書DBと高速照合中...</h3>
       <p style="font-size: 13px; color: var(--slate-600); margin-top: 6px;">赤本コピーの影除去・見開き分割・並列OCR・網羅率算出後にメモリを自動解放します</p>
+    </div>
+
+    <!-- Missing Metadata Pause & Resume Card -->
+    <div id="missingMetaCard" class="missing-meta-card">
+      <h3 style="font-size:17px;font-weight:800;color:#991b1b;margin-bottom:6px;">🛑 不足している過去問メタ情報を入力してください（分析を一時停止中）</h3>
+      <p id="missingMetaDesc" style="font-size:13px;color:#7f1d1d;line-height:1.6;">
+        ファイル名およびPDF内テキストから一部の情報が見つかりませんでした。<strong>赤枠の項目</strong>を補完して「入力を完了して分析再開・確定する」を押してください。
+      </p>
+      <div id="missingMetaSingleContainer">
+        <div class="missing-meta-grid">
+          <div class="form-group">
+            <label for="mmUnivInput">🏫 大学名 <span id="mmUnivTag"></span></label>
+            <input type="text" id="mmUnivInput" list="univSuggestList" placeholder="例：関西大学" />
+          </div>
+          <div class="form-group">
+            <label for="mmFacultyInput">🎓 学部・系統 <span id="mmFacultyTag"></span></label>
+            <input type="text" id="mmFacultyInput" placeholder="例：システム理工学部 / 全学部" />
+          </div>
+          <div class="form-group">
+            <label for="mmExamTypeInput">📝 受験方式・日程 <span id="mmExamTypeTag"></span></label>
+            <input type="text" id="mmExamTypeInput" placeholder="例：一般選抜 / 全学部日程 / A方式" />
+          </div>
+          <div class="form-group">
+            <label for="mmYearInput">📅 出題年度（4桁） <span id="mmYearTag"></span></label>
+            <input type="text" id="mmYearInput" placeholder="例：2025" />
+          </div>
+        </div>
+      </div>
+      <div id="missingMetaBatchContainer" style="display:none;margin-top:12px;"></div>
+      <div id="missingMetaError" class="error-inline-msg" style="display:none;"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-primary" style="background:#dc2626;" onclick="resumeAnalysisWithMissingMeta()">✅ 入力を完了して分析再開・確定する</button>
+        <button class="state-btn" onclick="skipMissingMetaAndRender()">スキップして診断結果のみ表示（DNA蓄積しない）</button>
+      </div>
     </div>
 
     <!-- 4. Output Results Dashboard -->
@@ -1156,11 +1394,12 @@
           <h3><span class="num-badge">1</span> 参考書レベル判定 ＆ 過去問プロファイル</h3>
           <span id="resSubjBadge" style="font-size: 13.5px; font-weight: 800; color: var(--brand-red);"></span>
         </div>
+        <div id="autoDnaNoticeBanner" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#166534;"></div>
         <div id="univUnknownBanner" style="display:none;background:#fefce8;border:1.5px solid #facc15;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
             <div style="font-size:12.5px;color:#854d0e;">
               <strong>⚠️ PDF内に大学名テキストが見つかりませんでした</strong>（表紙がロゴ画像のみ・本文切り抜き等）。<br />
-              下の欄に大学名を入力して適用すると、上部「大学・学部名」欄・DNA蓄積欄に反映されます（ファイル名に大学名を入れておくと次回から自動判定されます）。
+              下の欄に大学名を入力して適用すると、上部「大学・学部名」欄・見出しに反映されます。
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="text" id="quickFixUnivInput" class="form-control" style="width:200px;padding:6px 10px;font-size:12.5px;" placeholder="例: 関西大学 / 広島大学" />
@@ -1175,7 +1414,10 @@
       <div class="section-card" style="border: 2px solid #cbd5e1;">
         <div class="section-header">
           <h3><span class="num-badge" style="background:#1d4ed8;">2</span> 過去問の実施状況・ミス箇所入力（「大問〇番の(▲)でミス」からリアルタイム定量分析）</h3>
-          <span style="font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:4px 10px;border-radius:999px;">✨ ミス箇所を選択すると下の定量診断と復習リストが即時更新されます</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="state-btn" style="color:#1d4ed8;border-color:#93c5fd;font-weight:700;" onclick="addNewProblemSection()">➕ 大問を追加</button>
+            <span style="font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:4px 10px;border-radius:999px;">✨ 構成調整・ミス箇所選択が下の定量診断へ即時反映されます</span>
+          </div>
         </div>
 
         <!-- Quick Mistake Input Bar -->
@@ -1220,9 +1462,10 @@
       <!-- Section 5: Next Reference Books & What to Learn -->
       <div class="section-card">
         <div class="section-header">
-          <h3><span class="num-badge">5</span> 次にやるべき参考書・学ぶべき範囲一覧（武田塾ルート逆算）</h3>
+          <h3><span class="num-badge">5</span> 次にやるべき参考書・学ぶべき範囲一覧（武田塾ルート逆算・未収録可視化）</h3>
         </div>
         <div id="roadmapContent"></div>
+        <div id="routeGapContent" style="margin-top:18px;"></div>
       </div>
 
       <!-- Section 6: Concurrent University Recommendations -->
@@ -1233,6 +1476,10 @@
         <div id="concurrentContent"></div>
       </div>
     </div>
+    </div><!-- /#viewAnalyze -->
+
+    <div id="viewRoutes" style="display:none;"></div>
+    <div id="viewAdminProfiles" style="display:none;"></div>
   </div>
 
   <script>
@@ -1269,16 +1516,22 @@
       const btnOut = document.getElementById("btnLogout");
       btnOut.style.display = "inline-block";
 
+      const btnAdminTab = document.getElementById("tabNavAdminProfiles");
       if (role === "admin") {
         badge.className = "role-badge admin";
         badge.innerText = `👑 管理者モード (${username})`;
         btnSync.style.display = "inline-block";
         btnPw.style.display = "inline-block";
+        if (btnAdminTab) btnAdminTab.style.display = "inline-flex";
       } else {
         badge.className = "role-badge";
         badge.innerText = `👤 利用者モード (${username})`;
         btnSync.style.display = "none";
         btnPw.style.display = "none";
+        if (btnAdminTab) btnAdminTab.style.display = "none";
+        if (window._activeTopView === "adminProfiles") {
+          switchTopView("analyze");
+        }
       }
     }
 
@@ -1323,6 +1576,9 @@
       document.cookie = "kakomon_app_token=; max-age=0; path=/";
       document.getElementById("btnAdminSync").style.display = "none";
       document.getElementById("btnAdminPw").style.display = "none";
+      const btnAdminTab = document.getElementById("tabNavAdminProfiles");
+      if (btnAdminTab) btnAdminTab.style.display = "none";
+      if (typeof switchTopView === "function") switchTopView("analyze");
       document.getElementById("syncModal").style.display = "none";
       document.getElementById("passwordModal").style.display = "none";
       document.getElementById("loginModal").style.display = "flex";
@@ -1491,7 +1747,73 @@
 
     window.addEventListener("DOMContentLoaded", checkAuthOnLoad);
 
+    let stagedPdfFiles = [];
+    let pendingSingleMetaData = null;
+    let pendingBatchResults = [];
+    window._activeTopView = "analyze";
+    window._cachedRoutesData = null;
+    window._selectedRouteViewSubject = "english";
+    window._cachedAdminProfiles = [];
+
+    function switchTopView(viewId) {
+      if (viewId === "adminProfiles" && currentRole !== "admin") {
+        alert("管理者アカウントでのログインが必要です。");
+        return;
+      }
+      window._activeTopView = viewId;
+      document.getElementById("tabNavAnalyze").classList.toggle("active", viewId === "analyze");
+      document.getElementById("tabNavRoutes").classList.toggle("active", viewId === "routes");
+      const adminTab = document.getElementById("tabNavAdminProfiles");
+      if (adminTab) adminTab.classList.toggle("active", viewId === "adminProfiles");
+
+      document.getElementById("viewAnalyze").style.display = viewId === "analyze" ? "block" : "none";
+      document.getElementById("viewRoutes").style.display = viewId === "routes" ? "block" : "none";
+      document.getElementById("viewAdminProfiles").style.display = viewId === "adminProfiles" ? "block" : "none";
+
+      if (viewId === "routes") {
+        loadAndRenderRoutesView();
+      } else if (viewId === "adminProfiles") {
+        loadAndRenderAdminProfilesView();
+      }
+    }
+
+    function clearInputErrors() {
+      const sel = document.getElementById("subjectSelect");
+      if (sel) sel.classList.remove("field-invalid");
+      const msg = document.getElementById("inputValidationMsg");
+      if (msg) {
+        msg.style.display = "none";
+        msg.innerText = "";
+      }
+    }
+
+    function showInputError(message, highlightSubject = false) {
+      const msg = document.getElementById("inputValidationMsg");
+      if (msg) {
+        msg.innerText = message;
+        msg.style.display = "block";
+      }
+      if (highlightSubject) {
+        const sel = document.getElementById("subjectSelect");
+        if (sel) {
+          sel.classList.add("field-invalid");
+          sel.focus();
+        }
+      }
+    }
+
+    function validateSubjectRequired() {
+      const subj = (document.getElementById("subjectSelect").value || "").trim();
+      if (!subj) {
+        showInputError("⚠️ 科目選択は必須です。分析する科目（英語・数学など）を選択してから「分析開始」を押してください。", true);
+        return false;
+      }
+      clearInputErrors();
+      return true;
+    }
+
     function switchMode(mode) {
+      clearInputErrors();
       document.getElementById("tabPdf").classList.toggle("active", mode === "pdf");
       document.getElementById("tabText").classList.toggle("active", mode === "text");
       document.getElementById("pdfDropSection").style.display = mode === "pdf" ? "block" : "none";
@@ -1518,6 +1840,72 @@
       }
     });
 
+    function renderStagedFiles() {
+      const box = document.getElementById("stagedFilesArea");
+      if (!box) return;
+      if (!stagedPdfFiles.length) {
+        box.style.display = "none";
+        box.innerHTML = "";
+        return;
+      }
+      box.style.display = "block";
+      box.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="font-size:12.5px;color:#1e3a8a;">📄 分析待機中のPDF（${stagedPdfFiles.length} 件）— 科目を選択して「🚀 分析開始」を押してください</strong>
+          <button class="state-btn" style="font-size:11.5px;padding:3px 9px;" onclick="clearStagedPdfs()">🗑️ すべてクリア</button>
+        </div>
+        <div>
+          ${stagedPdfFiles.map((f, idx) => {
+            const kb = Math.max(1, Math.round(f.size / 1024));
+            const sizeLabel = kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+            return `
+              <span class="staged-file-pill">
+                <span>📎 ${_escHtml(f.name)} <small style="color:#64748b;">(${sizeLabel})</small></span>
+                <button type="button" onclick="removeStagedPdf(${idx})" title="削除">×</button>
+              </span>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function removeStagedPdf(idx) {
+      stagedPdfFiles.splice(idx, 1);
+      renderStagedFiles();
+    }
+
+    function clearStagedPdfs() {
+      stagedPdfFiles = [];
+      const inp = document.getElementById("fileInput");
+      if (inp) inp.value = "";
+      renderStagedFiles();
+    }
+
+    function handleFileSelect(files) {
+      const pdfList = Array.from(files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+      if (pdfList.length === 0) {
+        showInputError("⚠️ PDFファイル（.pdf）を選択またはドラッグ＆ドロップしてください。");
+        return;
+      }
+      pdfList.forEach(f => {
+        const dup = stagedPdfFiles.some(x => x.name === f.name && x.size === f.size);
+        if (!dup) stagedPdfFiles.push(f);
+      });
+      clearInputErrors();
+      renderStagedFiles();
+      const inp = document.getElementById("fileInput");
+      if (inp) inp.value = "";
+    }
+
+    function _getOptionalMetaInputs() {
+      return {
+        university: (document.getElementById("univInput")?.value || "").trim(),
+        faculty: (document.getElementById("facultyInput")?.value || "").trim(),
+        exam_type: (document.getElementById("examTypeInput")?.value || "").trim(),
+        year: (document.getElementById("yearInput")?.value || "").trim()
+      };
+    }
+
     async function _analyzeSinglePdfFile(file) {
       const b64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1525,6 +1913,8 @@
         reader.onerror = err => reject(err);
         reader.readAsDataURL(file);
       });
+      const meta = _getOptionalMetaInputs();
+      const subj = document.getElementById("subjectSelect").value;
 
       const res = await fetch("/api/analyze-pdf", {
         method: "POST",
@@ -1532,8 +1922,11 @@
         body: JSON.stringify({
           pdf_base64: b64,
           filename: file.name,
-          subject: document.getElementById("subjectSelect").value,
-          university: document.getElementById("univInput").value
+          subject: subj,
+          university: meta.university,
+          faculty: meta.faculty,
+          exam_type: meta.exam_type,
+          year: meta.year
         })
       });
       const data = await res.json();
@@ -1551,8 +1944,11 @@
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             text: mergedText,
-            subject: document.getElementById("subjectSelect").value,
-            university: document.getElementById("univInput").value,
+            subject: subj,
+            university: meta.university,
+            faculty: meta.faculty,
+            exam_type: meta.exam_type,
+            year: meta.year,
             filename: file.name
           })
         });
@@ -1563,72 +1959,355 @@
       return data;
     }
 
-    async function handleFileSelect(files) {
-      const pdfList = Array.from(files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
-      if (pdfList.length === 0) {
-        alert("PDFファイル（.pdf）をドラッグ＆ドロップしてください。");
+    async function _saveSingleExamDnaApi(data, metaOverride = null) {
+      const cand = data.dna_candidate || {};
+      const m = metaOverride || {};
+      const payload = {
+        university: (m.university || cand.university || data.university || "").trim() || "大学名未指定",
+        faculty: (m.faculty || cand.faculty || "").trim() || "共通・標準",
+        exam_type: (m.exam_type || cand.exam_type || "").trim() || "一般・標準",
+        year: (m.year || cand.year || "").trim() || "2026",
+        subject: cand.subject || data.subject || "english",
+        exam_vector: data.exam_vector || cand.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
+        content_fingerprint: cand.content_fingerprint || "",
+        book_rates: cand.book_rates || {},
+        topics: cand.topics || [],
+        char_count: (data.memory_policy && data.memory_policy.processed_chars) || 0
+      };
+      const saveRes = await fetch("/api/save-exam-dna", {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload)
+      });
+      const sd = await saveRes.json();
+      if (!saveRes.ok) throw new Error(sd.detail || "DNA保存に失敗しました");
+      if (sd.ten_year_dna) data.ten_year_dna = sd.ten_year_dna;
+      if (sd.concurrent_universities) data.concurrent_universities = sd.concurrent_universities;
+      if (sd.saved_profile && sd.saved_profile.profile_key) {
+        window._selectedTenYearUnivId = sd.saved_profile.profile_key;
+      }
+      return sd;
+    }
+
+    function _hasMissingMeta(flags) {
+      const f = flags || {};
+      return !f.university || !f.faculty || !f.exam_type || !f.year;
+    }
+
+    function _showMissingMetaSingle(data) {
+      pendingSingleMetaData = data;
+      pendingBatchResults = [];
+      const cand = data.dna_candidate || {};
+      const flags = data.detected_flags || {};
+
+      document.getElementById("missingMetaSingleContainer").style.display = "block";
+      document.getElementById("missingMetaBatchContainer").style.display = "none";
+      document.getElementById("missingMetaError").style.display = "none";
+
+      const fields = [
+        { id: "mmUnivInput", tagId: "mmUnivTag", ok: !!flags.university, val: cand.university || (flags.university ? data.university : "") },
+        { id: "mmFacultyInput", tagId: "mmFacultyTag", ok: !!flags.faculty, val: cand.faculty || "" },
+        { id: "mmExamTypeInput", tagId: "mmExamTypeTag", ok: !!flags.exam_type, val: cand.exam_type || "" },
+        { id: "mmYearInput", tagId: "mmYearTag", ok: !!flags.year, val: cand.year || "" }
+      ];
+      const missingNames = [];
+      fields.forEach(item => {
+        const el = document.getElementById(item.id);
+        const tag = document.getElementById(item.tagId);
+        el.value = item.val;
+        el.classList.toggle("field-invalid", !item.ok);
+        if (!item.ok) {
+          tag.innerHTML = `<span style="color:#dc2626;font-weight:800;">（未検出・入力必須）</span>`;
+          missingNames.push(item.id);
+        } else {
+          tag.innerHTML = `<span style="color:#15803d;font-weight:700;">（検出済）</span>`;
+        }
+      });
+
+      const roleHint = currentRole === "admin"
+        ? "補完完了後に分析結果を表示します（傾向DNAへの登録は管理者タブから検索・編集も可能です）。"
+        : "補完完了と同時に傾向DNAデータベースへ自動蓄積し、診断結果を表示します。";
+      document.getElementById("missingMetaDesc").innerHTML =
+        `ファイル名およびPDF本文から自動判定できなかった項目（<strong>赤枠</strong>）を補完してください。${roleHint}`;
+
+      const card = document.getElementById("missingMetaCard");
+      card.style.display = "block";
+      document.getElementById("resultDashboard").style.display = "none";
+      card.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function _showMissingMetaBatch(batchItems) {
+      pendingSingleMetaData = null;
+      pendingBatchResults = batchItems;
+      document.getElementById("missingMetaSingleContainer").style.display = "none";
+      document.getElementById("missingMetaError").style.display = "none";
+      const batchBox = document.getElementById("missingMetaBatchContainer");
+      batchBox.style.display = "block";
+      batchBox.innerHTML = `
+        <table class="data-table" style="background:white;">
+          <thead>
+            <tr>
+              <th>ファイル名</th>
+              <th>大学名</th>
+              <th>学部・系統</th>
+              <th>受験方式・日程</th>
+              <th>年度</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${batchItems.map((it, idx) => {
+              const fl = it.flags || {};
+              return `
+                <tr>
+                  <td style="font-size:12px;">
+                    <strong>${_escHtml(it.filename)}</strong><br/>
+                    ${it.needsFix ? '<span style="color:#dc2626;font-weight:700;">⚠️ 一部未検出</span>' : '<span style="color:#15803d;font-weight:700;">✅ 検出済</span>'}
+                  </td>
+                  <td><input type="text" class="form-control ${!fl.university ? 'field-invalid' : ''}" id="mmBatchUniv_${idx}" list="univSuggestList" value="${_escHtml(it.univ)}" placeholder="大学名" style="padding:6px 8px;font-size:12px;" /></td>
+                  <td><input type="text" class="form-control ${!fl.faculty ? 'field-invalid' : ''}" id="mmBatchFac_${idx}" value="${_escHtml(it.faculty)}" placeholder="学部名" style="padding:6px 8px;font-size:12px;" /></td>
+                  <td><input type="text" class="form-control ${!fl.exam_type ? 'field-invalid' : ''}" id="mmBatchType_${idx}" value="${_escHtml(it.exam_type)}" placeholder="一般 / 全学部" style="padding:6px 8px;font-size:12px;" /></td>
+                  <td><input type="text" class="form-control ${!fl.year ? 'field-invalid' : ''}" id="mmBatchYear_${idx}" value="${_escHtml(it.year)}" placeholder="2025" style="padding:6px 8px;font-size:12px;width:84px;" /></td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      `;
+      document.getElementById("missingMetaDesc").innerHTML =
+        `複数PDF解析のうち一部ファイルでメタ情報が不足しています。<strong>赤枠の欄</strong>を補完して再開してください。`;
+      const card = document.getElementById("missingMetaCard");
+      card.style.display = "block";
+      document.getElementById("resultDashboard").style.display = "none";
+      card.scrollIntoView({ behavior: "smooth" });
+    }
+
+    async function resumeAnalysisWithMissingMeta() {
+      const errEl = document.getElementById("missingMetaError");
+      errEl.style.display = "none";
+
+      if (pendingSingleMetaData) {
+        const uEl = document.getElementById("mmUnivInput");
+        const fEl = document.getElementById("mmFacultyInput");
+        const tEl = document.getElementById("mmExamTypeInput");
+        const yEl = document.getElementById("mmYearInput");
+        const vals = {
+          university: uEl.value.trim(),
+          faculty: fEl.value.trim(),
+          exam_type: tEl.value.trim(),
+          year: yEl.value.trim()
+        };
+        let invalid = false;
+        [
+          [uEl, vals.university],
+          [fEl, vals.faculty],
+          [tEl, vals.exam_type],
+          [yEl, vals.year]
+        ].forEach(([el, v]) => {
+          const miss = !v;
+          el.classList.toggle("field-invalid", miss);
+          if (miss) invalid = true;
+        });
+        if (invalid) {
+          errEl.innerText = "⚠️ 赤枠の未入力項目をすべて入力してから再開してください。";
+          errEl.style.display = "block";
+          return;
+        }
+        const data = pendingSingleMetaData;
+        data.university = vals.university;
+        data.univ_detected = true;
+        if (data.dna_candidate) {
+          data.dna_candidate.university = vals.university;
+          data.dna_candidate.faculty = vals.faculty;
+          data.dna_candidate.exam_type = vals.exam_type;
+          data.dna_candidate.year = vals.year;
+        }
+        data.detected_flags = { university: true, faculty: true, exam_type: true, year: true };
+        document.getElementById("univInput").value = vals.university;
+        document.getElementById("facultyInput").value = vals.faculty;
+        document.getElementById("examTypeInput").value = vals.exam_type;
+        document.getElementById("yearInput").value = vals.year;
+
+        try {
+          if (currentRole !== "admin") {
+            const sd = await _saveSingleExamDnaApi(data, vals);
+            data._autoDnaNotice = sd.status === "skipped_low_quality"
+              ? `ℹ️ ${sd.message}`
+              : `✅ 自動蓄積完了：${sd.message}（現在 ${sd.total_profiles} プロファイル / 計 ${sd.total_year_slots} 年度分）`;
+          } else {
+            data._autoDnaNotice = "";
+          }
+        } catch (e) {
+          data._autoDnaNotice = `⚠️ 自動保存に失敗しました: ${e.message}`;
+        }
+
+        document.getElementById("missingMetaCard").style.display = "none";
+        pendingSingleMetaData = null;
+        clearStagedPdfs();
+        renderResults(data);
         return;
       }
 
+      if (pendingBatchResults.length > 0) {
+        let anyInvalid = false;
+        const validated = pendingBatchResults.map((it, idx) => {
+          const uEl = document.getElementById(`mmBatchUniv_${idx}`);
+          const fEl = document.getElementById(`mmBatchFac_${idx}`);
+          const tEl = document.getElementById(`mmBatchType_${idx}`);
+          const yEl = document.getElementById(`mmBatchYear_${idx}`);
+          const u = uEl.value.trim(), f = fEl.value.trim(), t = tEl.value.trim(), y = yEl.value.trim();
+          [[uEl, u], [fEl, f], [tEl, t], [yEl, y]].forEach(([el, v]) => {
+            el.classList.toggle("field-invalid", !v);
+            if (!v) anyInvalid = true;
+          });
+          return { item: it, meta: { university: u, faculty: f, exam_type: t, year: y } };
+        });
+        if (anyInvalid) {
+          errEl.innerText = "⚠️ すべての赤枠項目を補完してから再開してください。";
+          errEl.style.display = "block";
+          return;
+        }
+        const logs = [];
+        let lastData = null;
+        for (const row of validated) {
+          const d = row.item.data;
+          d.university = row.meta.university;
+          d.univ_detected = true;
+          if (d.dna_candidate) Object.assign(d.dna_candidate, row.meta);
+          if (currentRole !== "admin") {
+            try {
+              const sd = await _saveSingleExamDnaApi(d, row.meta);
+              logs.push(`・${row.item.filename} → ${sd.message}`);
+            } catch (e) {
+              logs.push(`・${row.item.filename} → 保存エラー(${e.message})`);
+            }
+          }
+          lastData = d;
+        }
+        document.getElementById("missingMetaCard").style.display = "none";
+        pendingBatchResults = [];
+        clearStagedPdfs();
+        if (lastData) {
+          if (logs.length > 0) {
+            lastData._autoDnaNotice = `✅ ${logs.length}件の一括解析＆自動DNA蓄積が完了しました（${logs[logs.length - 1]}）`;
+          }
+          renderResults(lastData);
+        }
+      }
+    }
+
+    function skipMissingMetaAndRender() {
+      document.getElementById("missingMetaCard").style.display = "none";
+      if (pendingSingleMetaData) {
+        const d = pendingSingleMetaData;
+        pendingSingleMetaData = null;
+        d._autoDnaNotice = "ℹ️ メタ情報の補完をスキップしたため、今回のデータはDNAへ蓄積されませんでした。";
+        renderResults(d);
+      } else if (pendingBatchResults.length > 0) {
+        const last = pendingBatchResults[pendingBatchResults.length - 1].data;
+        pendingBatchResults = [];
+        last._autoDnaNotice = "ℹ️ メタ情報の補完をスキップしたため、今回のデータはDNAへ蓄積されませんでした。";
+        renderResults(last);
+      }
+    }
+
+    async function _handleSingleAnalysisResult(data, isDemo) {
+      if (!isDemo) {
+        const flags = data.detected_flags || { university: !!data.univ_detected, faculty: false, exam_type: false, year: false };
+        if (_hasMissingMeta(flags)) {
+          _showMissingMetaSingle(data);
+          return;
+        }
+        if (currentRole !== "admin") {
+          try {
+            const sd = await _saveSingleExamDnaApi(data);
+            data._autoDnaNotice = sd.status === "skipped_low_quality"
+              ? `ℹ️ ${sd.message}`
+              : `✅ 自動蓄積完了：${sd.message}（現在 ${sd.total_profiles} プロファイル / 計 ${sd.total_year_slots} 年度分）`;
+          } catch (e) {
+            data._autoDnaNotice = `⚠️ 自動蓄積エラー: ${e.message}`;
+          }
+        } else {
+          data._autoDnaNotice = "";
+        }
+        clearStagedPdfs();
+      } else {
+        data._autoDnaNotice = "ℹ️ 実演デモデータのため、傾向DNAデータベースへの自動保存は行われません。";
+      }
+      renderResults(data);
+    }
+
+    async function startPdfAnalysis() {
+      if (!validateSubjectRequired()) return;
+      if (!stagedPdfFiles.length) {
+        showInputError("⚠️ 過去問PDFが選択されていません。PDFをドラッグ＆ドロップまたは選択してください。");
+        return;
+      }
+      document.getElementById("missingMetaCard").style.display = "none";
       const loadH3 = document.querySelector("#loadingBox h3");
       const origLoadText = loadH3 ? loadH3.innerText : "";
       showLoading(true);
       try {
-        if (pdfList.length === 1) {
-          const data = await _analyzeSinglePdfFile(pdfList[0]);
-          renderResults(data);
+        if (stagedPdfFiles.length === 1) {
+          const data = await _analyzeSinglePdfFile(stagedPdfFiles[0]);
+          await _handleSingleAnalysisResult(data, false);
         } else {
-          // Batch mode: sequentially parse on memory -> extract 1KB DNA -> upsert with dedup -> discard PDF
-          const logs = [];
-          let lastData = null;
-          for (let i = 0; i < pdfList.length; i++) {
-            const f = pdfList[i];
-            if (loadH3) loadH3.innerText = `一括解析＆DNA蓄積中（${i + 1} / ${pdfList.length}）：${f.name}`;
+          const batchItems = [];
+          for (let i = 0; i < stagedPdfFiles.length; i++) {
+            const f = stagedPdfFiles[i];
+            if (loadH3) loadH3.innerText = `一括解析中（${i + 1} / ${stagedPdfFiles.length}）：${f.name}`;
             const d = await _analyzeSinglePdfFile(f);
-            lastData = d;
+            const flags = d.detected_flags || { university: !!d.univ_detected, faculty: false, exam_type: false, year: false };
             const cand = d.dna_candidate || {};
-            const saveRes = await fetch("/api/save-exam-dna", {
-              method: "POST",
-              headers: getAuthHeaders({ "Content-Type": "application/json" }),
-              body: JSON.stringify({
-                university: cand.university || d.university || "大学名未指定",
-                faculty: cand.faculty || "共通・標準",
-                exam_type: cand.exam_type || "一般・標準",
-                year: cand.year || "2026",
-                subject: cand.subject || d.subject || "english",
-                exam_vector: d.exam_vector || cand.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
-                content_fingerprint: cand.content_fingerprint || "",
-                book_rates: cand.book_rates || {},
-                topics: cand.topics || []
-              })
+            batchItems.push({
+              filename: f.name,
+              data: d,
+              flags,
+              univ: cand.university || (flags.university ? d.university : ""),
+              faculty: cand.faculty || "",
+              exam_type: cand.exam_type || "",
+              year: cand.year || "",
+              needsFix: _hasMissingMeta(flags)
             });
-            const sd = await saveRes.json();
-            if (saveRes.ok) {
-              lastData.ten_year_dna = sd.ten_year_dna;
-              lastData.concurrent_universities = sd.concurrent_universities;
-              logs.push(`・${f.name} → ${sd.message}`);
+          }
+          if (batchItems.some(it => it.needsFix)) {
+            _showMissingMetaBatch(batchItems);
+            return;
+          }
+          let lastData = null;
+          const logs = [];
+          for (const it of batchItems) {
+            lastData = it.data;
+            if (currentRole !== "admin") {
+              const sd = await _saveSingleExamDnaApi(it.data);
+              logs.push(`・${it.filename} → ${sd.message}`);
             }
           }
+          clearStagedPdfs();
           if (lastData) {
+            if (logs.length > 0) {
+              lastData._autoDnaNotice = `✅ ${batchItems.length}件の過去問PDFを一括解析し、自動で傾向DNA(1KB)を重複排除・蓄積しました（全PDF原文即時破棄）`;
+            }
             renderResults(lastData);
           }
-          alert(`✅ ${pdfList.length}件の過去問PDFをオンメモリ解析し、傾向DNA(各約1KB)のみを重複防止・統合蓄積しました（PDF原文は全件即時破棄）：\n\n${logs.join("\n")}`);
         }
       } catch (err) {
         alert("エラー: " + err.message);
       } finally {
         if (loadH3 && origLoadText) loadH3.innerText = origLoadText;
-        document.getElementById("fileInput").value = "";
         showLoading(false);
       }
     }
 
-    async function analyzeRawText() {
+    async function analyzeRawText(isDemo = false) {
+      if (!isDemo && !validateSubjectRequired()) return;
       const txt = document.getElementById("rawTextInput").value;
       if (!txt || txt.trim().length < 15) {
-        alert("解析する過去問のテキストを入力してください。");
+        showInputError("⚠️ 解析する過去問のテキストを入力してください。");
         return;
       }
+      document.getElementById("missingMetaCard").style.display = "none";
+      const meta = _getOptionalMetaInputs();
+      const subj = document.getElementById("subjectSelect").value;
       showLoading(true);
       try {
         const res = await fetch("/api/analyze-text", {
@@ -1636,8 +2315,11 @@
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             text: txt,
-            subject: document.getElementById("subjectSelect").value,
-            university: document.getElementById("univInput").value
+            subject: subj,
+            university: meta.university,
+            faculty: meta.faculty,
+            exam_type: meta.exam_type,
+            year: meta.year
           })
         });
         const data = await res.json();
@@ -1653,15 +2335,18 @@
             headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({
               text: ocrText,
-              subject: document.getElementById("subjectSelect").value,
-              university: document.getElementById("univInput").value
+              subject: subj,
+              university: meta.university,
+              faculty: meta.faculty,
+              exam_type: meta.exam_type,
+              year: meta.year
             })
           });
           const data2 = await res2.json();
           if (!res2.ok) throw new Error(data2.detail || "OCR後の解析に失敗しました");
-          renderResults(data2);
+          await _handleSingleAnalysisResult(data2, isDemo);
         } else {
-          renderResults(data);
+          await _handleSingleAnalysisResult(data, isDemo);
         }
       } catch (err) {
         alert("エラー: " + err.message);
@@ -1722,8 +2407,6 @@
       document.getElementById("univInput").value = val;
       document.getElementById("resSubjBadge").innerText = `${val} ｜ ${currentAnalysisData.subject_label}`;
       document.getElementById("univUnknownBanner").style.display = "none";
-      const dnaUnivEl = document.getElementById("dnaSaveUnivInput");
-      if (dnaUnivEl) dnaUnivEl.value = val;
     }
 
     function showLoading(flag) {
@@ -1731,6 +2414,73 @@
       if (flag) {
         document.getElementById("resultDashboard").style.display = "none";
       }
+    }
+
+    function renderRouteGapSection(gapList) {
+      const box = document.getElementById("routeGapContent");
+      if (!box) return;
+      if (!Array.isArray(gapList) || gapList.length === 0) {
+        box.innerHTML = "";
+        return;
+      }
+      box.innerHTML = `
+        <div class="route-gap-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <h4 style="font-size:15.5px;font-weight:800;color:#1e3a8a;">📊 ルートレベル別「未収録（追加演習・補完が必要な範囲）」定量表示</h4>
+            <span style="font-size:12px;color:#475569;">各レベル完了時点で<strong>何がどれだけ不足しているか</strong>を具体的に表示します</span>
+          </div>
+          ${gapList.map(lv => {
+            const covRate = Number(lv.coverage_rate ?? 0);
+            const uncovRate = Number(lv.uncovered_rate ?? Math.max(0, 100 - covRate).toFixed(1));
+            const items = lv.uncovered_items || [];
+            const books = lv.route_books || [];
+            return `
+              <div class="route-level-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                  <div>
+                    <strong style="font-size:14.5px;color:var(--navy);">🎯 ${_escHtml(lv.level_name || lv.level_id || '')}</strong>
+                    <div style="font-size:12px;color:#475569;margin-top:2px;">${_escHtml(lv.summary_comment || '')}</div>
+                  </div>
+                  <div style="font-size:12.5px;font-weight:800;white-space:nowrap;">
+                    <span style="color:#15803d;">ルート網羅: ${covRate}%</span>
+                    <span style="margin:0 6px;color:#94a3b8;">/</span>
+                    <span style="color:#dc2626;">未収録: ${uncovRate}%</span>
+                    ${lv.total_target_count ? `<small style="color:#64748b;font-weight:600;">（${lv.covered_count}/${lv.total_target_count}${_escHtml(lv.unit_label || '')}）</small>` : ''}
+                  </div>
+                </div>
+                <div class="progress-bar-bg" style="height:10px;margin:8px 0;">
+                  <div class="progress-bar-fill" style="width:${Math.min(100, Math.max(0, covRate))}%;background:linear-gradient(90deg,#16a34a,#22c55e);"></div>
+                </div>
+                ${books.length > 0 ? `
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+                    ${books.map(bk => `<span class="badge-muted">📘 ${_escHtml(bk)}</span>`).join("")}
+                  </div>
+                ` : ''}
+                ${items.length > 0 ? `
+                  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:12px;">
+                    <strong style="color:#991b1b;">📌 未収録・追加対策が必要となる項目（抜粋 ${items.length} 件）：</strong>
+                    <div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px;">
+                      ${items.map(x => {
+                        if (typeof x === "string") {
+                          return `<span style="background:white;border:1px solid #fca5a5;color:#7f1d1d;padding:4px 8px;border-radius:6px;font-weight:700;">${_escHtml(x)}</span>`;
+                        }
+                        return `
+                          <div style="background:white;border:1px solid #fca5a5;border-radius:6px;padding:5px 8px;">
+                            <strong style="color:#991b1b;">${_escHtml(x.title || '')}</strong>
+                            ${x.freq ? `<small style="color:#64748b;"> (${x.freq}回)</small>` : ''}
+                            ${x.detail ? `<div style="font-size:11px;color:#475569;">${_escHtml(x.detail)}</div>` : ''}
+                            ${x.extra ? `<div style="font-size:11px;color:#b91c1c;">${_escHtml(x.extra)}</div>` : ''}
+                          </div>
+                        `;
+                      }).join("")}
+                    </div>
+                  </div>
+                ` : `<div style="font-size:12px;color:#15803d;font-weight:700;">✅ このレベルのルート参考書で検出済み主要項目をカバーしています。</div>`}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
     }
 
     function renderResults(data) {
@@ -1742,6 +2492,27 @@
           `🗑️ ${data.memory_policy.message}（総ページ: ${data.memory_policy.processed_pages}P / 問題抽出: ${data.memory_policy.problem_pages || data.memory_policy.processed_pages}P / 文字数: ${data.memory_policy.processed_chars}字）`;
       }
       document.getElementById("resSubjBadge").innerText = `${data.university} ｜ ${data.subject_label}`;
+
+      const autoBanner = document.getElementById("autoDnaNoticeBanner");
+      if (autoBanner) {
+        if (data._autoDnaNotice) {
+          autoBanner.style.display = "block";
+          autoBanner.innerHTML = _escHtml(data._autoDnaNotice);
+        } else if (currentRole === "admin") {
+          autoBanner.style.display = "flex";
+          autoBanner.style.justifyContent = "space-between";
+          autoBanner.style.alignItems = "center";
+          autoBanner.style.flexWrap = "wrap";
+          autoBanner.style.gap = "8px";
+          autoBanner.innerHTML = `
+            <span>👑 管理者モード：この分析結果を傾向DNAデータベースへ登録する場合は右のボタンから保存し、一覧・編集は「👑 蓄積プロファイル管理」タブで行えます。</span>
+            <button class="btn-primary" style="padding:6px 12px;font-size:12px;background:#15803d;" onclick="adminSaveCurrentResult()">💾 この結果をDNAへ登録</button>
+          `;
+        } else {
+          autoBanner.style.display = "none";
+        }
+      }
+
       const unkBanner = document.getElementById("univUnknownBanner");
       if (unkBanner) {
         unkBanner.style.display = (data.univ_detected === false) ? "block" : "none";
@@ -1826,7 +2597,7 @@
         </div>
       `).join("");
 
-      // Section 5: Next Reference Books Roadmap
+      // Section 5: Next Reference Books Roadmap + Route Quantitative Gap
       const roadEl = document.getElementById("roadmapContent");
       roadEl.innerHTML = `
         <table class="data-table">
@@ -1850,6 +2621,7 @@
           </tbody>
         </table>
       `;
+      renderRouteGapSection(data.route_gap_analysis);
 
       // Section 6: Concurrent Universities + Major Universities 10-Year DNA Quantitative Output
       renderConcurrentAndTenYearDNA(data);
@@ -1857,25 +2629,32 @@
       document.getElementById("resultDashboard").scrollIntoView({ behavior: "smooth" });
     }
 
+    async function adminSaveCurrentResult() {
+      if (!currentAnalysisData || currentRole !== "admin") return;
+      try {
+        const sd = await _saveSingleExamDnaApi(currentAnalysisData);
+        currentAnalysisData._autoDnaNotice = `✅ 管理者保存完了：${sd.message}（現在 ${sd.total_profiles} プロファイル / 計 ${sd.total_year_slots} 年度分）`;
+        renderResults(currentAnalysisData);
+      } catch (e) {
+        alert("エラー: " + e.message);
+      }
+    }
+
     function renderConcurrentAndTenYearDNA(data) {
       const concEl = document.getElementById("concurrentContent");
       const dna = data.ten_year_dna || {};
-      const cand = data.dna_candidate || {};
       const allUnivs = dna.all_universities_10yr || [];
       const selectedUnivId = window._selectedTenYearUnivId || dna.matched_university_id || (allUnivs[0] && allUnivs[0].id);
       const activeProf = allUnivs.find(u => u.id === selectedUnivId) || allUnivs[0];
       const recBooks = (activeProf && activeProf.rec_books) || dna.ten_year_recommended_books || [];
       const topics10yr = (activeProf && activeProf.ten_year_topics) || dna.ten_year_frequent_topics || [];
-      const accYears = dna.accumulated_custom_dna_count || 0;
-      const accProfiles = dna.accumulated_profiles_count || 0;
-      const accRecent = dna.accumulated_custom_dna_recent || [];
 
       concEl.innerHTML = `
         <div style="background:linear-gradient(135deg,#f8fafc 0%,#f0fdf4 100%);border:2px solid #86efac;border-radius:14px;padding:18px 20px;margin-bottom:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
             <div>
-              <h4 style="font-size:16px;font-weight:800;color:#14532d;">📊 過去問DNAデータベース（実測蓄積 ＋ 初期基準モデル）＆ 使用推奨参考書</h4>
-              <p style="font-size:12.5px;color:#334155;margin-top:2px;">過去問PDF原文は保存せず、大学×学部×受験方式ごとに<strong>最大直近10年分の累積平均DNA（O(1)固定サイズ）</strong>へ統合・更新されます。</p>
+              <h4 style="font-size:16px;font-weight:800;color:#14532d;">📊 過去問DNAデータベース（直近10年基準・実測照合）＆ 使用推奨参考書</h4>
+              <p style="font-size:12.5px;color:#334155;margin-top:2px;">過去問PDF原文は保存せず、大学×学部×受験方式ごとの傾向ベクトルのみで類似度照合を行っています。</p>
             </div>
             <div style="min-width:290px;">
               <label style="display:block;font-size:11.5px;font-weight:800;color:#166534;margin-bottom:4px;">🏫 大学・学部・方式を切り替え（プルダウン）:</label>
@@ -1925,46 +2704,11 @@
               ` : ''}
             </div>
           ` : ''}
-
-          <div style="margin-top:12px;padding:14px 16px;background:#fff;border:1.5px dashed #60a5fa;border-radius:10px;">
-            <div style="font-size:12.5px;color:#334155;margin-bottom:10px;">
-              <strong>🧬 実測DNAアーカイブへ登録（現在：${accProfiles} 学部・方式 ／ 累計 ${accYears} 年度分蓄積済み｜重複＆同年度方式別管理対応）：</strong><br />
-              <span style="color:#64748b;">同じ『大学×学部×方式×年度』や『同一問題指紋(${cand.content_fingerprint || '-'})』は自動で重複排除（上書き統合）され、直近10年分の累積平均へ即座に反映されます。</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:8px;align-items:end;">
-              <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">🏫 大学名</label>
-                <input type="text" id="dnaSaveUnivInput" value="${cand.university || data.university || ''}" class="form-control" style="padding:6px 8px;font-size:12.5px;" />
-              </div>
-              <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">🎓 学部・系統</label>
-                <input type="text" id="dnaSaveFacultyInput" value="${cand.faculty || '共通・標準'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="例: 全学部 / システム理工 / 法" />
-              </div>
-              <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">📝 受験方式・日程</label>
-                <input type="text" id="dnaSaveExamTypeInput" value="${cand.exam_type || '一般・標準'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="例: 全学部日程 / 個別日程 / A方式" />
-              </div>
-              <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:2px;">📅 年度</label>
-                <input type="text" id="dnaSaveYearInput" value="${cand.year || '2026'}" class="form-control" style="padding:6px 8px;font-size:12.5px;" placeholder="2026" />
-              </div>
-              <div>
-                <button class="btn-primary" style="width:100%;padding:8px 12px;font-size:12.5px;background:#1d4ed8;" onclick="saveCurrentExamDna()">💾 傾向DNA(1KB)を蓄積</button>
-              </div>
-            </div>
-          </div>
-
-          ${accRecent.length > 0 ? `
-            <div style="margin-top:10px;font-size:12px;color:#475569;">
-              <strong>📚 蓄積済みの実測プロファイル（大学 × 学部 × 方式）:</strong>
-              ${accRecent.slice(0, 8).map(p => `<span style="display:inline-block;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:2px 8px;border-radius:6px;margin:2px 4px;font-weight:700;">🟢 ${p.display_name || p.university} [${p.subject}] (${(p.years_list || []).join('・')}年 / 計${p.sample_years_count || 1}年分)</span>`).join("")}
-            </div>
-          ` : ''}
         </div>
 
         <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:#334155;">
           <strong>📌 幅広い併願推奨校（本命同レベル帯・上位チャレンジ校・安全圏抑え校）の選出基準：</strong><br />
-          実測した6次元傾向ベクトルとデータベース上の全プロファイル（<strong>🟢実測蓄積データ＋📘初期基準モデル</strong>）とのコサイン類似度から、幅広い併願候補をカテゴリ別に抽出しています。過去問を蓄積するほど、実測プロファイルが基準値を上書きして高精度化します。
+          実測した6次元傾向ベクトルとデータベース上の全プロファイル（<strong>🟢実測蓄積データ＋📘初期基準モデル</strong>）とのコサイン類似度から、幅広い併願候補をカテゴリ別に抽出しています。
         </div>
         <table class="data-table">
           <thead>
@@ -1997,38 +2741,302 @@
       `;
     }
 
-    async function saveCurrentExamDna() {
-      if (!currentAnalysisData) return;
-      const cand = currentAnalysisData.dna_candidate || {};
-      const univVal = document.getElementById("dnaSaveUnivInput").value.trim() || currentAnalysisData.university || "大学名未指定";
-      const facVal = document.getElementById("dnaSaveFacultyInput").value.trim() || "共通・標準";
-      const examVal = document.getElementById("dnaSaveExamTypeInput").value.trim() || "一般・標準";
-      const yearVal = document.getElementById("dnaSaveYearInput").value.trim() || "2026";
+    // =====================================================================
+    // Routes Reference Tab (#viewRoutes)
+    // =====================================================================
+    async function loadAndRenderRoutesView() {
+      const container = document.getElementById("viewRoutes");
+      container.innerHTML = `<div class="section-card"><p style="color:#475569;">📚 ルート表と参考書DB連携状態を読み込み中...</p></div>`;
       try {
-        const res = await fetch("/api/save-exam-dna", {
-          method: "POST",
+        const res = await fetch("/api/curriculum-routes", { headers: getAuthHeaders() });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "ルート表の取得に失敗しました");
+        window._cachedRoutesData = d.routes || {};
+        if (currentAnalysisData && currentAnalysisData.subject && window._cachedRoutesData[currentAnalysisData.subject]) {
+          window._selectedRouteViewSubject = currentAnalysisData.subject;
+        }
+        renderRoutesViewContent();
+      } catch (e) {
+        container.innerHTML = `<div class="section-card"><p style="color:#dc2626;font-weight:700;">エラー: ${_escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderRoutesViewContent() {
+      const container = document.getElementById("viewRoutes");
+      const routes = window._cachedRoutesData || {};
+      const subjKeys = Object.keys(routes);
+      if (!subjKeys.length) {
+        container.innerHTML = `<div class="section-card"><p>ルートデータが見つかりませんでした。</p></div>`;
+        return;
+      }
+      const activeSubj = routes[window._selectedRouteViewSubject] ? window._selectedRouteViewSubject : subjKeys[0];
+      const activeRoute = routes[activeSubj] || {};
+      const levels = Array.isArray(activeRoute.levels) ? activeRoute.levels : [];
+
+      container.innerHTML = `
+        <div class="section-card">
+          <div class="section-header">
+            <h3><span class="num-badge">📚</span> 科目別・各レベル武田塾ルート表 ＆ 確認テストDB収録状況</h3>
+            <span style="font-size:12px;color:#475569;">新しい参考書の追加検討や、未収録教材の把握にご利用ください</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+            ${subjKeys.map(sk => `
+              <button class="state-btn ${sk === activeSubj ? 'active-ok' : ''}" style="padding:7px 12px;font-size:12.5px;" onclick="window._selectedRouteViewSubject='${sk}'; renderRoutesViewContent();">
+                ${_escHtml(routes[sk].subject_jp || routes[sk].subject_label || sk)}
+              </button>
+            `).join("")}
+          </div>
+
+          ${levels.map(lv => {
+            const steps = lv.steps || [];
+            return `
+              <div class="route-level-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                  <div>
+                    <strong style="font-size:15px;color:var(--navy);">🎯 ${_escHtml(lv.level_name || lv.level_id || '')}</strong>
+                    ${lv.base_coverage_target ? `<span style="margin-left:8px;font-size:12px;color:#15803d;font-weight:700;">目標到達率 ${lv.base_coverage_target}%</span>` : ''}
+                  </div>
+                  <span class="badge-muted">${steps.length} ステップ構成</span>
+                </div>
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width:14%;">ステップ / 分野</th>
+                      <th style="width:30%;">参考書名</th>
+                      <th style="width:20%;">DB収録状態</th>
+                      <th style="width:18%;">対象範囲</th>
+                      <th style="width:18%;">突破基準</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${steps.map(st => `
+                      <tr>
+                        <td><strong>${_escHtml(st.step || '')}</strong><br/><small style="color:#64748b;">${_escHtml(st.category || '')}</small></td>
+                        <td><strong>${_escHtml(st.book || '')}</strong></td>
+                        <td>
+                          ${st.in_confirmation_db
+                            ? `<span class="badge-ok">✅ 確認テストDB有</span>`
+                            : (st.in_matching_db
+                                ? `<span class="badge-ok">✅ 照合DB収録済</span>`
+                                : `<span class="badge-warn">⚠️ DB未収録（追加検討候補）</span>`)}
+                        </td>
+                        <td style="font-size:12px;">${_escHtml(st.target_range || '')}</td>
+                        <td style="font-size:12px;color:#475569;">${_escHtml(st.goal || '')}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    // =====================================================================
+    // Admin-only Accumulated Profiles Management Tab (#viewAdminProfiles)
+    // =====================================================================
+    async function loadAndRenderAdminProfilesView() {
+      const container = document.getElementById("viewAdminProfiles");
+      container.innerHTML = `<div class="section-card"><p style="color:#475569;">👑 蓄積済みDNAプロファイルを読み込み中...</p></div>`;
+      try {
+        const res = await fetch("/api/admin/dna-profiles", { headers: getAuthHeaders() });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "管理者データの取得に失敗しました");
+        window._cachedAdminProfiles = d.profiles || [];
+        window._adminTotalYearSlots = d.total_year_slots || 0;
+        renderAdminProfilesTable();
+      } catch (e) {
+        container.innerHTML = `<div class="section-card"><p style="color:#dc2626;font-weight:700;">エラー: ${_escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderAdminProfilesTable() {
+      const container = document.getElementById("viewAdminProfiles");
+      const allProfs = window._cachedAdminProfiles || [];
+      const q = (document.getElementById("adminProfSearch")?.value || "").trim().toLowerCase();
+      const subjFilter = document.getElementById("adminProfSubjFilter")?.value || "";
+      const roleFilter = document.getElementById("adminProfRoleFilter")?.value || "";
+      const statusFilter = document.getElementById("adminProfStatusFilter")?.value || "";
+
+      const filtered = allProfs.filter(p => {
+        if (subjFilter && p.subject !== subjFilter) return false;
+        if (roleFilter && (p.source_role || "admin") !== roleFilter) return false;
+        if (statusFilter && (p.review_status || "approved") !== statusFilter) return false;
+        if (q) {
+          const hay = `${p.university} ${p.faculty} ${p.exam_type} ${p.display_name} ${p.profile_key} ${p.submitted_by || ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      const subjs = Array.from(new Set(allProfs.map(p => p.subject).filter(Boolean)));
+      container.innerHTML = `
+        <div class="section-card">
+          <div class="section-header">
+            <h3><span class="num-badge" style="background:#991b1b;">👑</span> 蓄積済み過去問DNAプロファイル管理（管理者専用・非表示タブ）</h3>
+            <span style="font-size:12.5px;font-weight:800;color:#1e3a8a;">全 ${allProfs.length} プロファイル ／ 累計 ${window._adminTotalYearSlots || 0} 年度分</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:end;">
+            <div class="form-group">
+              <label style="font-size:11.5px;">🔍 検索（大学名・学部・方式・登録者）</label>
+              <input type="text" id="adminProfSearch" value="${_escHtml(q)}" placeholder="キーワード検索..." oninput="renderAdminProfilesTable()" />
+            </div>
+            <div class="form-group">
+              <label style="font-size:11.5px;">📚 科目</label>
+              <select id="adminProfSubjFilter" onchange="renderAdminProfilesTable()">
+                <option value="">全科目</option>
+                ${subjs.map(s => `<option value="${_escHtml(s)}" ${s === subjFilter ? 'selected' : ''}>${_escHtml(s)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="form-group">
+              <label style="font-size:11.5px;">👤 登録ルート</label>
+              <select id="adminProfRoleFilter" onchange="renderAdminProfilesTable()">
+                <option value="">すべて</option>
+                <option value="user" ${roleFilter === 'user' ? 'selected' : ''}>利用者自動蓄積 (user)</option>
+                <option value="admin" ${roleFilter === 'admin' ? 'selected' : ''}>管理者登録 (admin)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label style="font-size:11.5px;">📋 レビュー状態</label>
+              <select id="adminProfStatusFilter" onchange="renderAdminProfilesTable()">
+                <option value="">すべて</option>
+                <option value="auto_submitted" ${statusFilter === 'auto_submitted' ? 'selected' : ''}>自動蓄積・未確認 (auto_submitted)</option>
+                <option value="approved" ${statusFilter === 'approved' ? 'selected' : ''}>承認済 (approved)</option>
+                <option value="needs_fix" ${statusFilter === 'needs_fix' ? 'selected' : ''}>要修正 (needs_fix)</option>
+              </select>
+            </div>
+            <button class="state-btn" style="padding:9px 12px;" onclick="loadAndRenderAdminProfilesView()">🔄 再読込</button>
+          </div>
+
+          <div id="adminEditProfileBox" style="display:none;background:#eff6ff;border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:14px;"></div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:27%;">大学 × 学部 × 方式</th>
+                <th style="width:12%;">科目 / 偏差値</th>
+                <th style="width:17%;">蓄積年度</th>
+                <th style="width:15%;">登録元 / 状態</th>
+                <th style="width:29%;">管理者操作（編集統合・承認・削除）</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.length === 0 ? `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px;">該当するプロファイルはありません。</td></tr>` : filtered.map(p => {
+                const st = p.review_status || "approved";
+                const stBadge = st === "approved" ? `<span class="badge-ok">✅ 承認済</span>` : (st === "needs_fix" ? `<span class="badge-warn">⚠️ 要修正</span>` : `<span class="badge-muted">🕒 未確認</span>`);
+                const roleBadge = (p.source_role === "user")
+                  ? `<span style="background:#e0f2fe;color:#075985;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">利用者自動 (${_escHtml(p.submitted_by || 'user')})</span>`
+                  : `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">管理者 (${_escHtml(p.submitted_by || 'admin')})</span>`;
+                const encKey = encodeURIComponent(p.profile_key);
+                return `
+                  <tr>
+                    <td>
+                      <strong>${_escHtml(p.display_name || p.university)}</strong><br/>
+                      <small style="color:#64748b;">key: ${_escHtml(p.profile_key)}</small>
+                    </td>
+                    <td><strong>${_escHtml(p.subject)}</strong><br/><small>偏差値 ${p.deviation_value || '-'}</small></td>
+                    <td style="font-size:12px;">${_escHtml((p.years_list || []).join(', '))}<br/><small style="color:#64748b;">計 ${p.sample_years_count || 1} 年分</small></td>
+                    <td>${roleBadge}<div style="margin-top:4px;">${stBadge}</div></td>
+                    <td>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="state-btn" onclick="openAdminProfileEditor('${encKey}')">✏️ 編集・名寄せ統合</button>
+                        ${st !== 'approved' ? `<button class="state-btn active-ok" onclick="quickApproveAdminProfile('${encKey}')">✅ 承認</button>` : ''}
+                        <button class="state-btn" style="color:#dc2626;border-color:#fca5a5;" onclick="deleteAdminProfile('${encKey}')">🗑️ 削除</button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function openAdminProfileEditor(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      const prof = (window._cachedAdminProfiles || []).find(p => p.profile_key === key);
+      if (!prof) return;
+      const box = document.getElementById("adminEditProfileBox");
+      box.style.display = "block";
+      box.innerHTML = `
+        <h4 style="font-size:14px;font-weight:800;color:#1e3a8a;margin-bottom:8px;">✏️ プロファイル編集・別名統合（大学名等を既存と揃えると自動マージされます）</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end;">
+          <div class="form-group"><label style="font-size:11.5px;">大学名</label><input type="text" id="editProfUniv" value="${_escHtml(prof.university || '')}" /></div>
+          <div class="form-group"><label style="font-size:11.5px;">学部・系統</label><input type="text" id="editProfFac" value="${_escHtml(prof.faculty || '')}" /></div>
+          <div class="form-group"><label style="font-size:11.5px;">受験方式</label><input type="text" id="editProfType" value="${_escHtml(prof.exam_type || '')}" /></div>
+          <div class="form-group"><label style="font-size:11.5px;">目安偏差値</label><input type="number" id="editProfDev" value="${prof.deviation_value || 60}" /></div>
+          <div class="form-group">
+            <label style="font-size:11.5px;">レビュー状態</label>
+            <select id="editProfStatus">
+              <option value="approved" ${prof.review_status === 'approved' ? 'selected' : ''}>承認済 (approved)</option>
+              <option value="auto_submitted" ${prof.review_status === 'auto_submitted' ? 'selected' : ''}>自動蓄積・未確認 (auto_submitted)</option>
+              <option value="needs_fix" ${prof.review_status === 'needs_fix' ? 'selected' : ''}>要修正 (needs_fix)</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-primary" style="padding:8px 14px;font-size:12.5px;" onclick="submitAdminProfileEdit('${encodedKey}')">💾 保存・統合</button>
+            <button class="state-btn" onclick="document.getElementById('adminEditProfileBox').style.display='none'">キャンセル</button>
+          </div>
+        </div>
+      `;
+      box.scrollIntoView({ behavior: "smooth" });
+    }
+
+    async function submitAdminProfileEdit(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      const payload = {
+        profile_key: key,
+        university: document.getElementById("editProfUniv").value.trim(),
+        faculty: document.getElementById("editProfFac").value.trim(),
+        exam_type: document.getElementById("editProfType").value.trim(),
+        deviation_value: parseInt(document.getElementById("editProfDev").value || "60", 10),
+        review_status: document.getElementById("editProfStatus").value
+      };
+      try {
+        const res = await fetch("/api/admin/dna-profiles", {
+          method: "PUT",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            university: univVal,
-            faculty: facVal,
-            exam_type: examVal,
-            year: yearVal,
-            subject: currentAnalysisData.subject || "english",
-            exam_vector: currentAnalysisData.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
-            content_fingerprint: cand.content_fingerprint || "",
-            book_rates: cand.book_rates || {},
-            topics: cand.topics || []
-          })
+          body: JSON.stringify(payload)
         });
         const d = await res.json();
-        if (!res.ok) throw new Error(d.detail || "保存に失敗しました");
-        currentAnalysisData.ten_year_dna = d.ten_year_dna;
-        currentAnalysisData.concurrent_universities = d.concurrent_universities;
-        if (d.saved_profile && d.saved_profile.profile_key) {
-          window._selectedTenYearUnivId = d.saved_profile.profile_key;
-        }
-        renderConcurrentAndTenYearDNA(currentAnalysisData);
-        alert(`✅ ${d.message}\n（累積：${d.total_profiles} 学部・方式 ／ 計 ${d.total_year_slots} 年度分｜重いPDF原文は一切保存していません）`);
+        if (!res.ok) throw new Error(d.detail || "更新失敗");
+        alert(`✅ ${d.message}`);
+        await loadAndRenderAdminProfilesView();
+      } catch (e) {
+        alert("エラー: " + e.message);
+      }
+    }
+
+    async function quickApproveAdminProfile(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      try {
+        const res = await fetch("/api/admin/dna-profiles", {
+          method: "PUT",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ profile_key: key, review_status: "approved" })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "承認失敗");
+        await loadAndRenderAdminProfilesView();
+      } catch (e) {
+        alert("エラー: " + e.message);
+      }
+    }
+
+    async function deleteAdminProfile(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      if (!confirm(`プロファイル「${key}」を完全に削除しますか？`)) return;
+      try {
+        const res = await fetch(`/api/admin/dna-profiles?profile_key=${encodeURIComponent(key)}`, {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "削除失敗");
+        await loadAndRenderAdminProfilesView();
       } catch (e) {
         alert("エラー: " + e.message);
       }
@@ -2079,6 +3087,127 @@
       updateLiveMistakeDiagnosis();
     }
 
+    function _refreshTrackerAll() {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const probSel = document.getElementById("quickProbSelect");
+      const prevIdx = probSel ? probSel.value : "0";
+      if (probSel) {
+        probSel.innerHTML = sections.map((sec, idx) => `<option value="${idx}">${_escHtml(sec.problem_no)}（${_escHtml((sec.unit || '').slice(0, 18))}...）</option>`).join("");
+        if (sections[parseInt(prevIdx, 10)]) {
+          probSel.value = prevIdx;
+        }
+      }
+      populateQuickSubSelect();
+      renderTrackerUI(sections);
+      updateLiveMistakeDiagnosis();
+    }
+
+    function addNewProblemSection() {
+      if (!currentAnalysisData) return;
+      if (!Array.isArray(currentAnalysisData.tracker_sections)) {
+        currentAnalysisData.tracker_sections = [];
+      }
+      const sections = currentAnalysisData.tracker_sections;
+      const nextNum = sections.length + 1;
+      const pNo = prompt("追加する大問番号・見出しを入力してください（例: 第4問 / 〔IV〕 / 第5問）", `第${nextNum}問`);
+      if (!pNo || !pNo.trim()) return;
+      const unitName = prompt("大問の単元・分野名を入力してください", "総合・応用演習");
+      const countStr = prompt("初期設問数を入力してください（1〜60）", "4");
+      const count = Math.min(60, Math.max(1, parseInt(countStr || "4", 10) || 4));
+      const cleanNo = pNo.trim();
+      const cleanUnit = (unitName || "標準・実戦問題").trim();
+      const ts = Date.now();
+      const subQs = [];
+      for (let i = 1; i <= count; i++) {
+        const shortLbl = `(${i})`;
+        const sq = {
+          id: `${cleanNo}_add_${ts}_${i}`,
+          label: `${cleanNo} ${shortLbl}`,
+          short_label: shortLbl,
+          unit: cleanUnit,
+          tier: "must_score",
+          tier_label: "🟢 基礎・標準",
+          points: 1,
+          remedy_book: "該当単元の標準参考書"
+        };
+        subQs.push(sq);
+        trackerState[sq.id] = { status: "ok", reason: "知識・単語・公式抜け", item: sq };
+      }
+      sections.push({ problem_no: cleanNo, unit: cleanUnit, sub_questions: subQs });
+      _refreshTrackerAll();
+    }
+
+    function renameProblemSection(secIdx) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      const newNo = prompt("新しい大問名を入力してください", sec.problem_no || "");
+      if (!newNo || !newNo.trim()) return;
+      const newUnit = prompt("新しい単元・テーマ名を入力してください", sec.unit || "");
+      if (newUnit === null) return;
+      sec.problem_no = newNo.trim();
+      sec.unit = newUnit.trim() || sec.unit;
+      (sec.sub_questions || []).forEach(sq => {
+        const shortLbl = sq.short_label || sq.label.split(/\s+/).slice(-1)[0] || "";
+        sq.label = `${sec.problem_no} ${shortLbl}`.trim();
+        sq.unit = sec.unit;
+        if (trackerState[sq.id]) trackerState[sq.id].item = sq;
+      });
+      _refreshTrackerAll();
+    }
+
+    function resizeSectionQuestions(secIdx) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      const curLen = (sec.sub_questions || []).length;
+      const targetStr = prompt(`${sec.problem_no} の設問数を入力してください（現在 ${curLen} 問 ／ 1〜60。既存の正誤マークは保持されます）`, String(curLen));
+      if (targetStr === null) return;
+      const target = Math.min(60, Math.max(1, parseInt(targetStr, 10) || curLen));
+      if (target === curLen) return;
+      if (target > curLen) {
+        const ts = Date.now();
+        for (let i = curLen + 1; i <= target; i++) {
+          const shortLbl = `(${i})`;
+          const sq = {
+            id: `${sec.problem_no}_resize_${ts}_${i}`,
+            label: `${sec.problem_no} ${shortLbl}`,
+            short_label: shortLbl,
+            unit: sec.unit,
+            tier: "must_score",
+            tier_label: "🟢 基礎・標準",
+            points: 1,
+            remedy_book: (sec.sub_questions[0] && sec.sub_questions[0].remedy_book) || "該当単元の標準参考書"
+          };
+          sec.sub_questions.push(sq);
+          trackerState[sq.id] = { status: "ok", reason: "知識・単語・公式抜け", item: sq };
+        }
+      } else {
+        const removed = sec.sub_questions.splice(target);
+        removed.forEach(sq => { delete trackerState[sq.id]; });
+      }
+      _refreshTrackerAll();
+    }
+
+    function deleteProblemSection(secIdx) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      if (!confirm(`「${sec.problem_no}」を削除しますか？`)) return;
+      (sec.sub_questions || []).forEach(sq => { delete trackerState[sq.id]; });
+      sections.splice(secIdx, 1);
+      _refreshTrackerAll();
+    }
+
+    function deleteSingleSubQuestion(secIdx, sqId) {
+      const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
+      const sec = sections[secIdx];
+      if (!sec) return;
+      sec.sub_questions = (sec.sub_questions || []).filter(sq => sq.id !== sqId);
+      delete trackerState[sqId];
+      _refreshTrackerAll();
+    }
+
     function addCustomSubQuestion(secIdx) {
       const sections = (currentAnalysisData && currentAnalysisData.tracker_sections) || [];
       const sec = sections[secIdx];
@@ -2098,13 +3227,11 @@
       };
       sec.sub_questions.push(newSq);
       trackerState[newSq.id] = {
-        status: "wrong",
+        status: "ok",
         reason: "知識・単語・公式抜け",
         item: newSq
       };
-      populateQuickSubSelect();
-      renderTrackerUI(sections);
-      updateLiveMistakeDiagnosis();
+      _refreshTrackerAll();
     }
 
     function setSectionAllStatus(secIdx, statusVal) {
@@ -2135,14 +3262,21 @@
 
     function renderTrackerUI(sections) {
       const container = document.getElementById("trackerContainer");
+      if (!sections || sections.length === 0) {
+        container.innerHTML = `<div style="padding:18px;text-align:center;color:#64748b;background:#f8fafc;border-radius:10px;">大問がまだありません。「➕ 大問を追加」から構成を作成できます。</div>`;
+        return;
+      }
       container.innerHTML = sections.map((sec, secIdx) => `
         <div class="tracker-group">
           <div class="tracker-group-title" style="flex-wrap:wrap;gap:8px;">
-            <span>📌 ${sec.problem_no}：${sec.unit}（全 ${(sec.sub_questions || []).length} 問）</span>
-            <div style="display:flex;gap:6px;">
+            <span>📌 ${_escHtml(sec.problem_no)}：${_escHtml(sec.unit)}（全 ${(sec.sub_questions || []).length} 問）</span>
+            <div class="tracker-adjust-bar">
               <button class="state-btn" onclick="setSectionAllStatus(${secIdx}, 'ok')">すべて⭕</button>
               <button class="state-btn" onclick="setSectionAllStatus(${secIdx}, 'wrong')">すべて❌</button>
-              <button class="state-btn" style="color:#1d4ed8;border-color:#93c5fd;" onclick="addCustomSubQuestion(${secIdx})">➕ 設問(〇)を追加</button>
+              <button class="state-btn" style="color:#1d4ed8;border-color:#93c5fd;" onclick="addCustomSubQuestion(${secIdx})">➕ 設問追加</button>
+              <button class="state-btn" onclick="resizeSectionQuestions(${secIdx})">🔢 設問数変更</button>
+              <button class="state-btn" onclick="renameProblemSection(${secIdx})">✏️ 大問編集</button>
+              <button class="state-btn" style="color:#dc2626;border-color:#fca5a5;" onclick="deleteProblemSection(${secIdx})">🗑️ 削除</button>
             </div>
           </div>
           <div class="subq-grid">
@@ -2150,9 +3284,12 @@
               const st = trackerState[sq.id] || { status: "ok", reason: "知識・単語・公式抜け" };
               return `
                 <div class="subq-row status-${st.status}" style="flex-direction:column;align-items:stretch;margin-bottom:0;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <strong style="font-size:13.5px;color:var(--navy);">${sq.label}</strong>
-                    <span style="font-size:11px;font-weight:700;">${sq.tier_label}</span>
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                    <strong style="font-size:13.5px;color:var(--navy);">${_escHtml(sq.label)}</strong>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                      <span style="font-size:11px;font-weight:700;">${_escHtml(sq.tier_label)}</span>
+                      <button type="button" onclick="deleteSingleSubQuestion(${secIdx}, '${sq.id}')" title="この設問を削除" style="border:none;background:transparent;color:#94a3b8;cursor:pointer;font-weight:900;font-size:13px;padding:0 3px;">×</button>
+                    </div>
                   </div>
                   <div class="state-btn-group" style="margin-top:6px;">
                     <button class="state-btn ${st.status === 'ok' ? 'active-ok' : ''}" style="flex:1;" onclick="setSubQuestionStatus('${sq.id}', 'ok')">⭕ 正解</button>
@@ -2847,11 +3984,12 @@ Furthermore, had policymakers anticipated the profound psychological consequence
     function runDemo(key) {
       const sample = DEMO_SAMPLES[key];
       if (!sample) return;
+      clearInputErrors();
       document.getElementById("univInput").value = sample.univ;
       document.getElementById("subjectSelect").value = sample.subject;
       switchMode("text");
       document.getElementById("rawTextInput").value = sample.text;
-      analyzeRawText();
+      analyzeRawText(true);
     }
   </script>
 </body>

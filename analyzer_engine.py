@@ -48,9 +48,23 @@ def get_rapid_ocr():
     return _rapid_ocr_engine if _rapid_ocr_engine is not False else None
 
 KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "knowledge_base.json")
+ROUTES_PATH = os.path.join(os.path.dirname(__file__), "curriculum_routes.json")
 
 with open(KNOWLEDGE_PATH, "r", encoding="utf-8") as f:
     KNOWLEDGE_BASE = json.load(f)
+
+
+def load_curriculum_routes() -> dict:
+    if os.path.exists(ROUTES_PATH):
+        try:
+            with open(ROUTES_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+CURRICULUM_ROUTES = load_curriculum_routes()
 
 # =====================================================================
 # 1. 英語形態素・原形化（Lemmatization）＆ スキャンOCR補正エンジン
@@ -1130,18 +1144,21 @@ def detect_subject_and_meta(problem_text: str, cover_text: str = "", user_subjec
 # =====================================================================
 def extract_sub_questions_for_tracker(block_text: str, prob_no: str, default_unit: str, ref_book_str: str, is_b_level: bool = False) -> list:
     """
-    大問テキストの中から (1), (2)... (20) や ①, ②... ⑩, (a), (b), (c)... などのすべての設問・空欄番号を検出し、
-    OCRで途中の番号が飛んでいても 1〜最大番号まで連続補完して、1問ずつすべて個別に正誤判定できるリストを生成する。
+    大問テキストの中から (1), (2)... (60) や ①〜⑳, (a)〜(z), ア〜コ などの設問・空欄番号を抽出し、
+    すべて個別に正誤判定できるリストを生成する。
     """
     fw_map = str.maketrans('０１２３４５６７８９', '0123456789')
-    circle_map = {'①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5, '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10, '⑪': 11, '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15}
+    circle_map = {
+        '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5, '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10,
+        '⑪': 11, '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15, '⑯': 16, '⑰': 17, '⑱': 18, '⑲': 19, '⑳': 20
+    }
 
     detected_ints = set()
     # 1. Range pattern like (1)〜(15) or 空所(1)〜(5)
     for m_rng in re.finditer(r'[\(（\[]\s*([0-9１-９]{1,2})\s*[\)）\]]\s*[~〜～\-－]\s*[\(（\[]?\s*([0-9１-９]{1,2})\s*[\)）\]]?', block_text):
         s_n = int(m_rng.group(1).translate(fw_map))
         e_n = int(m_rng.group(2).translate(fw_map))
-        if 1 <= s_n < e_n <= 25:
+        if 1 <= s_n < e_n <= 60:
             for k in range(s_n, e_n + 1):
                 detected_ints.add(k)
 
@@ -1149,46 +1166,53 @@ def extract_sub_questions_for_tracker(block_text: str, prob_no: str, default_uni
     for m_num in re.finditer(r'(?:[\(（\[]\s*([0-9１-９]{1,2})\s*\*?\s*[\)）\]]|問\s*([0-9１-９]{1,2}))', block_text):
         val_s = (m_num.group(1) or m_num.group(2)).translate(fw_map)
         val = int(val_s)
-        if 1 <= val <= 25:
+        if 1 <= val <= 60:
             detected_ints.add(val)
 
-    # 3. Circle numbers ①..⑮
-    has_circle = False
+    # 3. Circle numbers ①..⑳
     for ch, c_num in circle_map.items():
         if ch in block_text:
             detected_ints.add(c_num)
-            has_circle = True
 
     # Special check for Math problem with l = ④, m = ⑤, n = ⑥, ⑦, ⑧
     if "⑥" in block_text and ("⑦" in block_text or "⑧" in block_text):
         for k in range(1, 9):
             detected_ints.add(k)
 
-    # Interpolate from min to max so no question number is skipped due to OCR drop
     found_labels = []
     if detected_ints:
-        max_n = min(25, max(detected_ints))
+        max_n = min(60, max(detected_ints))
         min_n = min(detected_ints)
-        if min_n <= 4 or (len(detected_ints) == 1 and max_n <= 10):
-            start_n = 1
-        elif max_n - min_n < 3:
-            start_n = max(1, max_n - 6)
-        else:
-            start_n = min_n
+        start_n = 1 if (min_n <= 4 or (len(detected_ints) == 1 and max_n <= 10)) else min_n
         for k in range(start_n, max_n + 1):
             found_labels.append(f"({k})")
 
-    # 4. Also check for alphabetical sub-questions like (a), (b), (c)
-    alpha_matches = re.findall(r'[\(（\[]\s*([a-f])\s*[\)）\]]', block_text)
+    # 4. Alphabetical sub-questions (a)..(z)
+    alpha_matches = re.findall(r'[\(（\[]\s*([a-z])\s*[\)）\]]', block_text)
     if alpha_matches:
-        max_alpha = max(alpha_matches)
-        for code in range(ord('a'), min(ord('f'), ord(max_alpha)) + 1):
-            lbl_a = f"({chr(code)})"
-            if lbl_a not in found_labels:
-                found_labels.append(lbl_a)
+        # Exclude common Japanese annotations like (i)/(ii) if treated elsewhere unless continuous
+        filtered_alpha = [a for a in alpha_matches if a <= 'n']
+        if filtered_alpha:
+            max_alpha = max(filtered_alpha)
+            for code in range(ord('a'), min(ord('n'), ord(max_alpha)) + 1):
+                lbl_a = f"({chr(code)})"
+                if lbl_a not in found_labels:
+                    found_labels.append(lbl_a)
+
+    # 5. Katakana sub-questions like [ア], (ア), 空欄ア..コ
+    kata_order = "アイウエオカキクケコ"
+    kata_matches = re.findall(r'(?:[\(（\[【]\s*([ア-コ])\s*[\)）\]】]|空欄\s*([ア-コ]))', block_text)
+    if kata_matches:
+        found_k = [m[0] or m[1] for m in kata_matches if (m[0] or m[1]) in kata_order]
+        if found_k:
+            max_idx = max(kata_order.index(k) for k in found_k)
+            for k in kata_order[:max_idx + 1]:
+                lbl_k = f"[{k}]"
+                if lbl_k not in found_labels:
+                    found_labels.append(lbl_k)
 
     if not found_labels:
-        default_cnt = 8 if len(block_text) >= 350 else 6
+        default_cnt = 6 if len(block_text) >= 350 else 4
         found_labels = [f"({k})" for k in range(1, default_cnt + 1)]
 
     sub_items = []
@@ -1205,7 +1229,7 @@ def extract_sub_questions_for_tracker(block_text: str, prob_no: str, default_uni
             tier_label = "🔴 応用・発展"
 
         sub_items.append({
-            "id": f"{prob_no}_{lbl.strip('()')}_{i}",
+            "id": f"{prob_no}_{lbl.strip('()[]')}_{i}",
             "label": f"{prob_no} {lbl}",
             "short_label": lbl,
             "unit": default_unit,
@@ -1219,55 +1243,29 @@ def extract_sub_questions_for_tracker(block_text: str, prob_no: str, default_uni
 
 def extract_english_tracker_sections(text: str) -> list:
     """
-    英語過去問から各大問・設問パートの (1), (2), (3)... を1問も省略せずすべて個別に抽出する。
+    英語過去問から検出された全大問・全設問パートを上限カットなしで抽出する。
     """
     sections = []
-    # Check if Kansai Univ / standard private univ structure 〔I〕A, B, 〔II〕A, B, 〔III〕A, B exists
-    has_roman_2 = bool(re.search(r'〔\s*(?:II|Ⅱ|2)\s*〕', text))
-    has_roman_3 = bool(re.search(r'〔\s*(?:III|Ⅲ|m|皿|1II|IlI|3)\s*〕', text))
-
-    if has_roman_2 or has_roman_3:
-        part_configs = [
-            ("大問〔I〕A", "会話文空所補充", 5, "【改訂版】速読英熟語 ／ 肘井の英会話問題が面白いほど解ける本", "must_score"),
-            ("大問〔I〕B", "段落整序（文脈・指示語）", 6, "関正生の英語長文ポラリス1・2 ／ 入門英文問題精講", "border_line"),
-            ("大問〔II〕A", "長文① 空所補充（語彙・熟語・接続詞）", 15, "【5訂版】システム英単語(1〜1700) ＆ 速読英熟語 ＆ Vintage", "must_score"),
-            ("大問〔II〕B", "長文① 本文内容一致", 7, "関正生の英語長文ポラリス1・2（パラグラフ検索法）", "must_score"),
-            ("大問〔III〕A", "長文② 下線部意味・言い換え解釈", 10, "肘井学の読解のための英文法［必修編］／ 英文解釈ポラリス1", "border_line"),
-            ("大問〔III〕B", "長文② 本文内容一致・主題", 7, "関正生の英語長文ポラリス2［応用レベル］", "must_score")
-        ]
-        for p_no, p_unit, q_cnt, rem_book, default_tier in part_configs:
-            sub_qs = []
-            for k in range(1, q_cnt + 1):
-                tier = "must_score" if (default_tier == "must_score" and k <= int(q_cnt * 0.8)) else "border_line"
-                tier_lbl = "🟢 基礎・標準（必答）" if tier == "must_score" else "🟡 標準・差がつく"
-                sub_qs.append({
-                    "id": f"{p_no}_{k}",
-                    "label": f"{p_no} ({k})",
-                    "short_label": f"({k})",
-                    "unit": p_unit,
-                    "tier": tier,
-                    "tier_label": tier_lbl,
-                    "points": 1,
-                    "remedy_book": rem_book
-                })
-            sections.append({
-                "problem_no": p_no,
-                "unit": p_unit,
-                "sub_questions": sub_qs
-            })
-        return sections
-
-    # Generic English exam question extraction
     blocks = split_exam_into_problems(text, split_sub_roman=False)
-    for idx, blk in enumerate(blocks[:5], start=1):
+    for idx, blk in enumerate(blocks, start=1):
         p_no = f"大問〔{idx}〕"
-        sub_qs = extract_sub_questions_for_tracker(
-            blk, p_no, "英語長文・語彙・文法設問",
-            "【5訂版】システム英単語(1〜1700) ＆ 速読英熟語 ＆ 英語長文ポラリス"
-        )
+        if re.search(r'英作文|和文英訳|自由英作|write an essay|your opinion', blk, re.I):
+            unit_lbl = f"英語 大問{idx}（英作文・表現）"
+            ref_str = "【ハイパートレーニング 和文英訳編 / 自由英作文編】"
+        elif re.search(r'会話|dialogue|conversation', blk, re.I) and len(blk) < 1800:
+            unit_lbl = f"英語 大問{idx}（会話文・表現）"
+            ref_str = "【改訂版】速読英熟語 ／ 肘井の英会話問題が面白いほど解ける本"
+        elif re.search(r'誤文|整序|並び替え|空所|文法|grammar', blk, re.I) and len(blk) < 1500:
+            unit_lbl = f"英語 大問{idx}（文法・語彙・整序）"
+            ref_str = "【Vintage 4th / Next Stage】 ／ 【英文法ポラリス1・2】"
+        else:
+            unit_lbl = f"英語 大問{idx}（長文読解・設問）"
+            ref_str = "【5訂版】システム英単語(1〜1700) ＆ 速読英熟語 ＆ 英語長文ポラリス"
+
+        sub_qs = extract_sub_questions_for_tracker(blk, p_no, unit_lbl, ref_str)
         sections.append({
             "problem_no": p_no,
-            "unit": f"英語 大問{idx} 各設問",
+            "unit": unit_lbl,
             "sub_questions": sub_qs
         })
     return sections
@@ -1716,17 +1714,21 @@ def analyze_english_exam(text: str, university: str) -> dict:
 # =====================================================================
 def split_exam_into_problems(text: str, split_sub_roman: bool = False) -> list:
     norm_text = text
-    norm_text = re.sub(r'〔\s*(?:I|Ⅰ)\s*〕(?=\s*(?:次の|A\.|問|原点を|関数|図))', '\n〔I〕', norm_text)
-    norm_text = re.sub(r'〔\s*(?:II|Ⅱ)\s*〕(?=\s*(?:次の|A\.|問|原点を|関数|図))', '\n〔II〕', norm_text)
-    norm_text = re.sub(r'〔\s*(?:III|Ⅲ|m|皿|1II|IlI)\s*〕(?=\s*(?:次の|A\.|問|原点を|関数|図))', '\n〔III〕', norm_text)
-    norm_text = re.sub(r'〔\s*(?:IV|Ⅳ)\s*〕(?=\s*(?:次の|A\.|問|原点を|関数|図))', '\n〔IV〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:I|Ⅰ)\s*[〕\]]', '\n〔I〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:II|Ⅱ)\s*[〕\]]', '\n〔II〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:III|Ⅲ|m|皿|1II|IlI)\s*[〕\]]', '\n〔III〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:IV|Ⅳ)\s*[〕\]]', '\n〔IV〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:V|Ⅴ)\s*[〕\]]', '\n〔V〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:VI|Ⅵ)\s*[〕\]]', '\n〔VI〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:VII|Ⅶ)\s*[〕\]]', '\n〔VII〕', norm_text)
+    norm_text = re.sub(r'(?:^|\s)[〔\[]\s*(?:VIII|Ⅷ)\s*[〕\]]', '\n〔VIII〕', norm_text)
 
     if split_sub_roman:
         norm_text = re.sub(r'\(\s*(?:i|ｉ)\s*\)\s*(?=[質水半図な長点気滑真])', '\n(i) ', norm_text)
         norm_text = re.sub(r'\(\s*(?:ii|ⅱ|i\s*i)\s*\)', '\n(ii) ', norm_text)
 
-    pattern = r'(?=(?:〔(?:I|II|III|IV)〕|第\s*[1-9１-９一二三四五六]\s*問|【\s*[1-9１-９一二三四五六]\s*】|問題\s*[1-9１-９一二三四五六]))'
-    major_blocks = [b.strip() for b in re.split(pattern, norm_text) if len(b.strip()) >= 25]
+    pattern = r'(?=(?:[〔\[](?:I|II|III|IV|V|VI|VII|VIII|[1-9]|10)[〕\]]|第\s*(?:[1-9１-９]|10|一|二|三|四|五|六|七|八)\s*問|【\s*(?:[1-9１-９]|10)\s*】|問題\s*(?:[1-9１-９]|10)))'
+    major_blocks = [b.strip() for b in re.split(pattern, norm_text) if len(b.strip()) >= 15]
 
     if split_sub_roman:
         final_blocks = []
@@ -1740,13 +1742,13 @@ def split_exam_into_problems(text: str, split_sub_roman: bool = False) -> list:
             else:
                 final_blocks.append(mb)
         if final_blocks:
-            return final_blocks[:8]
+            return final_blocks[:30]
 
     if not major_blocks:
         paras = [p.strip() for p in norm_text.split("\n\n") if len(p.strip()) >= 30]
-        return paras[:6] if paras else [norm_text]
+        return paras[:12] if paras else [norm_text]
 
-    return major_blocks[:8]
+    return major_blocks[:30]
 
 
 # =====================================================================
@@ -1870,7 +1872,7 @@ def analyze_math_exam(text: str, university: str) -> dict:
     b_level_count = 0
     has_math3 = False
 
-    for idx, blk in enumerate(blocks[:6], start=1):
+    for idx, blk in enumerate(blocks, start=1):
         best_rule = MATH_TOPIC_RULES[0]
         best_hits = []
         for rule in MATH_TOPIC_RULES:
@@ -2078,7 +2080,7 @@ def analyze_physics_exam(text: str, university: str) -> dict:
     a_level_count = 0
     b_level_count = 0
 
-    for idx, blk in enumerate(blocks[:8], start=1):
+    for idx, blk in enumerate(blocks, start=1):
         best_rule = PHYSICS_TOPIC_RULES[0]
         best_hits = []
         for rule in PHYSICS_TOPIC_RULES:
@@ -2341,7 +2343,7 @@ def analyze_structured_subject_exam(text: str, subject: str, university: str) ->
     tracker_sections = []
     rules = tmpl["rules"]
 
-    for idx, blk in enumerate(blocks[:6], start=1):
+    for idx, blk in enumerate(blocks, start=1):
         best_rule = rules[0]
         best_hits = []
         for rule in rules:
@@ -2444,7 +2446,7 @@ def analyze_other_subject_exam(text: str, subject: str, university: str) -> dict
 
         blocks = split_exam_into_problems(text, split_sub_roman=False)
         tracker_sections = []
-        for idx, blk in enumerate(blocks[:5], start=1):
+        for idx, blk in enumerate(blocks, start=1):
             prob_no = f"大問〔{idx}〕"
             sub_qs = extract_sub_questions_for_tracker(
                 blk, prob_no, f"{subj_name} 通史・文化史・史料問題",
@@ -2466,7 +2468,7 @@ def analyze_other_subject_exam(text: str, subject: str, university: str) -> dict
                 "star1_adv_count": c_cnt,
                 "ab_coverage_rate": ab_cov
             },
-            "matched_terms": matched_terms[:35],
+            "matched_terms": matched_terms[:60],
             "tracker_sections": tracker_sections,
             "quantitative_borders": [
                 {
@@ -2517,52 +2519,270 @@ def _extract_standard_exam_vec(result: dict, subject: str) -> list:
     return [min(0.95, score / 100.0 + 0.05), 0.78, 0.50 if subject in ("math", "physics", "chemistry") else 0.40, a_cov / 100.0, 0.68, 0.76]
 
 
+def get_curriculum_routes_with_db_status() -> dict:
+    """Return curriculum_routes.json annotated with Confirmation Test & Knowledge Base availability."""
+    from ten_year_dna_engine import CONFIRMATION_TEST_BOOKS
+
+    routes = load_curriculum_routes()
+    conf_names = [b.get("name", "") for b in CONFIRMATION_TEST_BOOKS]
+    kb_titles = [v.get("title", "") for v in KNOWLEDGE_BASE.get("vocab", {}).values()]
+    kb_titles.extend([v.get("title", "") for v in KNOWLEDGE_BASE.get("history", {}).values()])
+    kb_titles.append("化学重要問題集")
+    kb_titles.append("数学重要問題集")
+
+    enriched = {}
+    for subj_key, subj_data in routes.items():
+        s_copy = copy.deepcopy(subj_data)
+        for lv in s_copy.get("levels", []):
+            for st in lv.get("steps", []):
+                cm = st.get("conf_match") or st.get("book", "")
+                st["in_confirmation_db"] = any(cm and cm in cn for cn in conf_names)
+                st["in_matching_db"] = any(cm and cm in kt for kt in kb_titles)
+        enriched[subj_key] = s_copy
+    return enriched
+
+
+def build_route_gap_analysis(subject: str, result: dict) -> list:
+    """
+    Quantitatively compute what each curriculum route level covers vs. what remains uncovered
+    (specific English words, math/science problems, or history terms).
+    """
+    routes = load_curriculum_routes()
+    subj_route = routes.get(subject, {})
+    levels = subj_route.get("levels", [])
+    if not levels:
+        return []
+
+    gap_list = []
+    if subject == "english":
+        sim = result.get("vocab_combination_simulator", {})
+        matrix = sim.get("word_matrix") or []
+        books_meta = {b["id"]: b["name"].split("（")[0].replace("★", "") for b in (sim.get("books") or [])}
+        total_u = max(1, len(matrix))
+        basic_tokens = sim.get("basic_token_count", 0)
+        total_tokens = max(1, sim.get("total_all_tokens", 1))
+
+        for lv in levels:
+            v_keys = lv.get("vocab_keys") or ["systan_1700"]
+            hit_items = []
+            uncov_items = []
+            hit_tok = 0
+            for item in matrix:
+                b_map = item.get("books", {})
+                if any(vk in b_map for vk in v_keys):
+                    hit_items.append(item)
+                    hit_tok += item.get("freq", 1)
+                else:
+                    found_in = [
+                        f"{books_meta.get(bk, bk)} ({qnum})"
+                        for bk, qnum in b_map.items()
+                        if bk not in v_keys and not bk.startswith("systan_s")
+                    ]
+                    uncov_items.append({
+                        "title": item["word"],
+                        "detail": item.get("meaning") or "本文出現語（上位語彙・文脈推測）",
+                        "freq": item.get("freq", 1),
+                        "extra": ("収録先: " + " / ".join(found_in[:3])) if found_in else "主要単語帳未掲載（注釈・専門語・推測語）"
+                    })
+            uncov_items.sort(key=lambda x: (-x["freq"], x["title"]))
+            exam_cov = round(len(hit_items) / total_u * 100, 1) if matrix else lv.get("base_coverage_target", 85.0)
+            passage_cov = round((basic_tokens + hit_tok) / total_tokens * 100, 1) if matrix else exam_cov
+            uncov_rate = round(max(0.0, 100.0 - exam_cov), 1)
+            gap_list.append({
+                "level_id": lv["level_id"],
+                "level_name": lv["level_name"],
+                "route_books": [st["book"] for st in lv.get("steps", [])],
+                "coverage_rate": exam_cov,
+                "passage_coverage_rate": passage_cov,
+                "uncovered_rate": uncov_rate,
+                "covered_count": len(hit_items),
+                "uncovered_count": len(uncov_items),
+                "total_target_count": len(matrix),
+                "unit_label": "重要語",
+                "uncovered_items": uncov_items[:25],
+                "summary_comment": (
+                    f"このルートの単語範囲（{', '.join(v_keys)}）で重要語の {exam_cov}%（本文全体 {passage_cov}%）をカバー。"
+                    f"未収録として {len(uncov_items)}語（{uncov_rate}%）が残ります。"
+                )
+            })
+        return gap_list
+
+    if subject in ("nihonshi", "sekaishi"):
+        terms = result.get("matched_terms") or []
+        ev = result.get("level_evaluation", {})
+        a_cnt = ev.get("star3_basic_count", 0)
+        b_cnt = ev.get("star2_std_count", 0)
+        c_cnt = ev.get("star1_adv_count", 0)
+        tot = max(1, a_cnt + b_cnt + c_cnt)
+        for lv in levels:
+            lid = lv["level_id"]
+            if lid == "nichidai":
+                cov = round(a_cnt / tot * 100, 1) if terms else 68.0
+                uncov = [{"title": t["term"], "detail": f"ランク{t['difficulty']} ({t.get('q_number','')})", "extra": t.get("context", "")} for t in terms if t.get("difficulty") in ("B", "C")]
+            elif lid == "march":
+                cov = round((a_cnt + b_cnt) / tot * 100, 1) if terms else 86.0
+                uncov = [{"title": t["term"], "detail": f"難関ランク{t['difficulty']} ({t.get('q_number','')})", "extra": t.get("context", "")} for t in terms if t.get("difficulty") == "C"]
+            else:
+                cov = 97.5 if c_cnt > 0 else 99.0
+                uncov = [{"title": "未見史料・テーマ史論述", "detail": "一問一答外の思考・史料読解要素", "extra": "HISTORIA・実力をつける100題で補強"}]
+            uncov_rate = round(max(0.0, 100.0 - cov), 1)
+            gap_list.append({
+                "level_id": lid,
+                "level_name": lv["level_name"],
+                "route_books": [st["book"] for st in lv.get("steps", [])],
+                "coverage_rate": cov,
+                "uncovered_rate": uncov_rate,
+                "covered_count": max(0, tot - len(uncov)) if lid != "sokei" else tot,
+                "uncovered_count": len(uncov),
+                "total_target_count": tot,
+                "unit_label": "用語",
+                "uncovered_items": uncov[:25],
+                "summary_comment": f"検出用語全{tot}語のうち、このレベルルートで {cov}% を網羅。未収録ギャップは {uncov_rate}%（{len(uncov)}件）です。"
+            })
+        return gap_list
+
+    # Structured subjects: math, physics, chemistry, biology, gendai, kobun, chiri, seikei
+    probs = result.get("problem_analyses") or []
+    ev = result.get("level_evaluation", {})
+    a_cov = float(ev.get("juyo_a_coverage") or 85.0)
+    ab_cov = float(ev.get("juyo_ab_coverage") or 96.0)
+    tot_p = max(1, len(probs))
+
+    for lv in levels:
+        lid = lv["level_id"]
+        if lid == "nichidai":
+            cov = round(max(45.0, a_cov - 12.0), 1)
+            uncov = [
+                {
+                    "title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}",
+                    "detail": p.get("difficulty_level", "標準〜応用"),
+                    "extra": f"抜粋: {p.get('excerpt', '')[:65]} ／ 要追加: {p['reference_mappings'][-1]['detail'][:65] if p.get('reference_mappings') else '標準問題集'}"
+                }
+                for p in probs
+                if ("B" in p.get("difficulty_level", "") or "応用" in p.get("difficulty_level", "") or len(probs) <= 2)
+            ]
+            if not uncov and probs:
+                uncov = [{"title": f"{probs[-1]['problem_no']}（後半応用設問）", "detail": probs[-1]["detected_unit"], "extra": "基礎問の次のステップ（青チャート・重問A等）での演習が必要"}]
+        elif lid == "march":
+            cov = round(a_cov, 1)
+            uncov = [
+                {
+                    "title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}",
+                    "detail": p.get("difficulty_level", "A〜Bレベル"),
+                    "extra": f"抜粋: {p.get('excerpt', '')[:65]} ／ 要追加: 上位B問題・名問の森・ハイレベル問題集"
+                }
+                for p in probs
+                if "B" in p.get("difficulty_level", "")
+            ]
+        else:
+            cov = round(ab_cov, 1)
+            uncov = [
+                {
+                    "title": "難関融合・初見思考力パート（最難関約3〜5%）",
+                    "detail": "各大問の最終小問(3)(4)や初見誘導設問",
+                    "extra": "標準〜B問題ルートで合格点は確保可能。満点狙いの融合論証のみ残余ギャップ。"
+                }
+            ]
+        uncov_rate = round(max(0.0, 100.0 - cov), 1)
+        gap_list.append({
+            "level_id": lid,
+            "level_name": lv["level_name"],
+            "route_books": [st["book"] for st in lv.get("steps", [])],
+            "coverage_rate": cov,
+            "uncovered_rate": uncov_rate,
+            "covered_count": max(0, tot_p - len(uncov)) if lid != "sokei" else tot_p,
+            "uncovered_count": len(uncov),
+            "total_target_count": tot_p,
+            "unit_label": "大問/テーマ",
+            "uncovered_items": uncov,
+            "summary_comment": f"全{tot_p}大問に対し、このルートでの到達可能カバー率は {cov}%。未収録・応用ギャップは {uncov_rate}%（該当 {len(uncov)}件）です。"
+        })
+    return gap_list
+
+
 # =====================================================================
 # 11. 統合エントリーポイント（オンメモリ解析＋即時クリーンアップ保証）
 # =====================================================================
-def _extract_exam_metadata_for_dna(text_to_analyze: str, cover_text: str, filename: str, subject: str, university: str, result: dict) -> dict:
+def _extract_exam_metadata_for_dna(
+    text_to_analyze: str,
+    cover_text: str,
+    filename: str,
+    subject: str,
+    university: str,
+    result: dict,
+    univ_detected: bool = True,
+    user_faculty: str = "",
+    user_exam_type: str = "",
+    user_year: str = "",
+) -> dict:
     combined = (cover_text or "") + "\n" + (text_to_analyze or "")[:2500] + "\n" + (filename or "")
-    # Detect year (2015..2027) or 令和X年 or (26) / 2026_
-    year_val = "2026"
-    m_yr = re.search(r'(201[5-9]|202[0-7])', combined)
-    if m_yr:
-        year_val = m_yr.group(1)
-    else:
-        m_reiwa = re.search(r'令和\s*([1-9])\s*年', combined)
-        if m_reiwa:
-            year_val = str(2018 + int(m_reiwa.group(1)))
+    fn_low = (filename or "").lower()
+
+    # Detect year (2015..2027) or 令和X年
+    year_val = (user_year or "").strip()
+    year_detected = bool(year_val)
+    if not year_val:
+        m_yr = re.search(r'(201[5-9]|202[0-7])', combined)
+        if m_yr:
+            year_val = m_yr.group(1)
+            year_detected = True
+        else:
+            m_reiwa = re.search(r'令和\s*([1-9])\s*年', combined)
+            if m_reiwa:
+                year_val = str(2018 + int(m_reiwa.group(1)))
+                year_detected = True
 
     # Detect faculty / division
-    faculty_val = "共通・標準"
-    fac_patterns = [
-        (r'システム理工|環境都市工|化学生命工|基幹理工|創造理工|先進理工|理工学部|工学部|理学部', "理工系学部"),
-        (r'医学部|医学科|薬学部|看護', "医歯薬・生命系"),
-        (r'法学部', "法学部"),
-        (r'商学部|経営学部', "商・経営学部"),
-        (r'経済学部|政治経済|政経', "経済・政経学部"),
-        (r'文学部|文化構想|人文学部|心理|社会学部|教育学部|外国語|国際', "文・社会・国際系"),
-        (r'理系', "理系"),
-        (r'文系', "文系")
-    ]
-    for pat, lbl in fac_patterns:
-        if re.search(pat, combined):
-            faculty_val = lbl
-            break
+    faculty_val = (user_faculty or "").strip()
+    faculty_detected = bool(faculty_val)
+    if not faculty_val:
+        fac_patterns = [
+            (r'システム理工|環境都市工|化学生命工|基幹理工|創造理工|先進理工|理工学部|工学部|理学部', "理工系学部"),
+            (r'医学部|医学科|薬学部|看護', "医歯薬・生命系"),
+            (r'法学部', "法学部"),
+            (r'商学部|経営学部', "商・経営学部"),
+            (r'経済学部|政治経済|政経', "経済・政経学部"),
+            (r'文学部|文化構想|人文学部|心理|社会学部|教育学部|外国語|国際', "文・社会・国際系"),
+            (r'全学部|全学統一', "全学部共通"),
+            (r'理系', "理系"),
+            (r'文系', "文系")
+        ]
+        for pat, lbl in fac_patterns:
+            if re.search(pat, combined):
+                faculty_val = lbl
+                faculty_detected = True
+                break
+        if not faculty_val:
+            for slug, lbl in [("riko", "理工系学部"), ("hou", "法学部"), ("keizai", "経済・政経学部"), ("shougaku", "商・経営学部"), ("bungaku", "文・社会・国際系"), ("igaku", "医歯薬・生命系"), ("rikei", "理系"), ("bunkei", "文系")]:
+                if re.search(rf'(?:^|[_\-\s]){slug}(?:$|[_\-\s\.])', fn_low):
+                    faculty_val = lbl
+                    faculty_detected = True
+                    break
 
     # Detect exam format / schedule
-    exam_type_val = "一般・標準"
-    for pat, lbl in [
-        (r'全学部日程|全学統一|全学部入試|全学部', "全学部日程"),
-        (r'学部個別|個別日程', "学部個別日程"),
-        (r'前期日程|前期', "前期日程"),
-        (r'後期日程|後期', "後期日程"),
-        (r'共通テスト|センター試験', "共通テスト"),
-        (r'([AＡBＢCＣ]\s*方式|[AＡBＢCＣ]\s*日程)', "方式・日程別")
-    ]:
-        m_et = re.search(pat, combined)
-        if m_et:
-            exam_type_val = m_et.group(1).replace(" ", "") if lbl == "方式・日程別" else lbl
-            break
+    exam_type_val = (user_exam_type or "").strip()
+    exam_type_detected = bool(exam_type_val)
+    if not exam_type_val:
+        for pat, lbl in [
+            (r'全学部日程|全学統一|全学部入試|全学部', "全学部日程"),
+            (r'学部個別|個別日程', "学部個別日程"),
+            (r'前期日程|前期', "前期日程"),
+            (r'後期日程|後期', "後期日程"),
+            (r'共通テスト|センター試験', "共通テスト"),
+            (r'([AＡBＢCＣ]\s*方式|[AＡBＢCＣ]\s*日程)', "方式・日程別"),
+            (r'一般入試|一般選抜', "一般入試")
+        ]:
+            m_et = re.search(pat, combined)
+            if m_et:
+                exam_type_val = m_et.group(1).replace(" ", "") if lbl == "方式・日程別" else lbl
+                exam_type_detected = True
+                break
+        if not exam_type_val:
+            for slug, lbl in [("zen", "全学部日程"), ("zengaku", "全学部日程"), ("kobetsu", "学部個別日程"), ("zenki", "前期日程"), ("kouki", "後期日程"), ("kyotsu", "共通テスト"), ("ippan", "一般入試")]:
+                if re.search(rf'(?:^|[_\-\s]){slug}(?:$|[_\-\s\.])', fn_low):
+                    exam_type_val = lbl
+                    exam_type_detected = True
+                    break
 
     # Content fingerprint (16-char SHA256 hash of normalized text without keeping original text)
     norm_fp_src = re.sub(r'[^a-z0-9\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]+', '', (text_to_analyze or "").lower())
@@ -2578,7 +2798,6 @@ def _extract_exam_metadata_for_dna(text_to_analyze: str, cover_text: str, filena
             book_rates["[5訂版]システム英単語 (全2027語)"] = sc.get("cumulative_all_exam_rate", 0)
         for bc in (result.get("book_comparisons") or [])[:6]:
             book_rates[bc["book_name"]] = bc["exam_vocab_coverage"]
-        # Calculate Systan 1700 + Sokutan Adv combined coverage from matrix
         sim = result.get("vocab_combination_simulator", {})
         mat = sim.get("word_matrix") or []
         if mat:
@@ -2598,24 +2817,39 @@ def _extract_exam_metadata_for_dna(text_to_analyze: str, cover_text: str, filena
         if result.get("idiom_matches"):
             topics.append(f"熟語表現 ({len(result['idiom_matches'])}種)")
     else:
-        for pa in (result.get("problem_analyses") or [])[:4]:
+        for pa in (result.get("problem_analyses") or [])[:6]:
             u_name = pa.get("detected_unit", "").split("（")[0]
             if u_name and u_name not in topics:
                 topics.append(u_name)
 
     return {
-        "university": university,
+        "university": university if univ_detected else "",
         "faculty": faculty_val,
         "exam_type": exam_type_val,
         "year": year_val,
         "subject": subject,
         "content_fingerprint": fp_hash,
         "book_rates": book_rates,
-        "topics": topics
+        "topics": topics,
+        "detected_flags": {
+            "university": univ_detected,
+            "faculty": faculty_detected,
+            "exam_type": exam_type_detected,
+            "year": year_detected,
+        }
     }
 
 
-def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, subject: str = "auto", university: str = "", filename: str = "") -> dict:
+def analyze_past_exam_on_memory(
+    pdf_bytes: bytes = None,
+    raw_text: str = None,
+    subject: str = "auto",
+    university: str = "",
+    filename: str = "",
+    faculty: str = "",
+    exam_type: str = "",
+    year: str = "",
+) -> dict:
     extracted_meta = {"page_count": 1, "problem_page_count": 1, "char_count": 0}
     cover_text = ""
     try:
@@ -2659,17 +2893,25 @@ def analyze_past_exam_on_memory(pdf_bytes: bytes = None, raw_text: str = None, s
         base_ab = float(ev.get("juyo_ab_coverage") or result.get("systan_coverage", {}).get("cumulative_all_exam_rate") or 96.0)
 
         exam_vec = _extract_standard_exam_vec(result, detected_subj)
-        dna_meta = _extract_exam_metadata_for_dna(text_to_analyze, cover_text, filename, detected_subj, detected_univ, result)
+        dna_meta = _extract_exam_metadata_for_dna(
+            text_to_analyze, cover_text, filename, detected_subj, detected_univ, result,
+            univ_detected=univ_detected,
+            user_faculty=faculty,
+            user_exam_type=exam_type,
+            user_year=year,
+        )
         dna_meta["exam_vector"] = [round(x, 4) for x in exam_vec]
 
         dna_pack = analyze_10yr_university_and_concurrent(
             exam_vec, detected_univ, detected_subj,
-            current_faculty=dna_meta["faculty"],
-            current_exam_type=dna_meta["exam_type"]
+            current_faculty=dna_meta["faculty"] or "共通・標準",
+            current_exam_type=dna_meta["exam_type"] or "一般・標準"
         )
         result["univ_detected"] = univ_detected
+        result["detected_flags"] = dna_meta["detected_flags"]
         result["exam_vector"] = dna_meta["exam_vector"]
         result["dna_candidate"] = dna_meta
+        result["route_gap_analysis"] = build_route_gap_analysis(detected_subj, result)
         result["concurrent_universities"] = dna_pack["concurrent_universities"]
         result["ten_year_dna"] = dna_pack
         result["confirmation_test_books"] = get_subject_confirmation_books(detected_subj, base_a_cov=base_a, base_ab_cov=base_ab)
