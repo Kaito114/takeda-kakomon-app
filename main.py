@@ -421,10 +421,28 @@ def get_10yr_dna_list():
 
 
 @app.get("/api/curriculum-routes")
-def get_curriculum_routes_endpoint():
+def get_curriculum_routes_endpoint(reload: bool = False):
+    data = get_curriculum_routes_with_db_status(force_reload=reload)
     return {
         "status": "ok",
-        "routes": get_curriculum_routes_with_db_status(),
+        "files_count": data.get("files_count", 0),
+        "source_dir": data.get("source_dir", "takeda2026rout"),
+        "routes": data.get("subjects", {}),
+    }
+
+
+@app.post("/api/admin/reload-routes")
+def admin_reload_routes(request: Request):
+    auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
+    if not auth_info or auth_info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+    data = get_curriculum_routes_with_db_status(force_reload=True)
+    return {
+        "status": "ok",
+        "files_count": data.get("files_count", 0),
+        "subjects_count": len(data.get("subjects", {})),
+        "message": f"takeda2026rout 内のルートPDF（計 {data.get('files_count', 0)} 冊/ファイル）を再読込しました。",
+        "routes": data.get("subjects", {}),
     }
 
 

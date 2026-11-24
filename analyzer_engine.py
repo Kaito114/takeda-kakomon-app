@@ -50,6 +50,8 @@ def get_rapid_ocr():
 KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "knowledge_base.json")
 ROUTES_PATH = os.path.join(os.path.dirname(__file__), "curriculum_routes.json")
 
+import route_pdf_parser as rpp
+
 with open(KNOWLEDGE_PATH, "r", encoding="utf-8") as f:
     KNOWLEDGE_BASE = json.load(f)
 
@@ -2519,94 +2521,306 @@ def _extract_standard_exam_vec(result: dict, subject: str) -> list:
     return [min(0.95, score / 100.0 + 0.05), 0.78, 0.50 if subject in ("math", "physics", "chemistry") else 0.40, a_cov / 100.0, 0.68, 0.76]
 
 
-def get_curriculum_routes_with_db_status() -> dict:
-    """Return curriculum_routes.json annotated with Confirmation Test & Knowledge Base availability."""
+def get_curriculum_routes_with_db_status(force_reload: bool = False) -> dict:
+    """
+    Return parsed 2026 route PDFs (`takeda2026rout/*.pdf`) annotated with DB status,
+    plus fallback curriculum_routes.json entries for any subject without PDFs (e.g. biology).
+    """
     from ten_year_dna_engine import CONFIRMATION_TEST_BOOKS
 
-    routes = load_curriculum_routes()
     conf_names = [b.get("name", "") for b in CONFIRMATION_TEST_BOOKS]
     kb_titles = [v.get("title", "") for v in KNOWLEDGE_BASE.get("vocab", {}).values()]
     kb_titles.extend([v.get("title", "") for v in KNOWLEDGE_BASE.get("history", {}).values()])
-    kb_titles.append("化学重要問題集")
-    kb_titles.append("数学重要問題集")
+    kb_titles.extend(["化学重要問題集", "数学重要問題集"])
 
-    enriched = {}
-    for subj_key, subj_data in routes.items():
-        s_copy = copy.deepcopy(subj_data)
-        for lv in s_copy.get("levels", []):
+    def _is_in_conf(book_name: str, kb_key: str) -> bool:
+        norm = re.sub(r"[\s　・\[\]【】()（）]+", "", book_name).lower()
+        for cn in conf_names:
+            cn_n = re.sub(r"[\s　・\[\]【】()（）]+", "", cn).lower()
+            if (len(norm) >= 4 and (norm[:6] in cn_n or cn_n[:6] in norm)):
+                return True
+        if kb_key and kb_key in ("systan", "target1900", "leap", "teppeki", "sokutan_adv", "eiken_pre1", "sparta3", "sokudoku_idiom", "target_idiom1000", "kobun315", "kobun330", "kanji1800", "kokugo1700", "nihonshi", "sekaishi", "chem_juyo", "math_juyo"):
+            return True
+        return False
+
+    parsed = rpp.load_all_2026_routes(force_reload=force_reload)
+    out_subjects = {}
+    for sk, sdata in parsed.get("subjects", {}).items():
+        tiers_out = []
+        for tk, tinfo in sdata.get("tiers", {}).items():
+            books_out = []
+            for bk in tinfo.get("books", []):
+                b_copy = dict(bk)
+                b_copy["in_confirmation_db"] = _is_in_conf(bk["book"], bk.get("kb_key", ""))
+                b_copy["in_matching_db"] = bool(bk.get("kb_key")) or any(k in bk["book"] for k in kb_titles)
+                books_out.append(b_copy)
+            tiers_out.append({
+                "level_id": tk,
+                "level_name": f"{tinfo.get('subject_jp', sk)}（{tk}）",
+                "file": tinfo.get("file", ""),
+                "total_weeks": tinfo.get("total_weeks", 0),
+                "milestones": tinfo.get("milestones", []),
+                "books": books_out,
+            })
+        out_subjects[sk] = {
+            "subject_key": sk,
+            "subject_jp": sdata.get("subject_jp", sk),
+            "source": "takeda2026rout",
+            "tiers": tiers_out,
+        }
+
+    # Fallback for any subject not present in takeda2026rout (e.g. biology)
+    fallback_routes = load_curriculum_routes()
+    for sk, sdata in fallback_routes.items():
+        if sk in out_subjects:
+            continue
+        tiers_out = []
+        for lv in sdata.get("levels", []):
+            books_out = []
             for st in lv.get("steps", []):
                 cm = st.get("conf_match") or st.get("book", "")
-                st["in_confirmation_db"] = any(cm and cm in cn for cn in conf_names)
-                st["in_matching_db"] = any(cm and cm in kt for kt in kb_titles)
-        enriched[subj_key] = s_copy
-    return enriched
-
-
-def build_route_gap_analysis(subject: str, result: dict) -> list:
-    """
-    Quantitatively compute what each curriculum route level covers vs. what remains uncovered
-    (specific English words, math/science problems, or history terms).
-    """
-    routes = load_curriculum_routes()
-    subj_route = routes.get(subject, {})
-    levels = subj_route.get("levels", [])
-    if not levels:
-        return []
-
-    gap_list = []
-    if subject == "english":
-        sim = result.get("vocab_combination_simulator", {})
-        matrix = sim.get("word_matrix") or []
-        books_meta = {b["id"]: b["name"].split("（")[0].replace("★", "") for b in (sim.get("books") or [])}
-        total_u = max(1, len(matrix))
-        basic_tokens = sim.get("basic_token_count", 0)
-        total_tokens = max(1, sim.get("total_all_tokens", 1))
-
-        for lv in levels:
-            v_keys = lv.get("vocab_keys") or ["systan_1700"]
-            hit_items = []
-            uncov_items = []
-            hit_tok = 0
-            for item in matrix:
-                b_map = item.get("books", {})
-                if any(vk in b_map for vk in v_keys):
-                    hit_items.append(item)
-                    hit_tok += item.get("freq", 1)
-                else:
-                    found_in = [
-                        f"{books_meta.get(bk, bk)} ({qnum})"
-                        for bk, qnum in b_map.items()
-                        if bk not in v_keys and not bk.startswith("systan_s")
-                    ]
-                    uncov_items.append({
-                        "title": item["word"],
-                        "detail": item.get("meaning") or "本文出現語（上位語彙・文脈推測）",
-                        "freq": item.get("freq", 1),
-                        "extra": ("収録先: " + " / ".join(found_in[:3])) if found_in else "主要単語帳未掲載（注釈・専門語・推測語）"
-                    })
-            uncov_items.sort(key=lambda x: (-x["freq"], x["title"]))
-            exam_cov = round(len(hit_items) / total_u * 100, 1) if matrix else lv.get("base_coverage_target", 85.0)
-            passage_cov = round((basic_tokens + hit_tok) / total_tokens * 100, 1) if matrix else exam_cov
-            uncov_rate = round(max(0.0, 100.0 - exam_cov), 1)
-            gap_list.append({
+                books_out.append({
+                    "book": st["book"],
+                    "kb_key": "",
+                    "category": st.get("category", "演習"),
+                    "pace": "",
+                    "role_type": "ルート基準",
+                    "is_choice_group": False,
+                    "choice_note": "",
+                    "is_companion": False,
+                    "start_week": None,
+                    "end_week": None,
+                    "duration_weeks": 0,
+                    "sample_tasks": [st.get("target_range", "")],
+                    "stage_tag": lv.get("level_name", ""),
+                    "in_confirmation_db": any(cm and cm in cn for cn in conf_names),
+                    "in_matching_db": any(cm and cm in kt for kt in kb_titles),
+                })
+            tiers_out.append({
                 "level_id": lv["level_id"],
                 "level_name": lv["level_name"],
-                "route_books": [st["book"] for st in lv.get("steps", [])],
-                "coverage_rate": exam_cov,
-                "passage_coverage_rate": passage_cov,
-                "uncovered_rate": uncov_rate,
-                "covered_count": len(hit_items),
-                "uncovered_count": len(uncov_items),
-                "total_target_count": len(matrix),
-                "unit_label": "重要語",
-                "uncovered_items": uncov_items[:25],
-                "summary_comment": (
-                    f"このルートの単語範囲（{', '.join(v_keys)}）で重要語の {exam_cov}%（本文全体 {passage_cov}%）をカバー。"
-                    f"未収録として {len(uncov_items)}語（{uncov_rate}%）が残ります。"
-                )
+                "file": "curriculum_routes.json (標準定義)",
+                "total_weeks": 0,
+                "milestones": [],
+                "books": books_out,
             })
-        return gap_list
+        out_subjects[sk] = {
+            "subject_key": sk,
+            "subject_jp": sdata.get("subject_jp", sk),
+            "source": "curriculum_routes.json",
+            "tiers": tiers_out,
+        }
 
+    return {
+        "files_count": parsed.get("files_count", 0),
+        "source_dir": parsed.get("source_dir", "takeda2026rout"),
+        "subjects": out_subjects,
+    }
+
+
+def _choose_target_tier(tiers_dict: dict, university: str, level_score: float) -> str:
+    keys = list(tiers_dict.keys())
+    if not keys:
+        return ""
+    u = university or ""
+    if any(k in u for k in ("東京大学", "東大", "京都大学", "京大", "東京科学", "東工大")):
+        for cand in ("東大京大科学大", "東大", "早慶", "難関国公立", "旧帝"):
+            if cand in tiers_dict:
+                return cand
+    if any(k in u for k in ("早稲田", "慶應", "上智")):
+        for cand in ("早慶", "早稲田"):
+            if cand in tiers_dict:
+                return cand
+    if any(k in u for k in ("大阪大", "名古屋大", "東北大")):
+        for cand in ("阪大名古屋大東北大", "難関国公立", "旧帝", "早慶"):
+            if cand in tiers_dict:
+                return cand
+    if any(k in u for k in ("九州大", "北海道大")):
+        for cand in ("九大北大", "難関国公立", "旧帝"):
+            if cand in tiers_dict:
+                return cand
+    if any(k in u for k in ("国立", "県立", "市立", "公立")):
+        if level_score >= 75 and "難関国公立" in tiers_dict:
+            return "難関国公立"
+        if "地方国公立" in tiers_dict:
+            return "地方国公立"
+    if level_score >= 76:
+        for cand in ("早慶", "早稲田", "難関国公立", "MARCH"):
+            if cand in tiers_dict:
+                return cand
+    if level_score >= 58 and "MARCH" in tiers_dict:
+        return "MARCH"
+    if "日大" in tiers_dict:
+        return "日大"
+    return keys[min(len(keys) - 1, 1)]
+
+
+def _group_tier_books_for_schedule(books: list) -> list:
+    """
+    Merge alternative choice books sharing `(category, choice_note)` (e.g.
+    システム英単語 / ターゲット1900 / 必携英単語LEAP) into one clean schedule item
+    while keeping individual book names and earliest/latest week span.
+    """
+    grouped = []
+    choice_buckets = {}
+    for bk in books:
+        if bk.get("is_choice_group") and bk.get("choice_note"):
+            gkey = (bk.get("category", ""), bk["choice_note"])
+            if gkey not in choice_buckets:
+                item = {
+                    "book": bk["book"],
+                    "choice_books": [bk["book"]],
+                    "kb_keys": [bk["kb_key"]] if bk.get("kb_key") else [],
+                    "category": bk.get("category", ""),
+                    "pace": bk.get("pace", ""),
+                    "is_choice_group": True,
+                    "choice_note": bk["choice_note"],
+                    "is_companion": bk.get("is_companion", False),
+                    "start_week": bk.get("start_week"),
+                    "end_week": bk.get("end_week"),
+                    "duration_weeks": bk.get("duration_weeks", 0),
+                    "sample_tasks": list(bk.get("sample_tasks") or []),
+                }
+                choice_buckets[gkey] = item
+                grouped.append(item)
+            else:
+                item = choice_buckets[gkey]
+                if bk["book"] not in item["choice_books"]:
+                    item["choice_books"].append(bk["book"])
+                    item["book"] = " ／ ".join(item["choice_books"])
+                if bk.get("kb_key") and bk["kb_key"] not in item["kb_keys"]:
+                    item["kb_keys"].append(bk["kb_key"])
+                if bk.get("start_week") is not None:
+                    item["start_week"] = bk["start_week"] if item["start_week"] is None else min(item["start_week"], bk["start_week"])
+                if bk.get("end_week") is not None:
+                    item["end_week"] = bk["end_week"] if item["end_week"] is None else max(item["end_week"], bk["end_week"])
+                item["duration_weeks"] = max(item["duration_weeks"], bk.get("duration_weeks", 0))
+        else:
+            grouped.append({
+                "book": bk["book"],
+                "choice_books": [bk["book"]],
+                "kb_keys": [bk["kb_key"]] if bk.get("kb_key") else [],
+                "category": bk.get("category", ""),
+                "pace": bk.get("pace", ""),
+                "is_choice_group": False,
+                "choice_note": "",
+                "is_companion": bk.get("is_companion", False),
+                "start_week": bk.get("start_week"),
+                "end_week": bk.get("end_week"),
+                "duration_weeks": bk.get("duration_weeks", 0),
+                "sample_tasks": list(bk.get("sample_tasks") or []),
+            })
+    grouped.sort(key=lambda b: (1 if b["start_week"] is None else 0, b["start_week"] or 999, b["book"]))
+    return grouped
+
+
+def _eval_english_tier_coverage_and_external(tier_name: str, tier_info: dict, result: dict) -> dict:
+    sim = result.get("vocab_combination_simulator", {})
+    matrix = sim.get("word_matrix") or []
+    books_meta = {b["id"]: b["name"].split("（")[0].replace("★", "") for b in (sim.get("books") or [])}
+    total_u = max(1, len(matrix))
+    basic_tokens = sim.get("basic_token_count", 0)
+    total_tokens = max(1, sim.get("total_all_tokens", 1))
+
+    # Determine in-route vocab keys for this tier
+    raw_keys = {bk["kb_key"] for bk in tier_info.get("books", []) if bk.get("kb_key")}
+    tier_vkeys = set()
+    if "systan" in raw_keys:
+        if any(k in tier_name for k in ("スモール", "基礎", "日大")):
+            tier_vkeys.add("systan_1200")
+        else:
+            tier_vkeys.add("systan_all")
+    for extra_k in ("systan_basic", "systan_chugaku", "sparta3", "teppeki", "sokutan_adv", "eiken_pre1", "sokudoku_idiom", "target_idiom1000"):
+        if extra_k in raw_keys:
+            tier_vkeys.add(extra_k)
+    if not tier_vkeys:
+        tier_vkeys = {"systan_1200"} if "日大" in tier_name else {"systan_all"}
+
+    # Note: for default route completion, use primary route path (systan + sparta3 etc., excluding target1900/leap alt overlap so user sees realistic 1-book route yield)
+    hit_items = []
+    uncov_items = []
+    uncov_lems = []
+    hit_tok = 0
+    for item in matrix:
+        b_map = item.get("books", {})
+        if any(vk in b_map for vk in tier_vkeys):
+            hit_items.append(item)
+            hit_tok += item.get("freq", 1)
+        else:
+            found_in = [
+                f"{books_meta.get(bk, bk)} ({qnum})"
+                for bk, qnum in b_map.items()
+                if bk not in tier_vkeys and not bk.startswith("systan_s") and bk not in ("target1900", "leap")
+            ]
+            uncov_items.append({
+                "title": item["word"],
+                "detail": item.get("meaning") or "本文出現語（文脈推測・専門語）",
+                "freq": item.get("freq", 1),
+                "extra": ("外部参考書で補完可: " + " / ".join(found_in[:3])) if found_in else "主要単語帳未掲載（注釈・専門語・推測語）",
+            })
+            uncov_lems.append(item)
+
+    uncov_items.sort(key=lambda x: (-x["freq"], x["title"]))
+    exam_cov = round(len(hit_items) / total_u * 100, 1) if matrix else 86.0
+    passage_cov = round((basic_tokens + hit_tok) / total_tokens * 100, 1) if matrix else exam_cov
+    uncov_rate = round(max(0.0, 100.0 - exam_cov), 1)
+
+    # Evaluate EXTERNAL (out-of-route) books against the words NOT covered by the route
+    ext_book_defs = [
+        ("teppeki", "★[改訂版] 鉄緑会 東大英単語熟語 鉄壁", "6〜10週"),
+        ("sokutan_adv", "★【改訂第5版】速読英単語 上級編", "4〜6週"),
+        ("eiken_pre1", "★[第2版] 英検 準1級単熟語EX", "5〜8週"),
+        ("sparta3", "英単語 SPARTA3 mastery level 1000", "4〜6週"),
+        ("target1900", "【6訂版】ターゲット1900（別ルート選択教材）", "並行/置換"),
+        ("leap", "【改訂版】必携 英単語LEAP（別ルート選択教材）", "並行/置換"),
+    ]
+    external_candidates = []
+    all_choice_and_route_keys = tier_vkeys | raw_keys
+    for ek, ename, eweeks in ext_book_defs:
+        if ek in all_choice_and_route_keys:
+            continue
+        added_list = [it["word"] for it in uncov_lems if ek in (it.get("books") or {})]
+        added_cnt = len(added_list)
+        added_pp = round(added_cnt / total_u * 100, 1) if matrix else 0.0
+        new_cov = round(min(100.0, exam_cov + added_pp), 1)
+        if added_cnt >= 4:
+            decision = f"🟡 導入検討（ルート未収録語を +{added_cnt}語 / +{added_pp}% 補完）"
+        elif added_cnt >= 1:
+            decision = f"⚪ 部分的補完（+{added_cnt}語のみ：まずは過去問演習を優先）"
+        else:
+            decision = "⛔ 追加不要（ルート内参考書と重複し上乗せ 0語）"
+        external_candidates.append({
+            "book_key": ek,
+            "book": ename,
+            "est_weeks": eweeks,
+            "added_count": added_cnt,
+            "added_rate_pp": added_pp,
+            "new_total_rate": new_cov,
+            "sample_added_words": added_list[:8],
+            "decision": decision,
+        })
+    external_candidates.sort(key=lambda x: (-x["added_count"], x["book"]))
+
+    return {
+        "in_route_kb_keys": sorted(all_choice_and_route_keys),
+        "coverage_rate": exam_cov,
+        "passage_coverage_rate": passage_cov,
+        "uncovered_rate": uncov_rate,
+        "covered_count": len(hit_items),
+        "uncovered_count": len(uncov_items),
+        "total_target_count": len(matrix),
+        "unit_label": "重要語",
+        "uncovered_items": uncov_items[:25],
+        "external_candidates": external_candidates,
+        "summary_comment": (
+            f"2026ルート（{tier_name}：全{tier_info.get('total_weeks', 0)}週）内の単語帳で重要語の {exam_cov}%（本文 {passage_cov}%）を網羅。"
+            f"ルート外の未収録語は {len(uncov_items)}語（{uncov_rate}%）です。"
+        ),
+    }
+
+
+def _eval_general_tier_coverage_and_external(subject: str, tier_name: str, tier_info: dict, result: dict) -> dict:
+    total_w = tier_info.get("total_weeks", 0)
     if subject in ("nihonshi", "sekaishi"):
         terms = result.get("matched_terms") or []
         ev = result.get("level_evaluation", {})
@@ -2614,88 +2828,302 @@ def build_route_gap_analysis(subject: str, result: dict) -> list:
         b_cnt = ev.get("star2_std_count", 0)
         c_cnt = ev.get("star1_adv_count", 0)
         tot = max(1, a_cnt + b_cnt + c_cnt)
-        for lv in levels:
-            lid = lv["level_id"]
-            if lid == "nichidai":
-                cov = round(a_cnt / tot * 100, 1) if terms else 68.0
-                uncov = [{"title": t["term"], "detail": f"ランク{t['difficulty']} ({t.get('q_number','')})", "extra": t.get("context", "")} for t in terms if t.get("difficulty") in ("B", "C")]
-            elif lid == "march":
-                cov = round((a_cnt + b_cnt) / tot * 100, 1) if terms else 86.0
-                uncov = [{"title": t["term"], "detail": f"難関ランク{t['difficulty']} ({t.get('q_number','')})", "extra": t.get("context", "")} for t in terms if t.get("difficulty") == "C"]
-            else:
-                cov = 97.5 if c_cnt > 0 else 99.0
-                uncov = [{"title": "未見史料・テーマ史論述", "detail": "一問一答外の思考・史料読解要素", "extra": "HISTORIA・実力をつける100題で補強"}]
-            uncov_rate = round(max(0.0, 100.0 - cov), 1)
-            gap_list.append({
-                "level_id": lid,
-                "level_name": lv["level_name"],
-                "route_books": [st["book"] for st in lv.get("steps", [])],
-                "coverage_rate": cov,
-                "uncovered_rate": uncov_rate,
-                "covered_count": max(0, tot - len(uncov)) if lid != "sokei" else tot,
-                "uncovered_count": len(uncov),
-                "total_target_count": tot,
-                "unit_label": "用語",
-                "uncovered_items": uncov[:25],
-                "summary_comment": f"検出用語全{tot}語のうち、このレベルルートで {cov}% を網羅。未収録ギャップは {uncov_rate}%（{len(uncov)}件）です。"
-            })
-        return gap_list
+        if "日大" in tier_name or "基礎" in tier_name:
+            cov = round(a_cnt / tot * 100, 1) if terms else 70.0
+            uncov = [{"title": t["term"], "detail": f"ランク{t['difficulty']}", "extra": t.get("context", "")} for t in terms if t.get("difficulty") in ("B", "C")]
+            ext = [
+                {"book": f"{'日本史' if subject=='nihonshi' else '世界史'}一問一答 ★★・★範囲（標準〜難関）", "est_weeks": "+6〜8週", "added_count": b_cnt + c_cnt, "added_rate_pp": round((b_cnt + c_cnt) / tot * 100, 1), "new_total_rate": 97.5, "sample_added_words": [t["term"] for t in terms if t.get("difficulty") in ("B", "C")][:6], "decision": "🟡 MARCH以上を目指す場合は上位ルートへ移行検討"},
+            ]
+        elif any(k in tier_name for k in ("早慶", "早稲田", "東大")):
+            cov = 98.0 if c_cnt > 0 else 99.0
+            uncov = [{"title": "未見史料・難関論述・用語集外知識", "detail": "早慶・東大特有の細部知識", "extra": "過去問演習＋用語集の精査で対応"}]
+            ext = [
+                {"book": "実力をつける100題 ／ 早慶大過去問（追加演習）", "est_weeks": "+4〜6週", "added_count": max(1, c_cnt), "added_rate_pp": 1.5, "new_total_rate": 99.5, "sample_added_words": [t["term"] for t in terms if t.get("difficulty") == "C"][:6], "decision": "⚪ ルート完遂後の志望校過去問補強用"},
+            ]
+        else:
+            cov = round((a_cnt + b_cnt) / tot * 100, 1) if terms else 88.0
+            uncov = [{"title": t["term"], "detail": f"難関ランク{t['difficulty']}", "extra": t.get("context", "")} for t in terms if t.get("difficulty") == "C"]
+            ext = [
+                {"book": f"{'日本史' if subject=='nihonshi' else '世界史'}一問一答 ★（最難関Cランク語）＋論述対策", "est_weeks": "+5〜7週", "added_count": c_cnt, "added_rate_pp": round(c_cnt / tot * 100, 1), "new_total_rate": 98.5, "sample_added_words": [t["term"] for t in terms if t.get("difficulty") == "C"][:6], "decision": "🟡 難関Cランク語が多い場合のみ追加検討" if c_cnt >= 3 else "⛔ 追加不要（MARCHルート内で十分）"},
+            ]
+        uncov_rate = round(max(0.0, 100.0 - cov), 1)
+        return {
+            "in_route_kb_keys": [subject],
+            "coverage_rate": cov,
+            "uncovered_rate": uncov_rate,
+            "covered_count": max(0, tot - len(uncov)),
+            "uncovered_count": len(uncov),
+            "total_target_count": tot,
+            "unit_label": "用語",
+            "uncovered_items": uncov[:25],
+            "external_candidates": ext,
+            "summary_comment": f"2026ルート（{tier_name}：全{total_w}週）で検出用語 {tot}語のうち {cov}% を網羅。未収録ギャップは {uncov_rate}% です。",
+        }
 
-    # Structured subjects: math, physics, chemistry, biology, gendai, kobun, chiri, seikei
+    # Structured subjects: math / physics / chemistry / gendai / kobun / chiri / seikei / biology
     probs = result.get("problem_analyses") or []
     ev = result.get("level_evaluation", {})
     a_cov = float(ev.get("juyo_a_coverage") or 85.0)
     ab_cov = float(ev.get("juyo_ab_coverage") or 96.0)
     tot_p = max(1, len(probs))
+    route_book_names = " ".join(b["book"] for b in tier_info.get("books", []))
 
+    if any(k in tier_name for k in ("基礎", "スモール")):
+        cov = round(max(45.0, a_cov - 22.0), 1)
+        uncov = [{"title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}", "detail": p.get("difficulty_level", "標準〜応用"), "extra": "基礎徹底ルートだけでは入試標準・応用演習が不足"} for p in probs]
+    elif "日大" in tier_name:
+        cov = round(max(55.0, a_cov - 12.0), 1)
+        uncov = [
+            {"title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}", "detail": p.get("difficulty_level", "標準〜応用"), "extra": f"抜粋: {p.get('excerpt', '')[:60]}"}
+            for p in probs if ("B" in p.get("difficulty_level", "") or "応用" in p.get("difficulty_level", "") or len(probs) <= 2)
+        ]
+        if not uncov and probs:
+            uncov = [{"title": f"{probs[-1]['problem_no']}（後半応用設問）", "detail": probs[-1]["detected_unit"], "extra": "日大レベル以上の標準〜応用演習が必要"}]
+    elif any(k in tier_name for k in ("早慶", "早稲田", "東大", "旧帝", "難関")):
+        cov = round(ab_cov, 1)
+        uncov = [{"title": "難関融合・初見誘導パート（最難関約3〜5%）", "detail": "各大問の最終小問・論証設問", "extra": "ルート完遂後に志望校過去問演習で仕上げ"}]
+    else:
+        cov = round(a_cov, 1)
+        uncov = [
+            {"title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}", "detail": p.get("difficulty_level", "応用Bレベル"), "extra": f"抜粋: {p.get('excerpt', '')[:60]}"}
+            for p in probs if "B" in p.get("difficulty_level", "")
+        ]
+
+    # Build subject-aware External (Out-of-Route) Candidates checking strictly against `route_book_names`
+    ext_pool_by_subj = {
+        "math": [
+            ("実戦 数学重要問題集（B問題・発展）", "重要問題集", "+6〜8週"),
+            ("青チャート（重要例題・コンパス4〜5）", "青チャート", "+8〜12週"),
+            ("やさしい理系数学 / 上級問題精講", "やさしい理系", "+6〜8週"),
+        ],
+        "physics": [
+            ("名問の森 物理（応用・難関大演習）", "名問の森", "+6〜8週"),
+            ("実戦 物理重要問題集（B問題）", "重要問題集", "+6〜9週"),
+        ],
+        "chemistry": [
+            ("化学の新演習（難関大演習）", "新演習", "+7〜10週"),
+            ("実戦 化学重要問題集（B問題重点）", "重要問題集", "+4〜6週"),
+        ],
+        "gendai": [
+            ("現代文と格闘する / 得点奪取現代文", "現代文と格闘", "+4〜6週"),
+            ("関正生の現代文ポラリス2・3", "ポラリス", "+3〜5週"),
+        ],
+        "kobun": [
+            ("入試精選問題集 古文 / 最強の古文", "最強の古文", "+4〜5週"),
+            ("得点奪取 古文（記述・二次対策）", "得点奪取", "+4〜6週"),
+        ],
+    }
+    ext_candidates = []
+    for cand_name, check_kw, cand_weeks in ext_pool_by_subj.get(subject, [("志望校別 分野特化問題集（ルート外補強）", "__none__", "+4〜6週")]):
+        if check_kw != "__none__" and check_kw in route_book_names:
+            continue
+        is_b_heavy = len(uncov) >= 2 or "日大" in tier_name
+        added_pp = round(min(100.0 - cov, 8.5 if is_b_heavy else 3.0), 1)
+        ext_candidates.append({
+            "book": cand_name,
+            "est_weeks": cand_weeks,
+            "added_count": len(uncov),
+            "added_rate_pp": added_pp,
+            "new_total_rate": round(min(99.5, cov + added_pp), 1),
+            "sample_added_words": [u["title"] for u in uncov[:4]],
+            "decision": f"🟡 追加検討（ルート全{total_w}週完了後、難関B設問 {len(uncov)}件 が不足する場合）" if is_b_heavy else "⚪ 優先度低（まずはルート内参考書の完遂を優先）",
+        })
+
+    uncov_rate = round(max(0.0, 100.0 - cov), 1)
+    return {
+        "in_route_kb_keys": [],
+        "coverage_rate": cov,
+        "uncovered_rate": uncov_rate,
+        "covered_count": max(0, tot_p - len(uncov)) if "早慶" not in tier_name else tot_p,
+        "uncovered_count": len(uncov),
+        "total_target_count": tot_p,
+        "unit_label": "大問",
+        "uncovered_items": uncov,
+        "external_candidates": ext_candidates,
+        "summary_comment": f"2026ルート（{tier_name}：全{total_w}週）完了で全{tot_p}大問の {cov}% に対応可能。ルート外の応用ギャップは {uncov_rate}%（該当 {len(uncov)}件）です。",
+    }
+
+
+def enrich_result_with_2026_routes(subject: str, result: dict, university: str) -> dict:
+    """
+    Use `takeda2026rout/*.pdf` internally as the Primary Route Truth:
+      1) Rebuilds `next_books_roadmap` from the matched 2026 route tier's real books & week schedule.
+      2) Tags `book_comparisons` / `book_coverage_summary` / `vocab_combination_simulator` as
+         🟢 ルート内 vs 🔵 ルート外（外部参考書）.
+      3) Produces `route_analysis` (all tiers, week schedule, milestones, uncovered gaps,
+         and external-book decision table) and backward-compatible `route_gap_analysis`.
+    """
+    ev = result.get("level_evaluation", {})
+    level_score = float(ev.get("level_score") or 68.0)
+
+    tier_hint = ""
+    if subject == "math":
+        has_math3 = any("数学III" in (p.get("detected_unit") or "") for p in (result.get("problem_analyses") or []))
+        tier_hint = "rikei" if (has_math3 or level_score >= 70) else "bunkei"
+
+    r_pack = rpp.get_route_books_for_subject(subject, tier_hint=tier_hint)
+    if not r_pack.get("has_pdf_routes"):
+        # Biology or any subject without PDF in takeda2026rout -> fallback
+        result["route_gap_analysis"] = build_route_gap_analysis(subject, result)
+        result["route_analysis"] = {"has_pdf_routes": False, "selected_tier": "", "tiers": {}}
+        return result
+
+    tiers_dict = r_pack["tiers"]
+    selected_tier = _choose_target_tier(tiers_dict, university, level_score)
+    all_in_route_keys = set(r_pack.get("in_route_kb_keys") or set())
+    all_in_route_names = [b["book"] for b in (r_pack.get("in_route_books") or [])]
+
+    tiers_analysis = {}
+    for tk, tinfo in tiers_dict.items():
+        grouped_books = _group_tier_books_for_schedule(tinfo.get("books", []))
+        if subject == "english":
+            eval_res = _eval_english_tier_coverage_and_external(tk, tinfo, result)
+        else:
+            eval_res = _eval_general_tier_coverage_and_external(subject, tk, tinfo, result)
+
+        tiers_analysis[tk] = {
+            "tier_id": tk,
+            "tier_label": f"{tinfo.get('subject_jp', subject)}（{tk}）",
+            "file": tinfo.get("file", ""),
+            "total_weeks": tinfo.get("total_weeks", 0),
+            "milestones": tinfo.get("milestones", []),
+            "schedule_books": grouped_books,
+            **eval_res,
+        }
+
+    sel_info = tiers_analysis[selected_tier]
+    sel_raw_keys = set(sel_info.get("in_route_kb_keys") or [])
+
+    # 1) Rebuild `next_books_roadmap` prioritizing 2026 in-route books & exact week schedules
+    new_roadmap = []
+    for bk in sel_info["schedule_books"]:
+        if bk.get("is_companion") and bk.get("start_week") is None:
+            w_str = "全期間併用（講義サポート）"
+        else:
+            sw, ew, dw = bk.get("start_week"), bk.get("end_week"), bk.get("duration_weeks", 0)
+            w_str = f"第{sw}〜{ew}週（稼働{dw}週）" if sw else "併用・補助"
+        pace_badge = f" [{bk['category']} / {bk['pace']}]" if bk.get("pace") else (f" [{bk['category']}]" if bk.get("category") else "")
+        choice_tag = f"（※{bk['choice_note']}）" if bk.get("is_choice_group") else ""
+        tasks_str = " ／ ".join(bk.get("sample_tasks") or []) or "ルートPDF記載の週次ペースで反復"
+        new_roadmap.append({
+            "priority": f"🟢 {w_str}{pace_badge}",
+            "book": f"{bk['book']} {choice_tag}".strip(),
+            "target_range": tasks_str,
+            "goal": f"2026ルート（{selected_tier}）基準：{bk['pace'] or '標準週次ペース'}で段階突破",
+            "in_route": True,
+        })
+    for ms in sel_info.get("milestones", []):
+        new_roadmap.append({
+            "priority": f"🏁 第{ms['week']}週 目標",
+            "book": ms["label"],
+            "target_range": f"{ms['week']}週目到達時点までの総復習範囲",
+            "goal": "合格基準クリア後に次のレベル（または外部参考書検討）へ移行",
+            "in_route": True,
+        })
+    if new_roadmap:
+        result["next_books_roadmap"] = new_roadmap[:24]
+
+    # 2) Tag `book_comparisons` & `vocab_combination_simulator` in English as In-Route vs External
+    if subject == "english":
+        sel_raw_kb = {bk["kb_key"] for bk in tiers_dict[selected_tier].get("books", []) if bk.get("kb_key")}
+        for bc in (result.get("book_comparisons") or []):
+            bk_id = bc.get("book_key", "")
+            in_sel = bk_id in sel_raw_kb
+            in_any = bk_id in all_in_route_keys
+            bc["in_route"] = in_sel or in_any
+            bc["in_selected_tier"] = in_sel
+            bc["route_status_label"] = "🟢 2026ルート内" if in_sel else ("🟡 他レベルルート内" if in_any else "🔵 ルート外（外部参考書）")
+        result["book_comparisons"] = sorted(
+            result.get("book_comparisons") or [],
+            key=lambda x: (0 if x.get("in_selected_tier") else (1 if x.get("in_route") else 2), -x.get("exam_vocab_coverage", 0)),
+        )
+
+        sim = result.get("vocab_combination_simulator", {})
+        default_route_ids = set(sel_info.get("in_route_kb_keys") or [])
+        for sb in (sim.get("books") or []):
+            sid = sb.get("id", "")
+            base_k = "systan" if sid.startswith("systan") and sid not in ("systan_basic", "systan_chugaku") else sid
+            in_sel = (sid in default_route_ids) or (base_k in sel_raw_kb)
+            sb["in_route"] = in_sel or (base_k in all_in_route_keys)
+            sb["default_checked"] = sid in default_route_ids
+
+    # 3) Tag `book_coverage_summary` for structured subjects (Math, Physics, Chemistry, etc.)
+    if result.get("book_coverage_summary"):
+        sel_book_str = " ".join(b["book"] for b in sel_info["schedule_books"])
+        all_book_str = " ".join(all_in_route_names)
+        for row in result["book_coverage_summary"]:
+            bname = row.get("book_name", "")
+            # Check core keyword match against 2026 route PDF books
+            core_kws = [w for w in re.split(r"[\s　・（）()／/]+", bname) if len(w) >= 3 and w not in ("シリーズ", "問題のみ", "全範囲", "基本")]
+            in_sel = any(kw in sel_book_str for kw in core_kws)
+            in_any = any(kw in all_book_str for kw in core_kws)
+            row["in_route"] = in_sel or in_any
+            row["route_status_label"] = "🟢 2026ルート内" if in_sel else ("🟡 他レベルルート内" if in_any else "🔵 ルート外（外部参考書）")
+
+    # 4) Populate structured `route_analysis` and backward-compatible `route_gap_analysis`
+    result["route_analysis"] = {
+        "has_pdf_routes": True,
+        "source_dir": "takeda2026rout",
+        "selected_tier": selected_tier,
+        "tier_order": list(tiers_analysis.keys()),
+        "tiers": tiers_analysis,
+    }
+    result["route_gap_analysis"] = [
+        {
+            "level_id": tid,
+            "level_name": tval["tier_label"],
+            "route_books": [b["book"] for b in tval["schedule_books"][:8]],
+            "total_weeks": tval["total_weeks"],
+            "coverage_rate": tval["coverage_rate"],
+            "uncovered_rate": tval["uncovered_rate"],
+            "covered_count": tval["covered_count"],
+            "uncovered_count": tval["uncovered_count"],
+            "total_target_count": tval["total_target_count"],
+            "unit_label": tval["unit_label"],
+            "uncovered_items": tval["uncovered_items"],
+            "external_candidates": tval["external_candidates"],
+            "summary_comment": tval["summary_comment"],
+        }
+        for tid, tval in tiers_analysis.items()
+    ]
+    return result
+
+
+def build_route_gap_analysis(subject: str, result: dict) -> list:
+    """Fallback route gap computation using curriculum_routes.json when no PDF exists for a subject (e.g. biology)."""
+    routes = load_curriculum_routes()
+    subj_route = routes.get(subject, {})
+    levels = subj_route.get("levels", [])
+    if not levels:
+        return []
+    probs = result.get("problem_analyses") or []
+    ev = result.get("level_evaluation", {})
+    a_cov = float(ev.get("juyo_a_coverage") or 85.0)
+    ab_cov = float(ev.get("juyo_ab_coverage") or 96.0)
+    tot_p = max(1, len(probs))
+    gap_list = []
     for lv in levels:
         lid = lv["level_id"]
-        if lid == "nichidai":
-            cov = round(max(45.0, a_cov - 12.0), 1)
-            uncov = [
-                {
-                    "title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}",
-                    "detail": p.get("difficulty_level", "標準〜応用"),
-                    "extra": f"抜粋: {p.get('excerpt', '')[:65]} ／ 要追加: {p['reference_mappings'][-1]['detail'][:65] if p.get('reference_mappings') else '標準問題集'}"
-                }
-                for p in probs
-                if ("B" in p.get("difficulty_level", "") or "応用" in p.get("difficulty_level", "") or len(probs) <= 2)
-            ]
-            if not uncov and probs:
-                uncov = [{"title": f"{probs[-1]['problem_no']}（後半応用設問）", "detail": probs[-1]["detected_unit"], "extra": "基礎問の次のステップ（青チャート・重問A等）での演習が必要"}]
-        elif lid == "march":
-            cov = round(a_cov, 1)
-            uncov = [
-                {
-                    "title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}",
-                    "detail": p.get("difficulty_level", "A〜Bレベル"),
-                    "extra": f"抜粋: {p.get('excerpt', '')[:65]} ／ 要追加: 上位B問題・名問の森・ハイレベル問題集"
-                }
-                for p in probs
-                if "B" in p.get("difficulty_level", "")
-            ]
-        else:
-            cov = round(ab_cov, 1)
-            uncov = [
-                {
-                    "title": "難関融合・初見思考力パート（最難関約3〜5%）",
-                    "detail": "各大問の最終小問(3)(4)や初見誘導設問",
-                    "extra": "標準〜B問題ルートで合格点は確保可能。満点狙いの融合論証のみ残余ギャップ。"
-                }
-            ]
+        cov = round(max(45.0, a_cov - 12.0), 1) if lid == "nichidai" else (round(a_cov, 1) if lid == "march" else round(ab_cov, 1))
+        uncov = [
+            {"title": f"{p['problem_no']}｜{p['detected_unit'].split('（')[0]}", "detail": p.get("difficulty_level", "標準〜応用"), "extra": p.get("excerpt", "")[:60]}
+            for p in probs if ("B" in p.get("difficulty_level", "") or lid == "nichidai")
+        ]
         uncov_rate = round(max(0.0, 100.0 - cov), 1)
         gap_list.append({
             "level_id": lid,
             "level_name": lv["level_name"],
             "route_books": [st["book"] for st in lv.get("steps", [])],
+            "total_weeks": 0,
             "coverage_rate": cov,
             "uncovered_rate": uncov_rate,
-            "covered_count": max(0, tot_p - len(uncov)) if lid != "sokei" else tot_p,
+            "covered_count": max(0, tot_p - len(uncov)),
             "uncovered_count": len(uncov),
             "total_target_count": tot_p,
-            "unit_label": "大問/テーマ",
+            "unit_label": "大問",
             "uncovered_items": uncov,
-            "summary_comment": f"全{tot_p}大問に対し、このルートでの到達可能カバー率は {cov}%。未収録・応用ギャップは {uncov_rate}%（該当 {len(uncov)}件）です。"
+            "external_candidates": [],
+            "summary_comment": f"全{tot_p}大問に対しカバー率 {cov}%（未収録ギャップ {uncov_rate}%）。",
         })
     return gap_list
 
@@ -2911,10 +3339,10 @@ def analyze_past_exam_on_memory(
         result["detected_flags"] = dna_meta["detected_flags"]
         result["exam_vector"] = dna_meta["exam_vector"]
         result["dna_candidate"] = dna_meta
-        result["route_gap_analysis"] = build_route_gap_analysis(detected_subj, result)
         result["concurrent_universities"] = dna_pack["concurrent_universities"]
         result["ten_year_dna"] = dna_pack
         result["confirmation_test_books"] = get_subject_confirmation_books(detected_subj, base_a_cov=base_a, base_ab_cov=base_ab)
+        enrich_result_with_2026_routes(detected_subj, result, detected_univ)
 
         result["memory_policy"] = {
             "status": "WIPED_CLEAN",
