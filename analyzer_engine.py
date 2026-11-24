@@ -821,10 +821,59 @@ def _ocr_preprocessed_page(clean_img, bg_small=None) -> str:
             sp.close()
 
 
+def _strip_publisher_headers_and_footers(txt: str) -> str:
+    """Remove repetitive publisher copyright/URL/print headers from digital exam PDFs (e.g. Obunsha)."""
+    if not txt:
+        return ""
+    drop_patterns = [
+        r'©\s*Obunsha[^\n]*',
+        r'Powered\s+by\s*『[^』]+』[^\n]*',
+        r'https?://passnavi\.obunsha\.co\.jp/?[^\s]*',
+        r'「入試正解デジタル」[^\n]*',
+        r'本サービスに掲載の全部または一部[^\n]*',
+        r'本サービスの機能を利用して作成した出力コンテンツ[^\n]*',
+        r'志望校の入試科目・配点や合格最低点を[^\n]*',
+        r'「大学受験パスナビ」で調べよう！?',
+        r'^\s*\d{4}/\d{1,2}/\d{1,2}\s+\d{1,2}:\d{2}\s*$',
+        r'^\s*\d{1,2}/\d{1,2}\s*$',
+        r'^\s*\d{4}年\s+\S+\s+\S+\s+問題\s*$',
+        r'^\s*26\d{8,}\s*$',
+        r'^\s*Obunsha\s*$',
+        r'^\s*旺文社\s*$',
+    ]
+    cleaned_lines = []
+    for line in txt.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if any(re.search(pat, s, re.I) for pat in drop_patterns):
+            continue
+        cleaned_lines.append(s)
+    return "\n".join(cleaned_lines).strip()
+
+
+def _page_image_area_ratio(page) -> float:
+    """Estimate fraction of page area covered by raster images (detects hybrid image-body PDFs)."""
+    try:
+        p_area = max(1.0, float(page.rect.width) * float(page.rect.height))
+        infos = page.get_image_info(xrefs=False) or []
+        total_img_area = 0.0
+        for info in infos:
+            bbox = info.get("bbox")
+            if not bbox or len(bbox) < 4:
+                continue
+            w = max(0.0, float(bbox[2]) - float(bbox[0]))
+            h = max(0.0, float(bbox[3]) - float(bbox[1]))
+            total_img_area += w * h
+        return min(1.0, total_img_area / p_area)
+    except Exception:
+        return 0.0
+
+
 def is_cover_or_instruction_page(page_text: str, page_idx: int) -> bool:
     if page_idx >= 3:
         return False
-    has_real_problem = bool(re.search(r'(?:〔\s*[IⅠ1]\s*〕|第\s*[1１一]\s*問)\s*(?:次の|A\.|問|関数|原点|図)', page_text))
+    has_real_problem = bool(re.search(r'(?:〔\s*[IⅠ1]\s*〕|第\s*[1１一]\s*問|次の文章を読んで設問に答えなさい|次の会話を読んで設問に答えなさい)\s*', page_text))
     if has_real_problem:
         return False
     inst_markers = [
@@ -834,10 +883,17 @@ def is_cover_or_instruction_page(page_text: str, page_idx: int) -> bool:
         "試験時間および解答方法",
         "出願時に届け出た",
         "高得点の",
-        "合否判定に使用します"
+        "合否判定に使用します",
+        "入試正解デジタル",
+        "全国大学入試問題正解",
+        "大学受験パスナビ",
     ]
     hits = sum(1 for m in inst_markers if m in page_text)
-    return hits >= 1
+    if hits >= 1:
+        return True
+    if page_idx == 0 and ("【試験時間】" in page_text or "【試験日】" in page_text) and len(page_text) < 500:
+        return True
+    return False
 
 
 def _encode_pil_to_data_url(img, quality: int = 82) -> str:
@@ -867,25 +923,38 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
             with ThreadPoolExecutor(max_workers=4) as executor:
                 results = list(
                     executor.map(
-                        lambda item: (item[0], _ocr_preprocessed_page(item[1], item[2])),
+                        lambda item: (item[0], _ocr_preprocessed_page(item[1], item[2]), item[3]),
                         pending_ocr_pages,
                     )
                 )
-            for idx_r, txt_r in results:
-                raw_page_texts[idx_r] = txt_r
-            for _, c_img, b_img in pending_ocr_pages:
+            for idx_r, txt_r, extra_body in results:
+                cleaned_ocr = _strip_publisher_headers_and_footers(txt_r)
+                if extra_body and cleaned_ocr and len(extra_body) > 20 and extra_body[:20] not in cleaned_ocr:
+                    raw_page_texts[idx_r] = f"{extra_body}\n{cleaned_ocr}".strip()
+                else:
+                    raw_page_texts[idx_r] = cleaned_ocr or extra_body
+            for _, c_img, b_img, _ in pending_ocr_pages:
                 c_img.close()
                 if b_img is not None:
                     b_img.close()
             pending_ocr_pages.clear()
 
+        ocr_image_pages_count = 0
         for i, page in enumerate(doc):
-            txt = (page.get_text("text") or "").strip()
-            if len(txt) >= 30:
-                raw_page_texts[i] = clean_ocr_japanese_spaces(txt)
+            raw_txt = (page.get_text("text") or "").strip()
+            body_txt = _strip_publisher_headers_and_footers(clean_ocr_japanese_spaces(raw_txt))
+            img_ratio = _page_image_area_ratio(page)
+            # Hybrid digital PDFs (e.g. Obunsha Nyushi Seikai Digital) embed cover/header/footer
+            # as text while placing the entire exam body inside a raster image on each page.
+            needs_page_ocr = (len(body_txt) < 40) or (img_ratio >= 0.25 and len(body_txt) < 350)
+            if not needs_page_ocr:
+                raw_page_texts[i] = body_txt
                 continue
 
+            ocr_image_pages_count += 1
             if Image is None:
+                if body_txt:
+                    raw_page_texts[i] = body_txt
                 continue
 
             dpi = _calc_scan_render_dpi(page)
@@ -897,11 +966,13 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
                 clean_img, bg_small = _normalize_akahon_scan_image(pil_img, is_cover_page=(i < 2))
                 pil_img.close()
                 if clean_img is not None:
-                    pending_ocr_pages.append((i, clean_img, bg_small))
+                    pending_ocr_pages.append((i, clean_img, bg_small, body_txt))
                     if len(pending_ocr_pages) >= 4:
                         _flush_ocr_batch()
             else:
-                # Server has no OCR engine: prepare shadow-removed & split images for client Tesseract.js
+                # Preserve any sparse embedded metadata (e.g., partial text) while queueing image for client OCR
+                if body_txt:
+                    raw_page_texts[i] = body_txt
                 if len(scanned_page_images) < max_client_ocr_images:
                     sub_pages = _preprocess_akahon_scan_page(pil_img, is_cover_page=(i < 2))
                     for sp in sub_pages:
@@ -915,14 +986,16 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     cover_text = "\n".join(raw_page_texts[:2])
     problem_pages = []
     for i, pt in enumerate(raw_page_texts):
-        if not pt or len(pt.strip()) < 15:
+        cleaned_pt = _strip_publisher_headers_and_footers(pt)
+        if not cleaned_pt or len(cleaned_pt.strip()) < 15:
             continue
-        if is_cover_or_instruction_page(pt, i):
+        if is_cover_or_instruction_page(cleaned_pt, i):
             continue
-        problem_pages.append(pt)
+        problem_pages.append(cleaned_pt)
 
     if not problem_pages:
-        problem_pages = [pt for pt in raw_page_texts if pt.strip()]
+        problem_pages = [_strip_publisher_headers_and_footers(pt) for pt in raw_page_texts if pt.strip()]
+        problem_pages = [pt for pt in problem_pages if pt]
 
     full_problem_text = "\n\n".join(problem_pages)
 
@@ -958,6 +1031,7 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     return {
         "page_count": page_count,
         "problem_page_count": len(problem_pages),
+        "ocr_image_pages_count": ocr_image_pages_count,
         "cover_text": cover_text,
         "full_text": full_problem_text,
         "char_count": len(full_problem_text),
@@ -3289,9 +3363,10 @@ def analyze_past_exam_on_memory(
             extracted_meta["problem_page_count"] = pdf_info.get("problem_page_count", pdf_info["page_count"])
             extracted_meta["char_count"] = pdf_info["char_count"]
             scanned_imgs = pdf_info.get("scanned_page_images", [])
+            ocr_img_pages = pdf_info.get("ocr_image_pages_count", 0)
             del pdf_bytes
             del pdf_info
-            if len(text_to_analyze.strip()) < 180 and scanned_imgs:
+            if scanned_imgs and (len(text_to_analyze.strip()) < 180 or ocr_img_pages >= 1):
                 return {
                     "needs_client_ocr": True,
                     "scanned_page_images": scanned_imgs,
@@ -3299,7 +3374,7 @@ def analyze_past_exam_on_memory(
                     "page_count": extracted_meta["page_count"]
                 }
         else:
-            text_to_analyze = clean_ocr_japanese_spaces(raw_text or "")
+            text_to_analyze = _strip_publisher_headers_and_footers(clean_ocr_japanese_spaces(raw_text or ""))
             extracted_meta["char_count"] = len(text_to_analyze)
 
         meta = detect_subject_and_meta(text_to_analyze, cover_text=cover_text, user_subject=subject, user_univ=university, filename=filename)
