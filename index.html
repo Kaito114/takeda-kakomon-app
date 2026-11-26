@@ -2421,11 +2421,58 @@
       }
     }
 
+    window._completedRouteBooks = {};
+
+    function _getCompletedRouteSet(tierId) {
+      const subj = (currentAnalysisData && currentAnalysisData.subject) || "default";
+      const k = `${subj}__${tierId}`;
+      if (!window._completedRouteBooks) window._completedRouteBooks = {};
+      if (!(window._completedRouteBooks[k] instanceof Set)) {
+        window._completedRouteBooks[k] = new Set();
+      }
+      return window._completedRouteBooks[k];
+    }
+
+    function toggleRouteBookCompleted(tierId, encodedBookName) {
+      const bookName = decodeURIComponent(encodedBookName);
+      const set = _getCompletedRouteSet(tierId);
+      if (set.has(bookName)) {
+        set.delete(bookName);
+      } else {
+        set.add(bookName);
+      }
+      renderInteractiveRouteScheduleAndExternal();
+    }
+
+    function completeRouteBooksUpTo(tierId, upToIdx) {
+      const ra = (currentAnalysisData && currentAnalysisData.route_analysis) || {};
+      const tier = (ra.tiers && ra.tiers[tierId]) || {};
+      const schedBooks = tier.schedule_books || [];
+      const set = _getCompletedRouteSet(tierId);
+      const targetBk = schedBooks[upToIdx];
+      const cutWeek = (targetBk && targetBk.end_week) ? targetBk.end_week : (targetBk && targetBk.start_week) || 999;
+      schedBooks.forEach((bk, idx) => {
+        if (idx <= upToIdx) {
+          set.add(bk.book);
+        } else if (bk.end_week && bk.end_week <= cutWeek && !(bk.start_week <= 2 && bk.end_week >= (tier.total_weeks || 40) - 2)) {
+          set.add(bk.book);
+        }
+      });
+      renderInteractiveRouteScheduleAndExternal();
+    }
+
+    function clearCompletedRouteBooks(tierId) {
+      const subj = (currentAnalysisData && currentAnalysisData.subject) || "default";
+      const k = `${subj}__${tierId}`;
+      window._completedRouteBooks[k] = new Set();
+      renderInteractiveRouteScheduleAndExternal();
+    }
+
     function switchAnalysisRouteTier(tierId) {
       window._selectedAnalysisRouteTier = tierId;
       const ra = (currentAnalysisData && currentAnalysisData.route_analysis) || {};
       const tObj = (ra.tiers && ra.tiers[tierId]) || null;
-      if (tObj && tObj.total_weeks) {
+      if (tObj && tObj.total_weeks && !window._userTouchedRemWeeks) {
         window._remainingWeeksOverride = tObj.total_weeks;
       }
       renderInteractiveRouteScheduleAndExternal();
@@ -2434,6 +2481,7 @@
     function updateRemainingWeeksCalc(val) {
       const n = parseInt(val, 10);
       if (!isNaN(n) && n >= 1 && n <= 120) {
+        window._userTouchedRemWeeks = true;
         window._remainingWeeksOverride = n;
         renderInteractiveRouteScheduleAndExternal();
       }
@@ -2447,16 +2495,71 @@
       const activeTierId = window._selectedAnalysisRouteTier || ra.selected_tier || tierOrder[0];
       const tier = (ra.tiers && ra.tiers[activeTierId]) || {};
       const totalWeeks = tier.total_weeks || 30;
-      const remWeeks = window._remainingWeeksOverride || totalWeeks;
-      const ratio = totalWeeks > 0 ? (totalWeeks / Math.max(1, remWeeks)) : 1.0;
-      const ratioRounded = ratio.toFixed(2);
-      const paceVerdict = ratio <= 1.05
-        ? `<span class="badge-ok">✅ 標準ペース（1.0倍速）で全${totalWeeks}週を完遂可能</span>`
-        : (ratio <= 1.45
-            ? `<span class="badge-warn">⚡ 約 ${ratioRounded} 倍速ペースが必要（既習の入門書をスキップすれば標準ペース圏内）</span>`
-            : `<span style="background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800;">🔥 ${ratioRounded}倍速の集中圧縮が必要（日大段階突破へ最短直結＆基礎併用を削減検討）</span>`);
-
       const schedBooks = tier.schedule_books || [];
+      const completedSet = _getCompletedRouteSet(activeTierId);
+
+      // Compute completed frontier week & remaining weeks excluding finished books
+      const completedBooks = schedBooks.filter(b => completedSet.has(b.book));
+      const uncompletedBooks = schedBooks.filter(b => !completedSet.has(b.book));
+      const ongoingThreshold = Math.max(20, Math.round(totalWeeks * 0.75));
+      const finishedStageEnds = completedBooks
+        .filter(b => b.end_week != null && ((b.end_week - (b.start_week || 1) + 1) < ongoingThreshold))
+        .map(b => b.end_week);
+      let completedFrontierWeek = 0;
+      if (finishedStageEnds.length > 0) {
+        completedFrontierWeek = Math.min(totalWeeks, Math.max(...finishedStageEnds));
+      } else if (completedBooks.length > 0) {
+        completedFrontierWeek = Math.min(totalWeeks, Math.max(0, ...completedBooks.map(b => b.duration_weeks || 0)));
+      }
+
+      // Remaining route weeks needed for uncompleted books
+      const uncompletedWithWeeks = uncompletedBooks.filter(b => b.end_week != null);
+      let remainingNeededWeeks = totalWeeks;
+      if (uncompletedWithWeeks.length === 0 && schedBooks.length > 0 && completedBooks.length > 0) {
+        remainingNeededWeeks = 0;
+      } else if (completedFrontierWeek > 0) {
+        const maxUncompEnd = uncompletedWithWeeks.length > 0 ? Math.max(...uncompletedWithWeeks.map(b => b.end_week)) : totalWeeks;
+        remainingNeededWeeks = Math.max(1, maxUncompEnd - completedFrontierWeek);
+      }
+
+      // Identify immediate "Next To-Do" books (uncompleted scheduled books starting right after frontier or active now)
+      const nextStepThreshold = completedFrontierWeek + 4;
+      const nextUpBooks = uncompletedBooks.filter(b => {
+        if (b.is_companion && b.start_week == null) return false;
+        const st = b.start_week || 1;
+        const en = b.end_week || totalWeeks;
+        if ((en - st + 1) >= ongoingThreshold) return true; // ongoing vocab/idiom still uncompleted
+        return st <= nextStepThreshold || en > completedFrontierWeek;
+      }).sort((a, b) => (a.start_week || 999) - (b.start_week || 999));
+
+      const nextFocusList = [];
+      const seenCats = new Set();
+      for (const nb of nextUpBooks) {
+        const cat = nb.category || "演習";
+        if (!seenCats.has(cat) || nextFocusList.length < 3) {
+          nextFocusList.push(nb);
+          seenCats.add(cat);
+        }
+        if (nextFocusList.length >= 4) break;
+      }
+      const nextFocusBookNames = new Set(nextFocusList.map(b => b.book));
+
+      const remWeeks = window._remainingWeeksOverride || totalWeeks;
+      const ratio = remainingNeededWeeks > 0 ? (remainingNeededWeeks / Math.max(1, remWeeks)) : 0.0;
+      const ratioRounded = ratio.toFixed(2);
+      const surplusWeeks = remWeeks - remainingNeededWeeks;
+
+      let paceVerdict = "";
+      if (remainingNeededWeeks === 0) {
+        paceVerdict = `<span class="badge-ok">🎉 ルート内参考書はすべて完了済みです！残りの ${remWeeks} 週は過去問演習＆外部参考書補強に集中できます</span>`;
+      } else if (ratio <= 1.0) {
+        paceVerdict = `<span class="badge-ok">✅ 余裕あり（標準 ${ratioRounded}倍速：残り${remainingNeededWeeks}週分で完遂 ＋ 過去問/外部補強に約${surplusWeeks}週確保可）</span>`;
+      } else if (ratio <= 1.35) {
+        paceVerdict = `<span class="badge-warn">⚡ 約 ${ratioRounded} 倍速ペースが必要（標準残 ${remainingNeededWeeks}週 ÷ 残り ${remWeeks}週）</span>`;
+      } else {
+        paceVerdict = `<span style="background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800;">🔥 ${ratioRounded}倍速の集中圧縮が必要（残 ${remainingNeededWeeks}週 ÷ 残り ${remWeeks}週：段階突破優先で圧縮検討）</span>`;
+      }
+
       const milestones = tier.milestones || [];
       const covRate = Number(tier.coverage_rate ?? 0);
       const uncovRate = Number(tier.uncovered_rate ?? Math.max(0, 100 - covRate).toFixed(1));
@@ -2468,7 +2571,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
             <div>
               <strong style="font-size:14.5px;color:#14532d;">🟢 原則：2026講師用ルート内の参考書で進める（対象PDF：${_escHtml(tier.file || '')}）</strong>
-              <div style="font-size:12px;color:#334155;margin-top:3px;">※ 過去問分析の基準として <code>takeda2026rout</code> のペース配分・週数を内部処理しています。</div>
+              <div style="font-size:12px;color:#334155;margin-top:3px;">※ すでに終了した参考書に✅チェックを入れると、<strong>完了済み分を除いた「残り必要週数」と「次にやるべき参考書」</strong>へ自動再計算されます。</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;background:white;padding:6px 10px;border-radius:8px;border:1px solid #bbf7d0;">
               <label style="font-size:12px;font-weight:700;color:#166534;">⏳ 本番までの残り週数:</label>
@@ -2477,57 +2580,105 @@
             </div>
           </div>
 
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-            ${tierOrder.map(tid => {
-              const tItem = ra.tiers[tid];
-              const isRec = tid === ra.selected_tier;
-              return `
-                <button class="state-btn ${tid === activeTierId ? 'active-ok' : ''}" style="font-size:12px;padding:6px 10px;" onclick="switchAnalysisRouteTier('${_escHtml(tid)}')">
-                  ${isRec ? '⭐ ' : ''}${_escHtml(tid)}（全${tItem.total_weeks || '-'}週）
-                </button>
-              `;
-            }).join("")}
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${tierOrder.map(tid => {
+                const tItem = ra.tiers[tid];
+                const isRec = tid === ra.selected_tier;
+                return `
+                  <button class="state-btn ${tid === activeTierId ? 'active-ok' : ''}" style="font-size:12px;padding:6px 10px;" onclick="switchAnalysisRouteTier('${_escHtml(tid)}')">
+                    ${isRec ? '⭐ ' : ''}${_escHtml(tid)}（全${tItem.total_weeks || '-'}週）
+                  </button>
+                `;
+              }).join("")}
+            </div>
+            ${completedBooks.length > 0 ? `<button class="state-btn" style="font-size:11.5px;" onclick="clearCompletedRouteBooks('${_escHtml(activeTierId)}')">🔄 完了チェック全解除 (${completedBooks.length}冊)</button>` : ''}
           </div>
 
           <div style="background:white;border:1px solid #dcfce7;border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12.5px;">
             <div>
-              <strong>📅 標準ルート所要期間：全 ${totalWeeks} 週間</strong>
+              <strong>📅 ルート全体: ${totalWeeks}週</strong>
+              ${completedFrontierWeek > 0 ? ` ｜ <strong style="color:#15803d;">✅ 第${completedFrontierWeek}週まで完了済 → 残り必要週数: 約 ${remainingNeededWeeks} 週</strong>` : ` ｜ 残り必要週数: ${remainingNeededWeeks} 週`}
               ${milestones.length > 0 ? ` ｜ 🏁 ${milestones.map(m => `${_escHtml(m.label)} (${m.week}週目)`).join(" ／ ")}` : ''}
             </div>
             <div>${paceVerdict}</div>
           </div>
+
+          ${nextFocusList.length > 0 ? `
+            <div style="margin-top:10px;background:#eff6ff;border:1.5px solid #60a5fa;border-radius:10px;padding:10px 14px;">
+              <div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-bottom:6px;">
+                🚀 いま次に着手すべきルート内参考書（${completedFrontierWeek > 0 ? `第${completedFrontierWeek}週完了後のネクストステップ` : 'スタート時点'}）：
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${nextFocusList.map(nb => {
+                  const effStart = completedFrontierWeek > 0 ? Math.max(1, (nb.start_week || 1) - completedFrontierWeek) : (nb.start_week || 1);
+                  const effEnd = completedFrontierWeek > 0 ? Math.max(effStart, (nb.end_week || totalWeeks) - completedFrontierWeek) : (nb.end_week || totalWeeks);
+                  return `
+                    <div style="background:white;border:1.5px solid #93c5fd;border-radius:8px;padding:6px 10px;font-size:12px;">
+                      <span class="badge-ok" style="margin-right:4px;">${_escHtml(nb.category || '演習')}</span>
+                      <strong style="color:#0f172a;">${_escHtml(nb.book)}</strong>
+                      <div style="font-size:11px;color:#1d4ed8;margin-top:2px;">
+                        ${nb.start_week ? `これから第${effStart}〜${effEnd}週目（元ルートW${nb.start_week}〜W${nb.end_week}）` : '併用'} ${nb.pace ? `/ ${nb.pace}` : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          ` : ''}
         </div>
 
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:20%;">実施週・所要週数（2026ルート）</th>
-              <th style="width:14%;">分野・ペース</th>
-              <th style="width:28%;">🟢 ルート内参考書（優先進行）</th>
-              <th style="width:38%;">ルートPDF内の週次課題・到達目安</th>
+              <th style="width:15%;">完了状況チェック</th>
+              <th style="width:20%;">実施週・残り目安</th>
+              <th style="width:13%;">分野・ペース</th>
+              <th style="width:24%;">🟢 ルート内参考書</th>
+              <th style="width:28%;">ルートPDF内の週次課題</th>
             </tr>
           </thead>
           <tbody>
-            ${schedBooks.map(bk => {
+            ${schedBooks.map((bk, idx) => {
+              const isDone = completedSet.has(bk.book);
+              const isNext = !isDone && nextFocusBookNames.has(bk.book);
+              const encName = encodeURIComponent(bk.book);
               let spanHtml = "";
               if (bk.is_companion && bk.start_week === null) {
-                spanHtml = `<strong style="color:#0369a1;">全期間併用</strong><br/><small style="color:#64748b;">講義・辞書サポート</small>`;
+                spanHtml = `<strong style="color:#0369a1;">全期間併用</strong><br/><small style="color:#64748b;">講義サポート</small>`;
+              } else if (isDone) {
+                spanHtml = `<span style="color:#64748b;text-decoration:line-through;">第${bk.start_week}〜${bk.end_week}週（${bk.duration_weeks}週）</span><br/><span class="badge-ok">✅ 終了済み</span>`;
               } else {
-                const adjStart = Math.max(1, Math.round((bk.start_week || 1) / ratio));
-                const adjEnd = Math.max(adjStart, Math.round((bk.end_week || 1) / ratio));
-                const adjDur = Math.max(1, Math.round((bk.duration_weeks || 1) / ratio));
-                spanHtml = `<strong style="color:#15803d;">第${bk.start_week}〜${bk.end_week}週（稼働${bk.duration_weeks}週）</strong>`
-                  + (ratio > 1.05 ? `<br/><small style="color:#b45309;font-weight:700;">圧縮目安: 第${adjStart}〜${adjEnd}週 (${adjDur}週)</small>` : '');
+                const effStart = completedFrontierWeek > 0 ? Math.max(1, (bk.start_week || 1) - completedFrontierWeek) : (bk.start_week || 1);
+                const effEnd = completedFrontierWeek > 0 ? Math.max(effStart, (bk.end_week || totalWeeks) - completedFrontierWeek) : (bk.end_week || totalWeeks);
+                const effDur = Math.max(1, effEnd - effStart + 1);
+                const effRatio = Math.max(0.5, ratio);
+                const adjStart = ratio > 1.05 ? Math.max(1, Math.round(effStart / effRatio)) : effStart;
+                const adjEnd = ratio > 1.05 ? Math.max(adjStart, Math.round(effEnd / effRatio)) : effEnd;
+                spanHtml = `<strong style="color:#15803d;">${completedFrontierWeek > 0 ? `残 第${effStart}〜${effEnd}週（約${effDur}週）` : `第${bk.start_week}〜${bk.end_week}週（稼働${bk.duration_weeks}週）`}</strong>`
+                  + (completedFrontierWeek > 0 ? `<br/><small style="color:#64748b;">元ルート: 第${bk.start_week}〜${bk.end_week}週</small>` : '')
+                  + (ratio > 1.05 ? `<br/><small style="color:#b45309;font-weight:700;">圧縮目安: ${adjStart}〜${adjEnd}週</small>` : '');
               }
               const tasksHtml = (bk.sample_tasks && bk.sample_tasks.length > 0)
                 ? bk.sample_tasks.map(t => _escHtml(t)).join("<br/>")
                 : "ルートPDF記載の標準ペースで反復";
+              const rowStyle = isDone
+                ? "background:#f8fafc;opacity:0.62;"
+                : (isNext ? "background:#eff6ff;" : "");
               return `
-                <tr>
+                <tr style="${rowStyle}">
+                  <td>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;">
+                      <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleRouteBookCompleted('${_escHtml(activeTierId)}', '${encName}')" />
+                      <span>${isDone ? '完了済' : '未完了'}</span>
+                    </label>
+                    ${!isDone ? `<button type="button" class="state-btn" style="margin-top:4px;font-size:10.5px;padding:2px 6px;" onclick="completeRouteBooksUpTo('${_escHtml(activeTierId)}', ${idx})">ここまで済にする</button>` : ''}
+                  </td>
                   <td>${spanHtml}</td>
                   <td style="font-size:12px;"><strong>${_escHtml(bk.category || '演習')}</strong>${bk.pace ? `<br/><span style="color:#1d4ed8;font-weight:700;">${_escHtml(bk.pace)}</span>` : ''}</td>
                   <td>
-                    <strong style="color:var(--navy);">${_escHtml(bk.book)}</strong>
+                    ${isNext ? `<span style="display:inline-block;background:#2563eb;color:white;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;margin-bottom:3px;">👉 次に取り組む</span><br/>` : ''}
+                    <strong style="color:var(--navy);${isDone ? 'text-decoration:line-through;' : ''}">${_escHtml(bk.book)}</strong>
                     ${bk.is_choice_group ? `<br/><span class="badge-muted">※${_escHtml(bk.choice_note || '指定内から1冊選択')}</span>` : ''}
                   </td>
                   <td style="font-size:12px;color:#334155;">${tasksHtml}</td>
@@ -2600,6 +2751,112 @@
       `;
     }
 
+    function getActiveSelectedBooksSummary() {
+      if (!currentAnalysisData) return null;
+      if (currentAnalysisData.subject === "english" && currentAnalysisData.vocab_combination_simulator) {
+        const sim = currentAnalysisData.vocab_combination_simulator;
+        const books = sim.books || [];
+        const confBooks = currentAnalysisData.confirmation_test_books || [];
+        const slots = window._vocabSlots || [];
+        const activeIds = Array.from(selectedVocabBookIds);
+        const primaryKey = slots[0] || activeIds[0] || "systan_1700";
+        const findName = (id) => {
+          const b = books.find(x => x.id === id);
+          if (b) return b.name.split("（")[0].replace("★", "").trim();
+          const cb = confBooks.find(x => x.id === id);
+          return cb ? cb.name : id;
+        };
+        const selectedNames = [
+          ...activeIds.map(findName),
+          ...Array.from(selectedConfExtraBookIds).map(findName),
+        ].filter(Boolean);
+        const metrics = window._latestVocabComboMetrics || {
+          primaryKey,
+          primaryName: findName(primaryKey),
+          mainBaseRate: 0,
+          mainPassageRate: 0,
+          examCovRate: 0,
+          passageCovRate: 0,
+          totalWithRouteCov: 0,
+          matchedUnique: 0,
+          totalUnique: Math.max(1, sim.total_exam_unique || 1),
+          uncoveredCount: 0,
+        };
+        return {
+          mode: "english",
+          primaryKey,
+          primaryName: findName(primaryKey),
+          selectedNames: selectedNames.length ? selectedNames : [findName(primaryKey)],
+          ...metrics,
+        };
+      }
+      const confBooks = currentAnalysisData.confirmation_test_books || [];
+      const activeIds = new Set([...(window._structSlots || []).filter(Boolean), ...Array.from(selectedStructConfBookIds)]);
+      const selectedObjs = Array.from(activeIds).map(id => confBooks.find(b => b.id === id)).filter(Boolean);
+      const metrics = window._latestStructComboMetrics || { maxCov: 85.0 };
+      return {
+        mode: "structured",
+        selectedObjs,
+        selectedNames: selectedObjs.map(b => b.name),
+        maxCov: metrics.maxCov || 85.0,
+      };
+    }
+
+    function renderQuantitativeBorders() {
+      const borderEl = document.getElementById("borderContent");
+      if (!borderEl || !currentAnalysisData) return;
+      const summary = getActiveSelectedBooksSummary();
+      const baseBorders = currentAnalysisData.quantitative_borders || [];
+      let renderedBorders = [];
+
+      if (summary && summary.mode === "english") {
+        const namesLabel = summary.selectedNames.join(" ＋ ");
+        const covPct = summary.totalWithRouteCov || summary.passageCovRate || 0;
+        const examPct = summary.examCovRate || 0;
+        const uncovCnt = summary.uncoveredCount || 0;
+        const verdict = examPct >= 90
+          ? `✅ 選択中の『${namesLabel}』で受験重要語の ${examPct}%（長文全体 ${covPct}%）をカバーしており、合格基準を満たしています（未収録 ${uncovCnt}語 は文脈推測・注釈で対応可）。`
+          : (examPct >= 80
+              ? `⚡ 選択中の『${namesLabel}』で重要語 ${examPct}% をカバー（合格ボーダー付近）。完成度95%以上に加え、残り ${uncovCnt}語 向けの2冊目追加も検討ラインです。`
+              : `⚠️ 選択中の『${namesLabel}』では重要語 ${examPct}% にとどまり、未収録語が ${uncovCnt}語 残ります。上位範囲または2冊目の追加が必要です。`);
+        renderedBorders.push({
+          category: `選択中参考書セット（${namesLabel}）での語彙・長文網羅ボーダー`,
+          threshold: "受験重要語カバー率 85〜90% 以上 ／ 長文全体 92% 以上",
+          current_analysis: `プルダウン選択中の『${namesLabel}』での実測結果は、重要語 ${examPct}%（${summary.matchedUnique}/${summary.totalUnique}語ヒット）、本文全体 ${covPct}%、未収録 ${uncovCnt}語 です。`,
+          verdict,
+        });
+        baseBorders.slice(1).forEach(b => renderedBorders.push(b));
+      } else if (summary && summary.mode === "structured" && summary.selectedNames.length > 0) {
+        const namesLabel = summary.selectedNames.join(" ＋ ");
+        const covPct = summary.maxCov || 0;
+        const verdict = covPct >= 88
+          ? `✅ 選択中の『${namesLabel}』の合算網羅率は ${covPct}% で、合格必須ラインに十分到達しています。ミスした単元の類題反復を優先してください。`
+          : (covPct >= 75
+              ? `⚡ 選択中の『${namesLabel}』の網羅率は ${covPct}%。標準定石を完璧にしつつ、応用パート向けに上位問題集の追加を検討してください。`
+              : `⚠️ 選択中の『${namesLabel}』だけでは網羅率 ${covPct}% と不足しています。2冊目・3冊目の標準〜応用参考書を追加してください。`);
+        renderedBorders.push({
+          category: `選択中参考書セット（${namesLabel}）での出題網羅ボーダー`,
+          threshold: "合格必須基準：出題網羅率 85% 以上（基礎〜標準定石の取りこぼしゼロ）",
+          current_analysis: `セクション3でプルダウン選択中の『${namesLabel}』は、本過去問に対して合算 ${covPct}% のカバー率です。`,
+          verdict,
+        });
+        baseBorders.forEach(b => renderedBorders.push(b));
+      } else {
+        renderedBorders = baseBorders;
+      }
+
+      borderEl.innerHTML = renderedBorders.map(b => `
+        <div class="border-item">
+          <h4>
+            <span>⚠️ ${_escHtml(b.category)}</span>
+            <span class="threshold-badge">合格必須基準: ${_escHtml(b.threshold)}</span>
+          </h4>
+          <p style="font-size: 13.5px; color: var(--slate-800); margin-bottom: 6px;"><strong>【定量照合データ】</strong> ${_escHtml(b.current_analysis)}</p>
+          <p style="font-size: 13.5px; color: var(--brand-red-dark); font-weight: 700;">👉 ${_escHtml(b.verdict)}</p>
+        </div>
+      `).join("");
+    }
+
     function renderRouteGapSection(gapList) {
       const box = document.getElementById("routeGapContent");
       if (!box) return;
@@ -2670,6 +2927,11 @@
     function renderResults(data) {
       currentAnalysisData = data;
       window._selectedTenYearUnivId = null;
+      window._completedRouteBooks = {};
+      window._selectedAnalysisRouteTier = null;
+      window._userTouchedRemWeeks = false;
+      window._latestVocabComboMetrics = null;
+      window._latestStructComboMetrics = null;
       document.getElementById("resultDashboard").style.display = "block";
       if (data.memory_policy && data.memory_policy.message) {
         document.getElementById("memoryStatusText").innerText =
@@ -2768,18 +3030,8 @@
       // Initialize Section 2: Interactive Past Exam Execution & Mistake Tracker
       initMistakeTracker(data.tracker_sections || []);
 
-      // Section 4: Quantitative Borders
-      const borderEl = document.getElementById("borderContent");
-      borderEl.innerHTML = (data.quantitative_borders || []).map(b => `
-        <div class="border-item">
-          <h4>
-            <span>⚠️ ${b.category}</span>
-            <span class="threshold-badge">合格必須基準: ${b.threshold}</span>
-          </h4>
-          <p style="font-size: 13.5px; color: var(--slate-800); margin-bottom: 6px;"><strong>【定量照合データ】</strong> ${b.current_analysis}</p>
-          <p style="font-size: 13.5px; color: var(--brand-red-dark); font-weight: 700;">👉 ${b.verdict}</p>
-        </div>
-      `).join("");
+      // Section 4: Quantitative Borders (linked dynamically to Section 3 pull-down selection)
+      renderQuantitativeBorders();
 
       // Section 5: 2026 Route Schedule (In-Route) + External Book Decision Support
       const roadEl = document.getElementById("roadmapContent");
@@ -3573,14 +3825,39 @@
       }
 
       const reasonSummary = Object.entries(reasonCounts).map(([r, c]) => `${r}: ${c}問`).join(" ／ ");
+      const activeBookSummary = getActiveSelectedBooksSummary();
+      const selectedBooksLabel = (activeBookSummary && activeBookSummary.selectedNames && activeBookSummary.selectedNames.length > 0)
+        ? activeBookSummary.selectedNames.join(" ＋ ")
+        : "";
+
+      const resolveRemedyText = (w) => {
+        const orig = w.item.remedy_book || "";
+        if (!activeBookSummary || !selectedBooksLabel) return orig;
+        if (activeBookSummary.mode === "english") {
+          const isReadingOrVocab = orig.includes("システム英単語") || w.reason.includes("知識") || w.reason.includes("単語");
+          if (isReadingOrVocab) {
+            return `【プルダウン選択中：${_escHtml(selectedBooksLabel)}】の該当語彙・表現復習（現在カバー率 ${activeBookSummary.examCovRate}%）`;
+          }
+          return `${_escHtml(orig)}（選択単語帳: ${_escHtml(activeBookSummary.primaryName)}）`;
+        }
+        const objs = activeBookSummary.selectedObjs || [];
+        if (objs.length > 0) {
+          let matchedBook = objs[0];
+          if (w.item.tier === "advanced" && objs.length >= 2) matchedBook = objs[objs.length - 1];
+          else if (w.item.tier === "border_line" && objs.length >= 2) matchedBook = objs[1];
+          return `【プルダウン選択中：${_escHtml(matchedBook.name)}】の「${_escHtml((w.item.unit || '').split('（')[0])}」類題範囲（セット合算 ${activeBookSummary.maxCov}%）`;
+        }
+        return _escHtml(orig);
+      };
 
       box.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:14px;margin-bottom:14px;">
           <div>
             <h4 style="font-size:17px;font-weight:800;color:#fde047;">📊 設問別 正誤実施状況の定量分析（⭕正解: ${okCount}問 ／ 🔺惜しい: ${partialCount}問 ／ ❌ミス: ${wrongCount}問）</h4>
             <p style="font-size:13px;color:#e2e8f0;margin-top:4px;">
-              <strong>ミス原因別の内訳:</strong> ${reasonSummary}
+              <strong>ミス原因別の内訳:</strong> ${_escHtml(reasonSummary)}
             </p>
+            ${selectedBooksLabel ? `<p style="font-size:12.5px;color:#93c5fd;margin-top:4px;font-weight:700;">📚 復習対象（セクション3の選択参考書と連動中）：${_escHtml(selectedBooksLabel)}</p>` : ''}
             <p style="font-size:13.5px;color:#fff;margin-top:6px;font-weight:700;">
               ${lostMustCount > 0
                 ? `🚨 【重要定量データ】🟢基礎・標準（必答）設問での失点が <strong>${lostMustCount}問分（全体の -${Math.round(lostMustCount/totalCount*1000)/10}%）</strong> 発生しています。難問に手を出す前に、この基礎・標準設問のミスを解消するだけで正答率が <strong>${scoreRate}% → ${mustRecoverRate}%</strong> に向上します！`
@@ -3598,11 +3875,11 @@
         ${wrongItems.map(w => `
           <div class="remedy-alert-card">
             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-              <strong>${w.status === 'wrong' ? '❌' : '🔺'} ${w.item.label}（${w.item.tier_label} ｜ 原因: ${w.reason}）</strong>
+              <strong>${w.status === 'wrong' ? '❌' : '🔺'} ${_escHtml(w.item.label)}（${_escHtml(w.item.tier_label)} ｜ 原因: ${_escHtml(w.reason)}）</strong>
               <span style="color:#fde047;font-weight:800;">優先復習ターゲット</span>
             </div>
             <div style="margin-top:4px;color:#f8fafc;">
-              👉 <strong>戻るべき参考書・範囲:</strong> ${w.item.remedy_book}
+              👉 <strong>戻るべき参考書・範囲:</strong> ${resolveRemedyText(w)}
             </div>
           </div>
         `).join("")}
@@ -3677,8 +3954,14 @@
       const basicTokens = sim.basic_token_count || 0;
       const totalAllTokens = Math.max(1, sim.total_all_tokens || 1);
 
-      const slots = window._vocabSlots || ["systan_1700", "sokutan_adv", ""];
+      let slots = window._vocabSlots;
       if (!window._vocabSlotsInit) {
+        const defBooks = books.filter(b => b.default_checked).map(b => b.id);
+        slots = [
+          defBooks[0] || (books[0] && books[0].id) || "systan_1700",
+          defBooks[1] || "",
+          defBooks[2] || ""
+        ];
         window._vocabSlots = slots;
         selectedVocabBookIds = new Set(slots.filter(x => x));
         window._vocabSlotsInit = true;
@@ -3687,7 +3970,10 @@
       let matchedUnique = 0;
       let matchedTokens = 0;
       let mainOnlyUnique = 0;
+      let mainOnlyTokens = 0;
       const addedByExtraBooks = [];
+      const mainHitItems = [];
+      const remainingUncoveredItems = [];
 
       const activeList = Array.from(selectedVocabBookIds);
       const primaryKey = slots[0] || activeList[0] || "systan_1700";
@@ -3699,6 +3985,8 @@
         const hitMain = bMap[primaryKey] !== undefined;
         if (hitMain) {
           mainOnlyUnique += 1;
+          mainOnlyTokens += (item.freq || 1);
+          mainHitItems.push({ word: item.word, meaning: item.meaning, q_number: bMap[primaryKey], freq: item.freq || 1 });
         }
         if (hitAny) {
           matchedUnique += 1;
@@ -3716,13 +4004,19 @@
               books_str: matchedBookLabels.join(" / ")
             });
           }
+        } else {
+          remainingUncoveredItems.push({ word: item.word, meaning: item.meaning, freq: item.freq || 1 });
         }
       });
 
       const examCovRate = Math.min(100, Math.round((matchedUnique / totalUnique) * 1000) / 10);
       const passageCovRate = Math.min(99.8, Math.round(((basicTokens + matchedTokens) / totalAllTokens) * 1000) / 10);
       const mainBaseRate = Math.min(100, Math.round((mainOnlyUnique / totalUnique) * 1000) / 10);
+      const mainPassageRate = Math.min(99.8, Math.round(((basicTokens + mainOnlyTokens) / totalAllTokens) * 1000) / 10);
       const boostRate = Math.max(0, Math.round((examCovRate - mainBaseRate) * 10) / 10);
+
+      const primaryBookObj = books.find(b => b.id === primaryKey);
+      const primaryName = primaryBookObj ? primaryBookObj.name.split("（")[0].replace("★", "").trim() : primaryKey;
 
       // Build grouped <optgroup> options for pull-down
       const groupsMap = {};
@@ -3841,86 +4135,152 @@
           ` : ''}
         </div>
       `;
+
+      window._latestVocabComboMetrics = {
+        primaryKey,
+        primaryName,
+        mainBaseRate,
+        mainPassageRate,
+        examCovRate,
+        passageCovRate,
+        totalWithRouteCov: selectedExtraConfObjs.length > 0 ? totalWithRouteCov : passageCovRate,
+        matchedUnique,
+        totalUnique,
+        uncoveredCount: remainingUncoveredItems.length,
+      };
+      renderEnglishDynamicDetail(primaryKey, primaryName, activeList, mainHitItems, remainingUncoveredItems, examCovRate, passageCovRate, mainBaseRate, mainPassageRate, totalWithRouteCov, selectedExtraConfObjs.length > 0);
+      renderQuantitativeBorders();
+      updateLiveMistakeDiagnosis();
+    }
+
+    function renderEnglishDynamicDetail(primaryKey, primaryName, activeList, mainHitItems, remainingUncoveredItems, examCovRate, passageCovRate, mainBaseRate, mainPassageRate, totalWithRouteCov, hasExtraConf) {
+      const box = document.getElementById("englishDynamicDetailContainer");
+      if (!box || !currentAnalysisData) return;
+      const sc = currentAnalysisData.systan_coverage || {};
+      const sim = currentAnalysisData.vocab_combination_simulator || {};
+      const books = sim.books || [];
+      const totalUnique = Math.max(1, sim.total_exam_unique || 1);
+
+      const makeChips = (words) => {
+        if (!words || words.length === 0) return `<p style="font-size:12.5px;color:#64748b;margin-top:6px;">該当単語なし</p>`;
+        return `<div class="word-chip-container">` + words.slice(0, 35).map(w => `
+          <div class="word-chip">
+            <span class="chip-num">${_escHtml(w.q_number || (w.num ? 'No.' + w.num : '-'))}</span>
+            <strong>${_escHtml(w.word)}</strong>
+            <span class="chip-mean">${_escHtml(w.meaning || '')}</span>
+          </div>
+        `).join("") + `</div>`;
+      };
+
+      const selectedLabels = activeList.map(id => {
+        const b = books.find(x => x.id === id);
+        return b ? b.name.split("（")[0].replace("★", "").trim() : id;
+      });
+      const comboTitle = selectedLabels.join(" ＋ ") || primaryName;
+      const comboPassageVal = hasExtraConf ? totalWithRouteCov : passageCovRate;
+
+      const isSystanMain = ["systan_1200", "systan_1700", "systan_all", "systan_s1", "systan_s2", "systan_s3", "systan_s4"].includes(primaryKey);
+      let stageBreakdownHtml = "";
+      if (isSystanMain && sc.stage1) {
+        const stagesToShow = [sc.stage1, sc.stage2];
+        if (["systan_1700", "systan_all", "systan_s3", "systan_s4"].includes(primaryKey)) stagesToShow.push(sc.stage3);
+        if (["systan_all", "systan_s4"].includes(primaryKey)) stagesToShow.push(sc.stage4);
+        stageBreakdownHtml = `
+          <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 選択中「${_escHtml(primaryName)}」のステージ別出現内訳とヒット単語</h4>
+          ${stagesToShow.map((st, idx) => `
+            <div class="bar-row" style="${idx > 0 ? 'margin-top:16px;' : ''}">
+              <div class="bar-label-line">
+                <span>${_escHtml(st.label)}</span>
+                <span>${st.count} 語ヒット（重要語彙比 ${st.rate}%）</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill ${idx >= 2 ? (idx === 3 ? 'emerald' : 'blue') : ''}" style="width: ${Math.min(100, st.rate * (idx >= 2 ? 2 : 1))}%;"></div></div>
+              ${makeChips(st.words)}
+            </div>
+          `).join("")}
+          ${sc.tagigo && sc.tagigo.count > 0 ? `
+            <div class="bar-row" style="margin-top:16px;">
+              <div class="bar-label-line">
+                <span>🔑 システム英単語 多義語（No.1〜184）の出現語</span>
+                <span>${sc.tagigo.count} 語検出</span>
+              </div>
+              ${makeChips(sc.tagigo.words)}
+            </div>
+          ` : ''}
+        `;
+      } else {
+        // Group hit items dynamically by numeric range / section for Target1900, LEAP, Teppeki, etc.
+        const bands = [
+          { label: `${primaryName} 前半（No.1〜800 / Part1）`, items: [] },
+          { label: `${primaryName} 中盤（No.801〜1500 / Part2）`, items: [] },
+          { label: `${primaryName} 後半・発展（No.1501〜 / Part3以降）`, items: [] },
+        ];
+        mainHitItems.forEach(it => {
+          const m = String(it.q_number || "").match(/(\d+)/);
+          const num = m ? parseInt(m[1], 10) : 0;
+          if (num > 0 && num <= 800) bands[0].items.push(it);
+          else if (num > 800 && num <= 1500) bands[1].items.push(it);
+          else bands[2].items.push(it);
+        });
+        const nonEmptyBands = bands.filter(b => b.items.length > 0);
+        stageBreakdownHtml = `
+          <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 選択中「${_escHtml(primaryName)}」の収録範囲別ヒット内訳（全 ${mainHitItems.length} 語ヒット）</h4>
+          ${nonEmptyBands.length > 0 ? nonEmptyBands.map((bd, idx) => {
+            const pct = Math.round((bd.items.length / totalUnique) * 1000) / 10;
+            return `
+              <div class="bar-row" style="${idx > 0 ? 'margin-top:16px;' : ''}">
+                <div class="bar-label-line">
+                  <span>${_escHtml(bd.label)}</span>
+                  <span>${bd.items.length} 語ヒット（重要語彙比 ${pct}%）</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill ${idx === 1 ? 'blue' : (idx === 2 ? 'emerald' : '')}" style="width: ${Math.min(100, pct * 1.5)}%;"></div></div>
+                ${makeChips(bd.items)}
+              </div>
+            `;
+          }).join("") : `<p style="font-size:13px;color:#64748b;">選択された参考書に一致する語彙が見つかりませんでした。</p>`}
+        `;
+      }
+
+      box.innerHTML = `
+        <div class="cov-highlight-grid">
+          <div class="cov-hero-box red-accent">
+            <div class="hero-title">📘 1冊目選択中：${_escHtml(primaryName)} 単体での網羅率</div>
+            <div class="hero-MainRate">本文全体 ${mainPassageRate}% <span style="font-size:15px;color:#fff;">(重要語彙の ${mainBaseRate}%)</span></div>
+            <div class="hero-desc">プルダウン1冊目に設定した「${_escHtml(primaryName)}」単体でのカバー割合</div>
+          </div>
+          <div class="cov-hero-box">
+            <div class="hero-title">📗 選択セット合算（${_escHtml(comboTitle)}）での網羅率</div>
+            <div class="hero-MainRate">本文全体 ${comboPassageVal}% <span style="font-size:15px;color:#fff;">(重要語彙の ${examCovRate}%)</span></div>
+            <div class="hero-desc">選択セット完了後の未収録語は残り <strong>${remainingUncoveredItems.length} 語</strong> です</div>
+          </div>
+        </div>
+
+        ${stageBreakdownHtml}
+
+        ${remainingUncoveredItems.length > 0 ? `
+          <div style="margin-top:18px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;">
+            <strong style="font-size:13px;color:#991b1b;">⚠️ 現在の選択セット（${_escHtml(comboTitle)}）で未収録となる単語（抜粋 ${Math.min(25, remainingUncoveredItems.length)} / ${remainingUncoveredItems.length}語）：</strong>
+            <div class="word-chip-container" style="margin-top:8px;">
+              ${remainingUncoveredItems.slice(0, 25).map(u => `
+                <div class="word-chip" style="border-color:#fca5a5;">
+                  <span class="chip-num">未収録</span>
+                  <strong>${_escHtml(u.word)}</strong>
+                  <span class="chip-mean">${_escHtml(u.meaning || '')}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        ` : ''}
+      `;
     }
 
     function renderEnglishCoverage(data) {
       window._vocabSlotsInit = false;
       selectedConfExtraBookIds = new Set();
-      const sc = data.systan_coverage;
       const el = document.getElementById("coverageContent");
-
-      const makeChips = (words) => {
-        if (!words || words.length === 0) return `<p style="font-size:12.5px;color:#64748b;margin-top:6px;">該当単語なし</p>`;
-        return `<div class="word-chip-container">` + words.map(w => `
-          <div class="word-chip">
-            <span class="chip-num">${w.q_number || ('No.' + w.num)}</span>
-            <strong>${w.word}</strong>
-            <span class="chip-mean">${w.meaning || ''}</span>
-          </div>
-        `).join("") + `</div>`;
-      };
 
       el.innerHTML = `
         <div id="vocabComboSimContainer"></div>
-
-        <div class="cov-highlight-grid">
-          <div class="cov-hero-box red-accent">
-            <div class="hero-title">📘 システム英単語 1〜1200番（第1章・第2章）での網羅率</div>
-            <div class="hero-MainRate">本文全体 ${sc.passage_token_cov_1200}% <span style="font-size:15px;color:#fff;">(重要語彙の ${sc.cumulative_1200_exam_rate}%)</span></div>
-            <div class="hero-desc">日大・産近甲龍レベル突破基準（1〜1200番）でカバーできる割合</div>
-          </div>
-          <div class="cov-hero-box">
-            <div class="hero-title">📗 システム英単語 1〜1700番（第3章まで）での網羅率</div>
-            <div class="hero-MainRate">本文全体 ${sc.passage_token_cov_1700}% <span style="font-size:15px;color:#fff;">(重要語彙の ${sc.cumulative_1700_exam_rate}%)</span></div>
-            <div class="hero-desc">MARCH・関関同立突破基準（1〜1700番）＋第4章までで <strong>${sc.passage_token_cov_2027}%</strong> 網羅</div>
-          </div>
-        </div>
-
-        <h4 style="font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy);">📊 システム英単語（5訂版）ステージ別の出現内訳とヒット単語</h4>
-
-        <div class="bar-row">
-          <div class="bar-label-line">
-            <span>${sc.stage1.label}</span>
-            <span>${sc.stage1.count} 語ヒット（重要語彙比 ${sc.stage1.rate}%）</span>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width: ${Math.min(100, sc.stage1.rate)}%;"></div></div>
-          ${makeChips(sc.stage1.words)}
-        </div>
-
-        <div class="bar-row" style="margin-top:18px;">
-          <div class="bar-label-line">
-            <span>${sc.stage2.label} 【ここまでで1〜1200番 累計 ${sc.cumulative_1200_exam_rate}%】</span>
-            <span>${sc.stage2.count} 語ヒット（+${sc.stage2.rate}%）</span>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width: ${Math.min(100, sc.stage2.rate)}%;"></div></div>
-          ${makeChips(sc.stage2.words)}
-        </div>
-
-        <div class="bar-row" style="margin-top:18px;">
-          <div class="bar-label-line">
-            <span>${sc.stage3.label} 【ここまでで1〜1700番 累計 ${sc.cumulative_1700_exam_rate}%】</span>
-            <span>${sc.stage3.count} 語ヒット（+${sc.stage3.rate}%）</span>
-          </div>
-          <div class="bar-track"><div class="bar-fill blue" style="width: ${Math.min(100, sc.stage3.rate * 2)}%;"></div></div>
-          ${makeChips(sc.stage3.words)}
-        </div>
-
-        <div class="bar-row" style="margin-top:18px;">
-          <div class="bar-label-line">
-            <span>${sc.stage4.label} 【シス単全範囲 累計 ${sc.cumulative_all_exam_rate}%】</span>
-            <span>${sc.stage4.count} 語ヒット（+${sc.stage4.rate}%）</span>
-          </div>
-          <div class="bar-track"><div class="bar-fill emerald" style="width: ${Math.min(100, sc.stage4.rate * 3)}%;"></div></div>
-          ${makeChips(sc.stage4.words)}
-        </div>
-
-        <div class="bar-row" style="margin-top:18px;">
-          <div class="bar-label-line">
-            <span>🔑 システム英単語 多義語（No.1〜184）の出現語</span>
-            <span>${sc.tagigo.count} 語検出</span>
-          </div>
-          ${makeChips(sc.tagigo.words)}
-        </div>
+        <div id="englishDynamicDetailContainer"></div>
 
         <hr style="border:none;border-top:1px solid var(--slate-200);margin:24px 0;" />
 
@@ -4057,8 +4417,27 @@
               </div>
             </div>
           </div>
+
+          ${selectedBooks.length > 0 ? `
+            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+              ${selectedBooks.map(sb => `
+                <div style="background:white;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:12px;">
+                  <strong style="color:#1e3a8a;">📘 ${_escHtml(sb.name)}</strong>
+                  <div style="color:#059669;font-weight:700;margin-top:2px;">単体目安 ${sb.single_coverage_rate}% ／ ${sb.count || '-'}問</div>
+                  <div style="color:#475569;font-size:11px;margin-top:2px;">対応範囲: ${_escHtml((sb.covered_domains || []).join('・') || sb.role_group || '')}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : ''}
         </div>
       `;
+
+      window._latestStructComboMetrics = {
+        maxCov,
+        selectedNames: selectedBooks.map(b => b.name),
+      };
+      renderQuantitativeBorders();
+      updateLiveMistakeDiagnosis();
     }
 
     function renderMathAndStructuredCoverage(data) {
