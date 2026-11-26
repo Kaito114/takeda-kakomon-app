@@ -1357,21 +1357,24 @@
         <div class="missing-meta-grid">
           <div class="form-group">
             <label for="mmUnivInput">🏫 大学名 <span id="mmUnivTag"></span></label>
-            <input type="text" id="mmUnivInput" list="univSuggestList" placeholder="例：関西大学" />
+            <input type="text" id="mmUnivInput" list="univSuggestList" placeholder="例：関西大学" oninput="refreshMissingMetaSuggestions()" />
           </div>
           <div class="form-group">
             <label for="mmFacultyInput">🎓 学部・系統 <span id="mmFacultyTag"></span></label>
-            <input type="text" id="mmFacultyInput" placeholder="例：システム理工学部 / 全学部" />
+            <input type="text" id="mmFacultyInput" list="facultySuggestList" placeholder="例：システム理工学部 / 全学部" />
           </div>
           <div class="form-group">
             <label for="mmExamTypeInput">📝 受験方式・日程 <span id="mmExamTypeTag"></span></label>
-            <input type="text" id="mmExamTypeInput" placeholder="例：一般選抜 / 全学部日程 / A方式" />
+            <input type="text" id="mmExamTypeInput" list="examTypeSuggestList" placeholder="例：一般入試 / 全学部日程 / A方式" />
           </div>
           <div class="form-group">
             <label for="mmYearInput">📅 出題年度（4桁） <span id="mmYearTag"></span></label>
             <input type="text" id="mmYearInput" placeholder="例：2025" />
           </div>
         </div>
+        <datalist id="facultySuggestList"></datalist>
+        <datalist id="examTypeSuggestList"></datalist>
+        <div id="mmQuickSuggestBar" style="margin-top:8px;font-size:11.5px;color:#475569;"></div>
       </div>
       <div id="missingMetaBatchContainer" style="display:none;margin-top:12px;"></div>
       <div id="missingMetaError" class="error-inline-msg" style="display:none;"></div>
@@ -1970,14 +1973,18 @@
       const payload = {
         university: (m.university || cand.university || data.university || "").trim() || "大学名未指定",
         faculty: (m.faculty || cand.faculty || "").trim() || "共通・標準",
-        exam_type: (m.exam_type || cand.exam_type || "").trim() || "一般・標準",
+        exam_type: (m.exam_type || cand.exam_type || "").trim() || "一般入試",
         year: (m.year || cand.year || "").trim() || "2026",
         subject: cand.subject || data.subject || "english",
         exam_vector: data.exam_vector || cand.exam_vector || [0.74, 0.78, 0.40, 0.85, 0.66, 0.74],
         content_fingerprint: cand.content_fingerprint || "",
         book_rates: cand.book_rates || {},
         topics: cand.topics || [],
-        char_count: (data.memory_policy && data.memory_policy.processed_chars) || 0
+        deviation_value: cand.deviation_value || null,
+        char_count: (data.memory_policy && data.memory_policy.processed_chars) || 0,
+        word_count: cand.word_count || (data.level_evaluation && data.level_evaluation.total_words) || 0,
+        problem_count: cand.problem_count || (data.tracker_sections && data.tracker_sections.length) || 2,
+        vector_version: cand.vector_version || 2
       };
       const saveRes = await fetch("/api/save-exam-dna", {
         method: "POST",
@@ -1992,6 +1999,44 @@
         window._selectedTenYearUnivId = sd.saved_profile.profile_key;
       }
       return sd;
+    }
+
+    async function loadMetaSuggestionsCache() {
+      try {
+        const res = await fetch("/api/dna-metadata-suggestions", { headers: getAuthHeaders() });
+        if (res.ok) {
+          window._cachedMetaSuggestions = await res.json();
+        }
+      } catch (e) {}
+    }
+
+    function refreshMissingMetaSuggestions() {
+      const sug = window._cachedMetaSuggestions;
+      if (!sug) return;
+      const uVal = (document.getElementById("mmUnivInput")?.value || "").trim();
+      const facByU = (sug.faculties_by_univ && sug.faculties_by_univ[uVal]) || [];
+      const etByU = (sug.exam_types_by_univ && sug.exam_types_by_univ[uVal]) || [];
+      const facOpts = Array.from(new Set([...facByU, ...(sug.default_faculties || [])]));
+      const etOpts = Array.from(new Set([...etByU, ...(sug.default_exam_types || [])]));
+
+      const facListEl = document.getElementById("facultySuggestList");
+      const etListEl = document.getElementById("examTypeSuggestList");
+      if (facListEl) facListEl.innerHTML = facOpts.map(v => `<option value="${_escHtml(v)}"></option>`).join("");
+      if (etListEl) etListEl.innerHTML = etOpts.map(v => `<option value="${_escHtml(v)}"></option>`).join("");
+
+      const quickBar = document.getElementById("mmQuickSuggestBar");
+      if (quickBar) {
+        const facButtons = facOpts.slice(0, 6).map(v =>
+          `<button type="button" class="state-btn" style="font-size:11px;padding:2px 8px;" onclick="document.getElementById('mmFacultyInput').value='${_escHtml(v)}';document.getElementById('mmFacultyInput').classList.remove('field-invalid');">${_escHtml(v)}</button>`
+        ).join("");
+        const etButtons = etOpts.slice(0, 5).map(v =>
+          `<button type="button" class="state-btn" style="font-size:11px;padding:2px 8px;" onclick="document.getElementById('mmExamTypeInput').value='${_escHtml(v)}';document.getElementById('mmExamTypeInput').classList.remove('field-invalid');">${_escHtml(v)}</button>`
+        ).join("");
+        quickBar.innerHTML = `
+          <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:4px;"><strong>🎓 学部候補:</strong> ${facButtons}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;"><strong>📝 方式候補:</strong> ${etButtons}</div>
+        `;
+      }
     }
 
     function _hasMissingMeta(flags) {
@@ -2038,6 +2083,8 @@
       const card = document.getElementById("missingMetaCard");
       card.style.display = "block";
       document.getElementById("resultDashboard").style.display = "none";
+      loadMetaSuggestionsCache().then(() => refreshMissingMetaSuggestions());
+      refreshMissingMetaSuggestions();
       card.scrollIntoView({ behavior: "smooth" });
     }
 
@@ -2083,6 +2130,8 @@
       const card = document.getElementById("missingMetaCard");
       card.style.display = "block";
       document.getElementById("resultDashboard").style.display = "none";
+      loadMetaSuggestionsCache().then(() => refreshMissingMetaSuggestions());
+      refreshMissingMetaSuggestions();
       card.scrollIntoView({ behavior: "smooth" });
     }
 
@@ -3173,13 +3222,16 @@
               const badgeColor = u.category_code === 'challenge' ? '#fef3c7;color:#92400e' : (u.category_code === 'safe' ? '#e0f2fe;color:#075985' : '#dcfce7;color:#166534');
               return `
                 <tr>
-                  <td><span style="background:${badgeColor};padding:4px 10px;border-radius:999px;font-weight:800;">一致度 ${u.match_rate}%</span></td>
+                  <td>
+                    <span style="background:${badgeColor};padding:4px 10px;border-radius:999px;font-weight:800;">総合 ${u.match_rate}%</span>
+                    ${u.format_similarity ? `<div style="font-size:11px;color:#475569;margin-top:3px;">出題形式 ${u.format_similarity}%</div>` : ''}
+                  </td>
                   <td style="font-size:12px;font-weight:700;">${u.concurrent_category || '🎯 実力相応・併願推奨'}</td>
                   <td>
                     <strong>${u.university_name}</strong><br>
                     <span style="font-size:11px;font-weight:700;color:${u.data_source_type === 'measured' ? '#15803d' : '#0369a1'};">${u.data_source_label || '📘 初期基準モデル'}</span>
                   </td>
-                  <td>${u.tier}<br><small style="color:#64748b;">(偏差値${u.deviation_value}帯)</small></td>
+                  <td>${u.tier}<br><small style="color:#64748b;">(偏差値${u.deviation_value}帯${u.dev_diff_label ? ' / ' + u.dev_diff_label : ''})</small></td>
                   <td style="font-size:12.5px;">${u.reason}</td>
                 </tr>
               `;
@@ -3309,10 +3361,36 @@
         const d = await res.json();
         if (!res.ok) throw new Error(d.detail || "管理者データの取得に失敗しました");
         window._cachedAdminProfiles = d.profiles || [];
+        window._cachedMergeCandidates = d.merge_candidates || [];
         window._adminTotalYearSlots = d.total_year_slots || 0;
         renderAdminProfilesTable();
       } catch (e) {
         container.innerHTML = `<div class="section-card"><p style="color:#dc2626;font-weight:700;">エラー: ${_escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    async function quickMergeProfileCandidate(idx) {
+      const cand = (window._cachedMergeCandidates || [])[idx];
+      if (!cand) return;
+      if (!confirm(`「${cand.source_display}」を「${cand.target_display}」へ統合しますか？`)) return;
+      try {
+        const res = await fetch("/api/admin/dna-profiles", {
+          method: "PUT",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            profile_key: cand.source_key,
+            university: cand.target_university,
+            faculty: cand.target_faculty,
+            exam_type: cand.target_exam_type,
+            review_status: "approved"
+          })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || "統合失敗");
+        alert(`✅ ${d.message}`);
+        await loadAndRenderAdminProfilesView();
+      } catch (e) {
+        alert("エラー: " + e.message);
       }
     }
 
@@ -3376,6 +3454,20 @@
           </div>
 
           <div id="adminEditProfileBox" style="display:none;background:#eff6ff;border:2px solid #93c5fd;border-radius:12px;padding:14px 16px;margin-bottom:14px;"></div>
+
+          ${(window._cachedMergeCandidates && window._cachedMergeCandidates.length > 0) ? `
+            <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;">
+              <strong style="color:#92400e;">🔗 同じ大学・科目で表記が分散している統合候補が見つかりました（${window._cachedMergeCandidates.length}件）：</strong>
+              <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                ${window._cachedMergeCandidates.map((mc, mIdx) => `
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:white;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;">
+                    <span><code>${_escHtml(mc.source_display)}</code> → <strong>${_escHtml(mc.target_display)}</strong></span>
+                    <button class="btn-primary" style="padding:5px 10px;font-size:11.5px;background:#d97706;" onclick="quickMergeProfileCandidate(${mIdx})">🔗 1クリック統合</button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ''}
 
           <table class="data-table">
             <thead>

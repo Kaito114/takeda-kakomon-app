@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from ten_year_dna_engine import (
     get_subject_confirmation_books,
     analyze_10yr_university_and_concurrent,
+    canonicalize_metadata_fields,
 )
 
 # Optional PDF / OCR imports
@@ -2582,17 +2583,83 @@ def recommend_concurrent_universities(exam_vec: list, current_univ: str, subject
     return dna_res["concurrent_universities"]
 
 
-def _extract_standard_exam_vec(result: dict, subject: str) -> list:
+def _estimate_exam_deviation(result: dict, subject: str) -> int:
     ev = result.get("level_evaluation", {})
+    score = float(ev.get("level_score") or 66.0)
+    est = int(round(46.0 + (score - 45.0) * 0.54))
+    return max(46, min(73, est))
+
+
+def _extract_standard_exam_vec(result: dict, subject: str, text_to_analyze: str = "") -> list:
+    """
+    Build a calibrated 6-dimensional v2 feature vector with zero hardcoded placeholder values:
+      d0: Difficulty / vocabulary & problem level (level_score / 100)
+      d1: Volume / processing load (word count or problem/subquestion volume)
+      d2: Descriptive / writing / proof & B-problem ratio
+      d3: Standard reference book coverage (1700 words / juyo A / history AB)
+      d4: Reading depth / multi-unit breadth
+      d5: Grammar / dialogue / fundamental A-problem ratio
+    """
+    ev = result.get("level_evaluation", {})
+    score = float(ev.get("level_score") or 66.0)
+    d0 = round(min(0.96, max(0.35, score / 100.0)), 4)
+    secs = result.get("tracker_sections") or []
+    n_secs = max(1, len(secs))
+    n_subq = sum(len(s.get("sub_questions") or []) for s in secs)
+
     if subject == "english":
         sc = result.get("systan_coverage", {})
-        total_w = ev.get("total_words", 1200)
-        adv_cov = sc.get("cumulative_1700_exam_rate", 85.0) / 100.0
-        score = ev.get("level_score", 68)
-        return [min(0.95, score / 100.0 + 0.08), min(0.95, 0.55 + total_w / 6000.0), 0.38, adv_cov, 0.68, 0.74]
-    a_cov = ev.get("juyo_a_coverage") or ev.get("ab_coverage_rate") or 85.0
-    score = ev.get("level_score", 68)
-    return [min(0.95, score / 100.0 + 0.05), 0.78, 0.50 if subject in ("math", "physics", "chemistry") else 0.40, a_cov / 100.0, 0.68, 0.76]
+        total_w = float(ev.get("total_words") or 1200)
+        avg_sl = float(ev.get("avg_sentence_length") or 17.0)
+        req_wpm = float(ev.get("required_wpm") or 110.0)
+        cov_1700 = float(sc.get("cumulative_1700_exam_rate") or 85.0) / 100.0
+
+        essay_cnt = sum(1 for s in secs if any(k in (s.get("unit") or "") for k in ("英作文", "自由英作", "和文英訳")))
+        dial_cnt = sum(1 for s in secs if "会話" in (s.get("unit") or ""))
+        gram_cnt = sum(1 for s in secs if any(k in (s.get("unit") or "") for k in ("文法", "語彙", "整序")))
+        read_cnt = max(0, n_secs - essay_cnt - dial_cnt - gram_cnt)
+
+        has_essay_kw = bool(re.search(r'和文英訳|自由英作|英作文|日本語.*英語|write\s+\d+\s+words', text_to_analyze or "", re.I))
+        has_trans_kw = bool(re.search(r'和訳|日本語に訳|説明せよ|述べよ', text_to_analyze or ""))
+
+        d1 = round(min(0.96, max(0.25, 0.25 + total_w / 5200.0)), 4)
+        d2_raw = 0.20 + (0.35 if (essay_cnt > 0 or has_essay_kw) else 0.0) + (0.20 if has_trans_kw else 0.0) + (0.12 if avg_sl >= 21.0 else 0.0)
+        d2 = round(min(0.96, max(0.18, d2_raw)), 4)
+        d3 = round(min(0.98, max(0.30, cov_1700)), 4)
+        d4 = round(min(0.96, max(0.25, (read_cnt / n_secs) * 0.55 + min(1.0, req_wpm / 150.0) * 0.40)), 4)
+        g_hits = len(result.get("grammar_hits") or [])
+        id_hits = len(result.get("idiom_matches") or [])
+        d5 = round(min(0.95, max(0.20, ((gram_cnt + dial_cnt) / n_secs) * 0.55 + min(1.0, (g_hits + id_hits / 4.0) / 8.0) * 0.40)), 4)
+        return [d0, d1, d2, d3, d4, d5]
+
+    if subject in ("nihonshi", "sekaishi"):
+        total_m = max(1, int(ev.get("total_matched_terms") or 1))
+        a_cnt = int(ev.get("star3_basic_count") or 0)
+        b_cnt = int(ev.get("star2_std_count") or 0)
+        c_cnt = int(ev.get("star1_adv_count") or 0)
+        ab_cov = float(ev.get("ab_coverage_rate") or 85.0) / 100.0
+        has_essay = bool(re.search(r'論述|字以内|説明せよ|述べよ|史料', text_to_analyze or ""))
+        d1 = round(min(0.95, max(0.25, 0.28 + total_m * 0.012 + n_secs * 0.06)), 4)
+        d2 = round(min(0.95, max(0.20, (c_cnt / total_m) * 0.65 + (0.30 if has_essay else 0.10))), 4)
+        d3 = round(min(0.98, max(0.35, ab_cov)), 4)
+        d4 = round(min(0.95, max(0.25, 0.30 + min(0.65, n_subq * 0.025))), 4)
+        d5 = round(min(0.95, max(0.20, a_cnt / total_m)), 4)
+        return [d0, d1, d2, d3, d4, d5]
+
+    # Math, Physics, Chemistry, Biology, Gendai, Kobun, Chiri, Seikei
+    tot_p = max(1, int(ev.get("total_problems") or n_secs))
+    a_p = int(ev.get("a_level_problems") or 1)
+    b_p = int(ev.get("b_level_problems") or 0)
+    a_cov = float(ev.get("juyo_a_coverage") or 85.0) / 100.0
+    unique_units = len({(p.get("detected_unit") or "").split("（")[0] for p in (result.get("problem_analyses") or []) if p.get("detected_unit")})
+    has_proof = bool(re.search(r'証明|導出|理由を|説明せよ|論述|字以内', text_to_analyze or ""))
+
+    d1 = round(min(0.95, max(0.25, 0.26 + tot_p * 0.11 + n_subq * 0.012)), 4)
+    d2 = round(min(0.95, max(0.20, (b_p / tot_p) * 0.65 + (0.25 if has_proof else 0.08))), 4)
+    d3 = round(min(0.98, max(0.35, a_cov)), 4)
+    d4 = round(min(0.95, max(0.25, 0.25 + unique_units * 0.14)), 4)
+    d5 = round(min(0.95, max(0.20, a_p / tot_p)), 4)
+    return [d0, d1, d2, d3, d4, d5]
 
 
 def get_curriculum_routes_with_db_status(force_reload: bool = False) -> dict:
@@ -3311,28 +3378,59 @@ def _extract_exam_metadata_for_dna(
         for b in (result.get("book_coverage_summary") or [])[:5]:
             book_rates[b["book_name"]] = b["coverage_rate"]
 
-    # Detected topics snapshot
+    # Detected topics snapshot (granular format + unit tags for topic Jaccard overlap)
     topics = []
     if subject == "english":
-        for gh in (result.get("grammar_hits") or [])[:3]:
-            topics.append(gh["topic"])
+        for sec in (result.get("tracker_sections") or []):
+            u = sec.get("unit") or ""
+            for kw, tag in [("長文読解", "長文読解"), ("英作文", "自由英作文・和文英訳"), ("会話文", "会話文表現"), ("文法", "文法・語法・整序")]:
+                if kw in u and tag not in topics:
+                    topics.append(tag)
+        for gh in (result.get("grammar_hits") or [])[:4]:
+            t_lbl = gh["topic"].split("（")[0]
+            if t_lbl and t_lbl not in topics:
+                topics.append(t_lbl)
         if result.get("idiom_matches"):
-            topics.append(f"熟語表現 ({len(result['idiom_matches'])}種)")
+            topics.append("熟語・イディオム")
     else:
-        for pa in (result.get("problem_analyses") or [])[:6]:
+        for pa in (result.get("problem_analyses") or [])[:10]:
             u_name = pa.get("detected_unit", "").split("（")[0]
             if u_name and u_name not in topics:
                 topics.append(u_name)
+        if subject in ("nihonshi", "sekaishi"):
+            for mt in (result.get("matched_terms") or [])[:8]:
+                t_name = mt.get("term", "")
+                if t_name and t_name not in topics:
+                    topics.append(t_name)
+
+    canon_u = ""
+    if univ_detected and university:
+        canon_u, _, _ = canonicalize_metadata_fields(university, "", "")
+    canon_f = ""
+    if faculty_detected and faculty_val:
+        _, canon_f, _ = canonicalize_metadata_fields("", faculty_val, "")
+    canon_et = ""
+    if exam_type_detected and exam_type_val:
+        _, _, canon_et = canonicalize_metadata_fields("", "", exam_type_val)
+
+    ev_meta = result.get("level_evaluation", {})
+    word_count_val = int(ev_meta.get("total_words") or 0)
+    problem_count_val = len(result.get("tracker_sections") or result.get("problem_analyses") or [])
+    est_dev = _estimate_exam_deviation(result, subject)
 
     return {
-        "university": university if univ_detected else "",
-        "faculty": faculty_val,
-        "exam_type": exam_type_val,
+        "university": canon_u,
+        "faculty": canon_f,
+        "exam_type": canon_et,
         "year": year_val,
         "subject": subject,
         "content_fingerprint": fp_hash,
         "book_rates": book_rates,
         "topics": topics,
+        "word_count": word_count_val,
+        "problem_count": problem_count_val,
+        "deviation_value": est_dev,
+        "vector_version": 2,
         "detected_flags": {
             "university": univ_detected,
             "faculty": faculty_detected,
@@ -3395,7 +3493,7 @@ def analyze_past_exam_on_memory(
         base_a = float(ev.get("juyo_a_coverage") or ev.get("ab_coverage_rate") or result.get("systan_coverage", {}).get("cumulative_1700_exam_rate") or 85.0)
         base_ab = float(ev.get("juyo_ab_coverage") or result.get("systan_coverage", {}).get("cumulative_all_exam_rate") or 96.0)
 
-        exam_vec = _extract_standard_exam_vec(result, detected_subj)
+        exam_vec = _extract_standard_exam_vec(result, detected_subj, text_to_analyze=text_to_analyze)
         dna_meta = _extract_exam_metadata_for_dna(
             text_to_analyze, cover_text, filename, detected_subj, detected_univ, result,
             univ_detected=univ_detected,
@@ -3408,7 +3506,10 @@ def analyze_past_exam_on_memory(
         dna_pack = analyze_10yr_university_and_concurrent(
             exam_vec, detected_univ, detected_subj,
             current_faculty=dna_meta["faculty"] or "共通・標準",
-            current_exam_type=dna_meta["exam_type"] or "一般・標準"
+            current_exam_type=dna_meta["exam_type"] or "一般入試",
+            exam_level_dev=dna_meta.get("deviation_value"),
+            exam_topics=dna_meta.get("topics"),
+            vector_version=2,
         )
         result["univ_detected"] = univ_detected
         result["detected_flags"] = dna_meta["detected_flags"]

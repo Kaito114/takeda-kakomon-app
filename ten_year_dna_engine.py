@@ -3,6 +3,7 @@ import re
 import json
 import math
 import time
+import unicodedata
 from collections import Counter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -557,16 +558,136 @@ MAJOR_UNIVERSITIES_10YR_DNA = [
 ]
 
 
+UNIV_ALIAS_MAP = {
+    "東大": "東京大学",
+    "京大": "京都大学",
+    "阪大": "大阪大学",
+    "名大": "名古屋大学",
+    "九大": "九州大学",
+    "北大": "北海道大学",
+    "東北大": "東北大学",
+    "神大": "神戸大学",
+    "一橋": "一橋大学",
+    "東工大": "東京科学大学",
+    "科学大": "東京科学大学",
+    "早大": "早稲田大学",
+    "早稲田": "早稲田大学",
+    "慶大": "慶應義塾大学",
+    "慶応": "慶應義塾大学",
+    "慶應": "慶應義塾大学",
+    "慶応大学": "慶應義塾大学",
+    "慶應大学": "慶應義塾大学",
+    "上智": "上智大学",
+    "理科大": "東京理科大学",
+    "明大": "明治大学",
+    "明治": "明治大学",
+    "青学": "青山学院大学",
+    "立教": "立教大学",
+    "中大": "中央大学",
+    "中央": "中央大学",
+    "法大": "法政大学",
+    "法政": "法政大学",
+    "関大": "関西大学",
+    "関西大": "関西大学",
+    "関学": "関西学院大学",
+    "関西学院": "関西学院大学",
+    "同志社": "同志社大学",
+    "同大": "同志社大学",
+    "立命": "立命館大学",
+    "立命館": "立命館大学",
+    "近大": "近畿大学",
+    "近畿": "近畿大学",
+    "日大": "日本大学",
+    "東洋": "東洋大学",
+    "駒澤": "駒澤大学",
+    "専修": "専修大学",
+    "龍大": "龍谷大学",
+    "龍谷": "龍谷大学",
+    "京産": "京都産業大学",
+    "産大": "京都産業大学",
+    "甲南": "甲南大学",
+}
+
+FACULTY_ALIAS_MAP = {
+    "全学部": "全学部共通",
+    "全学統一": "全学部共通",
+    "全学": "全学部共通",
+    "シ理工": "システム理工学部",
+    "システム理工": "システム理工学部",
+    "環境都市工": "環境都市工学部",
+    "化学生命工": "化学生命工学部",
+    "基幹理工": "基幹理工学部",
+    "創造理工": "創造理工学部",
+    "先進理工": "先進理工学部",
+    "政経": "政治経済学部",
+    "社学": "社会学部",
+    "社": "社会学部",
+    "文構": "文化構想学部",
+    "法": "法学部",
+    "文": "文学部",
+    "商": "商学部",
+    "経済": "経済学部",
+    "経営": "経営学部",
+    "理工": "理工学部",
+    "工": "工学部",
+    "理": "理学部",
+    "医": "医学部",
+    "薬": "薬学部",
+    "教育": "教育学部",
+    "国際": "国際学部",
+}
+
+
 def _normalize_key_part(val: str, default: str) -> str:
-    s = re.sub(r'\s+', '', str(val or "")).strip()
+    s = unicodedata.normalize("NFKC", str(val or ""))
+    s = re.sub(r'\s+', '', s).strip()
     s = re.sub(r'[（\(]過去問解析[）\)]', '', s)
     return s if s else default
 
 
-def make_profile_key(university: str, faculty: str, exam_type: str, subject: str) -> str:
+def canonicalize_metadata_fields(university: str, faculty: str, exam_type: str) -> tuple:
+    """Normalize common university abbreviations, faculty names, and exam format aliases at entry."""
     u = _normalize_key_part(university, "大学名未指定")
+    u_stripped = re.sub(r'大学$', '', u)
+    if u in UNIV_ALIAS_MAP:
+        u = UNIV_ALIAS_MAP[u]
+    elif u_stripped in UNIV_ALIAS_MAP and len(u) <= 5:
+        u = UNIV_ALIAS_MAP[u_stripped]
+    elif u != "大学名未指定" and not u.endswith("大学") and "/" not in u:
+        # Match against known 30 baseline names
+        for bp in MAJOR_UNIVERSITIES_10YR_DNA:
+            base_short = bp["name"].split("（")[0].split("/")[0].strip()
+            if u and len(u) >= 2 and base_short.startswith(u):
+                u = base_short
+                break
+
     f = _normalize_key_part(faculty, "共通・標準")
-    e = _normalize_key_part(exam_type, "一般・標準")
+    if f in FACULTY_ALIAS_MAP:
+        f = FACULTY_ALIAS_MAP[f]
+
+    et = _normalize_key_part(exam_type, "一般入試")
+    if re.search(r'全学統一|全学部統一|全学部入試|全学部日程|全学日程|^全学$', et):
+        et = "全学部日程"
+    elif re.search(r'学部個別|個別日程|^個別$', et):
+        et = "学部個別日程"
+    elif re.search(r'^一般選抜$|^一般入試$|^一般$|^一般・標準$', et):
+        et = "一般入試"
+    elif re.search(r'^前期日程$|^前期$', et):
+        et = "前期日程"
+    elif re.search(r'^後期日程$|^後期$', et):
+        et = "後期日程"
+    elif re.search(r'共通テスト|共テ|センター', et):
+        et = "共通テスト"
+    else:
+        m_abc = re.match(r'^([A-Za-z])(?:方式|日程)?$', et)
+        if m_abc:
+            et = f"{m_abc.group(1).upper()}方式"
+
+    return u, f, et
+
+
+def make_profile_key(university: str, faculty: str, exam_type: str, subject: str) -> str:
+    u, f, e = canonicalize_metadata_fields(university, faculty, exam_type)
     s = _normalize_key_part(subject, "english").lower()
     return f"{u}::{f}::{e}::{s}"
 
@@ -652,16 +773,26 @@ def recompute_profile_centroid(prof: dict) -> dict:
     if n == 0:
         return prof
 
-    mean_vec = [0.0] * 6
-    book_sums = {}
-    book_cnts = {}
-    topic_counter = Counter()
+    # Prefer v2 calibrated slots when computing profile centroid so old v1 placeholders don't dilute v2
+    v2_years = [y for y in sorted_years if int(trimmed_slots[y].get("vector_version") or 1) >= 2]
+    vec_years = v2_years if v2_years else sorted_years
+    prof["vector_version"] = 2 if v2_years else 1
 
-    for y in sorted_years:
+    mean_vec = [0.0] * 6
+    for y in vec_years:
         sl = trimmed_slots[y]
         v = sl.get("exam_vector", [0.74, 0.78, 0.40, 0.85, 0.66, 0.74])
         for i in range(6):
             mean_vec[i] += float(v[i]) if i < len(v) else 0.5
+    prof["mean_vector"] = [round(x / max(1, len(vec_years)), 4) for x in mean_vec]
+
+    book_sums = {}
+    book_cnts = {}
+    topic_counter = Counter()
+    raw_topics = []
+
+    for y in sorted_years:
+        sl = trimmed_slots[y]
         for bk, rate in (sl.get("book_rates") or {}).items():
             try:
                 rv = float(rate)
@@ -673,9 +804,12 @@ def recompute_profile_centroid(prof: dict) -> dict:
             if tp:
                 topic_counter[tp] += 1
 
-    prof["mean_vector"] = [round(x / n, 4) for x in mean_vec]
+    for tp, _ in topic_counter.most_common(10):
+        raw_topics.append(tp)
+
     prof["sample_years_count"] = n
     prof["years_list"] = sorted_years
+    prof["raw_topics"] = raw_topics
 
     avg_books = []
     for bk, s_val in book_sums.items():
@@ -698,9 +832,9 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
     profiles = store.setdefault("profiles", {})
     fingerprints = store.setdefault("fingerprints", {})
 
-    univ = _normalize_key_part(record.get("university"), "大学名未指定")
-    faculty = _normalize_key_part(record.get("faculty"), "共通・標準")
-    exam_type = _normalize_key_part(record.get("exam_type"), "一般・標準")
+    univ, faculty, exam_type = canonicalize_metadata_fields(
+        record.get("university"), record.get("faculty"), record.get("exam_type")
+    )
     subject = _normalize_key_part(record.get("subject"), "english").lower()
     year = _normalize_key_part(record.get("year"), "2026")
     fp = str(record.get("content_fingerprint") or "").strip()
@@ -720,6 +854,14 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
             duplicate_status = "DUPLICATE_CONTENT_DETECTED"
             duplicate_message = f"入力問題の内容指紋が既登録データ（{prev.get('university', '')} {prev.get('year', '')}年）と完全一致しました。同一問題の重複蓄積を防ぐため既存枠（{pkey}｜{year}年）として安全に統合しました。"
 
+    inferred_dev = record.get("deviation_value")
+    if not inferred_dev:
+        u_short = univ.replace("大学", "")
+        for bp in MAJOR_UNIVERSITIES_10YR_DNA:
+            if len(u_short) >= 2 and u_short in bp["name"]:
+                inferred_dev = bp["dev"]
+                break
+
     if pkey not in profiles:
         profiles[pkey] = {
             "profile_key": pkey,
@@ -728,7 +870,8 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
             "exam_type": exam_type,
             "subject": subject,
             "display_name": f"{univ}（{faculty}・{exam_type}）",
-            "deviation_value": record.get("deviation_value") or 60,
+            "deviation_value": inferred_dev or 60,
+            "vector_version": int(record.get("vector_version") or 2),
             "source_role": record.get("source_role") or "admin",
             "submitted_by": record.get("submitted_by") or "system",
             "review_status": record.get("review_status") or ("approved" if (record.get("source_role") or "admin") == "admin" else "auto_submitted"),
@@ -736,6 +879,8 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
         }
 
     prof = profiles[pkey]
+    if inferred_dev and prof.get("deviation_value") in (None, 60) and inferred_dev != 60:
+        prof["deviation_value"] = inferred_dev
     if record.get("source_role"):
         prof["source_role"] = record["source_role"]
     if record.get("submitted_by"):
@@ -750,6 +895,7 @@ def upsert_accumulated_dna_profile(record: dict) -> dict:
     prof["year_slots"][year] = {
         "year": year,
         "exam_vector": [round(float(x), 4) for x in (record.get("exam_vector") or [0.74, 0.78, 0.40, 0.85, 0.66, 0.74])[:6]],
+        "vector_version": int(record.get("vector_version") or 2),
         "content_fingerprint": fp,
         "book_rates": record.get("book_rates") or {},
         "topics": record.get("topics") or [],
@@ -803,9 +949,11 @@ def update_accumulated_dna_profile(profile_key: str, updates: dict) -> dict:
         return {"updated": False, "message": "対象プロファイルが見つかりません。"}
 
     prof = profiles[profile_key]
-    new_univ = _normalize_key_part(updates.get("university"), prof.get("university", "大学名未指定"))
-    new_fac = _normalize_key_part(updates.get("faculty"), prof.get("faculty", "共通・標準"))
-    new_et = _normalize_key_part(updates.get("exam_type"), prof.get("exam_type", "一般・標準"))
+    new_univ, new_fac, new_et = canonicalize_metadata_fields(
+        updates.get("university") or prof.get("university", "大学名未指定"),
+        updates.get("faculty") or prof.get("faculty", "共通・標準"),
+        updates.get("exam_type") or prof.get("exam_type", "一般入試"),
+    )
     subj = prof.get("subject", "english")
     new_pkey = make_profile_key(new_univ, new_fac, new_et, subj)
 
@@ -872,25 +1020,126 @@ def cosine_sim(v1: list, v2: list) -> float:
     return dot / (n1 * n2)
 
 
-def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, subject: str, current_faculty: str = "", current_exam_type: str = "") -> dict:
+def find_merge_candidates() -> list:
+    """
+    Detect accumulated profiles sharing the same `(university, subject)` with differing
+    faculty/exam_type strings (or substring-similar university names) so admins can merge in 1 click.
+    """
+    store = load_dna_store()
+    profiles = list(store.get("profiles", {}).values())
+    by_univ_subj = {}
+    for p in profiles:
+        u = re.sub(r'大学$', '', p.get("university", ""))
+        key = (u, p.get("subject", ""))
+        by_univ_subj.setdefault(key, []).append(p)
+
+    candidates = []
+    for (u_root, subj), grp in by_univ_subj.items():
+        if len(grp) < 2:
+            continue
+        # Sort so profiles with generic labels ('共通・標準', '一般入試') or fewer years suggest merging into richer/specific ones
+        grp_sorted = sorted(grp, key=lambda x: (-(x.get("sample_years_count", 1)), len(x.get("faculty", ""))))
+        primary = grp_sorted[0]
+        for other in grp_sorted[1:]:
+            if other["profile_key"] == primary["profile_key"]:
+                continue
+            candidates.append({
+                "source_key": other["profile_key"],
+                "source_display": f"{other.get('display_name', other['profile_key'])} [{subj}] ({other.get('sample_years_count', 1)}年)",
+                "target_key": primary["profile_key"],
+                "target_university": primary.get("university", ""),
+                "target_faculty": primary.get("faculty", ""),
+                "target_exam_type": primary.get("exam_type", ""),
+                "target_display": f"{primary.get('display_name', primary['profile_key'])} [{subj}] ({primary.get('sample_years_count', 1)}年)",
+            })
+    return candidates[:20]
+
+
+def get_metadata_suggestions() -> dict:
+    """Return known universities, faculties, and exam types from accumulated DNA + baselines."""
+    store = load_dna_store()
+    profiles = list(store.get("profiles", {}).values())
+    univs = set()
+    faculties_by_univ = {}
+    exam_types_by_univ = {}
+
+    for bp in MAJOR_UNIVERSITIES_10YR_DNA:
+        u_clean = bp["name"].split("（")[0].split("/")[0].strip()
+        if u_clean:
+            univs.add(u_clean)
+
+    for p in profiles:
+        u = p.get("university", "").strip()
+        f = p.get("faculty", "").strip()
+        e = p.get("exam_type", "").strip()
+        if not u or "未指定" in u or "未検出" in u:
+            continue
+        univs.add(u)
+        if f and f != "共通・標準":
+            faculties_by_univ.setdefault(u, set()).add(f)
+        if e and e != "一般・標準":
+            exam_types_by_univ.setdefault(u, set()).add(e)
+
+    return {
+        "universities": sorted(univs),
+        "faculties_by_univ": {k: sorted(v) for k, v in faculties_by_univ.items()},
+        "exam_types_by_univ": {k: sorted(v) for k, v in exam_types_by_univ.items()},
+        "default_faculties": ["全学部共通", "システム理工学部", "理工学部", "法学部", "経済学部", "商学部", "文学部", "社会学部", "国際学部"],
+        "default_exam_types": ["全学部日程", "一般入試", "学部個別日程", "A方式", "前期日程", "後期日程", "共通テスト"],
+    }
+
+
+def _topic_jaccard_similarity(t1: list, t2: list) -> float:
+    """Compute keyword-tokenized Jaccard overlap between two topic lists (0.0..1.0)."""
+    if not t1 or not t2:
+        return 0.0
+    def _tok(items):
+        out = set()
+        for it in items:
+            clean = re.sub(r'\(\d+/\d+年[^)]*\)', '', str(it))
+            for part in re.split(r'[・／/\s:：（）()、,]+', clean):
+                part = part.strip()
+                if len(part) >= 2 and part not in ("問題", "対策", "基礎", "標準", "応用"):
+                    out.add(part)
+        return out
+    s1, s2 = _tok(t1), _tok(t2)
+    if not s1 or not s2:
+        return 0.0
+    inter = len(s1 & s2)
+    union = len(s1 | s2)
+    return inter / max(1, union)
+
+
+def analyze_10yr_university_and_concurrent(
+    exam_vec: list,
+    current_univ: str,
+    subject: str,
+    current_faculty: str = "",
+    current_exam_type: str = "",
+    exam_level_dev: int = None,
+    exam_topics: list = None,
+    vector_version: int = 2,
+) -> dict:
     """
     初期基準プロファイル + 蓄積された実測DNAプロファイル（大学×学部×方式×最大10年）を統合し、
-    使うほど実測ベースで精度が高まる併願推奨＆使用推奨参考書を出力する。
+    v2実測ベクトル・出題単元/形式の一致度・難易度帯ペナルティ・現実的併願レンジを組み合わせて
+    併願推奨＆使用推奨参考書を出力する。
     """
     store = load_dna_store()
     measured_profiles = list(store.get("profiles", {}).values())
     same_subj_measured = [p for p in measured_profiles if p.get("subject") == subject]
+
+    canon_u, canon_f, canon_et = canonicalize_metadata_fields(current_univ, current_faculty, current_exam_type)
 
     # Build unified candidate pool: start with baselines, override/augment with measured profiles!
     candidate_pool = []
     used_measured_keys = set()
 
     for base_p in MAJOR_UNIVERSITIES_10YR_DNA:
-        # Check if a measured profile matches this baseline university (with generic or matching faculty)
         matching_m = None
         for mp in same_subj_measured:
             u_short = mp["university"].replace("大学", "")
-            if len(u_short) >= 2 and u_short in base_p["name"] and mp.get("faculty", "共通・標準") in ("共通・標準", "全学部"):
+            if len(u_short) >= 2 and u_short in base_p["name"] and mp.get("faculty", "共通・標準") in ("共通・標準", "全学部", "全学部共通"):
                 matching_m = mp
                 break
 
@@ -904,81 +1153,124 @@ def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, su
                 "id": matching_m["profile_key"],
                 "university_name": f"{matching_m['university']}（{matching_m['faculty']}・{matching_m['exam_type']}）",
                 "tier": base_p["tier"],
-                "dev": base_p["dev"],
+                "dev": matching_m.get("deviation_value") or base_p["dev"],
                 "vec": matching_m.get("mean_vector", base_p["vec"]),
+                "vector_version": int(matching_m.get("vector_version") or 1),
                 "years_analyzed": yrs_cnt,
                 "data_source_type": "measured",
                 "data_source_label": f"🟢 実測蓄積（{yrs_cnt}年分: {yrs_str}）",
                 "desc": f"校舎で実際に読み込んだ過去問 {yrs_cnt}年分（{yrs_str}）の平均DNAベクトルから算出した実測傾向データです。",
                 "topics": topics_m,
+                "raw_topics": matching_m.get("raw_topics") or topics_m,
                 "rec_books": rec_books_m
             })
         else:
+            b_topics = base_p.get("ten_year_topics", {}).get(subject) or base_p.get("ten_year_topics", {}).get("english", [])
             candidate_pool.append({
                 "id": base_p["id"],
                 "university_name": base_p["name"],
                 "tier": base_p["tier"],
                 "dev": base_p["dev"],
                 "vec": base_p["vec"],
+                "vector_version": 1,
                 "years_analyzed": base_p.get("years_analyzed", 10),
                 "data_source_type": "baseline",
                 "data_source_label": "📘 初期基準モデル（参考目安値）",
                 "desc": base_p["desc"],
-                "topics": base_p.get("ten_year_topics", {}).get(subject) or base_p.get("ten_year_topics", {}).get("english", []),
+                "topics": b_topics,
+                "raw_topics": b_topics,
                 "rec_books": base_p.get("rec_books", {}).get(subject) or base_p.get("rec_books", {}).get("english", [])
             })
 
-    # Add all distinct faculty/exam_type measured profiles (e.g. 関西大学｜システム理工｜個別日程 etc.)
+    # Add all distinct faculty/exam_type measured profiles (e.g. 関西大学｜システム理工学部｜全学部日程 etc.)
     for mp in same_subj_measured:
         if mp["profile_key"] in used_measured_keys:
             continue
-        # Guess deviation tier from matching baseline if possible
         inferred_dev = mp.get("deviation_value") or 60
         inferred_tier = "実測蓄積プロファイル"
         u_short = mp["university"].replace("大学", "")
         for bp in MAJOR_UNIVERSITIES_10YR_DNA:
             if len(u_short) >= 2 and u_short in bp["name"]:
-                inferred_dev = bp["dev"]
+                inferred_dev = mp.get("deviation_value") or bp["dev"]
                 inferred_tier = bp["tier"]
                 break
         yrs_cnt = mp.get("sample_years_count", 1)
         yrs_str = "・".join(mp.get("years_list", []))
+        m_topics = mp.get("frequent_topics", [])
         candidate_pool.append({
             "id": mp["profile_key"],
             "university_name": f"{mp['university']}（{mp['faculty']}・{mp['exam_type']}）",
             "tier": inferred_tier,
             "dev": inferred_dev,
             "vec": mp.get("mean_vector", exam_vec),
+            "vector_version": int(mp.get("vector_version") or 1),
             "years_analyzed": yrs_cnt,
             "data_source_type": "measured",
             "data_source_label": f"🟢 実測蓄積（{yrs_cnt}年分: {yrs_str}）",
             "desc": f"実際に投入された『{mp['university']} {mp['faculty']} {mp['exam_type']}』の過去問（{yrs_cnt}年分: {yrs_str}）に基づく実測傾向プロファイルです。",
-            "topics": mp.get("frequent_topics", []),
+            "topics": m_topics,
+            "raw_topics": mp.get("raw_topics") or m_topics,
             "rec_books": mp.get("avg_recommended_books", [])
         })
 
-    scored = []
+    # Determine reference deviation (matched university baseline if known, else measured exam_level_dev)
     matched_prof = None
+    u_clean = _normalize_key_part(canon_u, "").replace("大学", "")
     for prof in candidate_pool:
-        cos_s = cosine_sim(exam_vec, prof["vec"])
-        l1_d = sum(abs(a - b) for a, b in zip(exam_vec, prof["vec"])) / len(exam_vec)
-        match_score = round((cos_s * 0.62 + (1.0 - l1_d) * 0.38) * 100, 1)
-        match_score = min(99.2, max(68.0, match_score))
-
-        u_clean = _normalize_key_part(current_univ, "").replace("大学", "")
         if u_clean and len(u_clean) >= 2 and u_clean in prof["university_name"]:
-            # Prefer measured profile with matching faculty/exam_type if available
             if matched_prof is None or (prof["data_source_type"] == "measured" and matched_prof["data_source_type"] != "measured"):
                 matched_prof = prof
-            elif current_faculty and current_faculty in prof["university_name"]:
+            elif canon_f and canon_f in prof["university_name"]:
                 matched_prof = prof
+
+    base_dev = (matched_prof.get("dev") if matched_prof else None) or exam_level_dev or 60
+
+    scored = []
+    for prof in candidate_pool:
+        p_vec = prof["vec"]
+        p_ver = prof.get("vector_version", 1)
+        # If comparing v2 exam against legacy v1/baseline, align on core dimensions (0=diff, 1=vol, 3=cov) to avoid scale skew
+        if vector_version >= 2 and p_ver < 2:
+            e_sub = [exam_vec[0], exam_vec[1], exam_vec[3]]
+            p_sub = [p_vec[0], p_vec[1], p_vec[3]]
+            cos_s = cosine_sim(e_sub, p_sub)
+            l1_d = sum(abs(a - b) for a, b in zip(e_sub, p_sub)) / 3.0
+        else:
+            cos_s = cosine_sim(exam_vec, p_vec)
+            l1_d = sum(abs(a - b) for a, b in zip(exam_vec, p_vec)) / max(1, len(exam_vec))
+
+        topic_sim = _topic_jaccard_similarity(exam_topics or [], prof.get("raw_topics") or prof.get("topics") or [])
+        if exam_topics and (prof.get("raw_topics") or prof.get("topics")):
+            raw_fmt_sim = (cos_s * 0.45 + (1.0 - l1_d) * 0.35 + topic_sim * 0.20) * 100.0
+        else:
+            raw_fmt_sim = (cos_s * 0.58 + (1.0 - l1_d) * 0.42) * 100.0
+
+        format_similarity = round(min(99.0, max(35.0, raw_fmt_sim)), 1)
+
+        # Point 5: Difficulty alignment penalty so extreme level gaps don't falsely rank top
+        diff_dev = prof["dev"] - base_dev
+        dev_penalty = max(0.0, (abs(diff_dev) - 6.0) * 1.8)
+        dev_penalty = min(25.0, dev_penalty)
+        match_score = round(min(99.2, max(35.0, format_similarity - dev_penalty)), 1)
+
+        if matched_prof and prof["id"] == matched_prof["id"]:
             match_score = max(match_score, 97.5 if prof["data_source_type"] == "measured" else 95.5)
+
+        if abs(diff_dev) <= 2:
+            dev_diff_label = "同水準"
+        elif diff_dev > 0:
+            dev_diff_label = f"上位 +{diff_dev}"
+        else:
+            dev_diff_label = f"安全 {diff_dev}"
 
         scored.append({
             "id": prof["id"],
             "university_name": prof["university_name"],
             "tier": prof["tier"],
             "deviation_value": prof["dev"],
+            "diff_dev": diff_dev,
+            "dev_diff_label": dev_diff_label,
+            "format_similarity": format_similarity,
             "years_analyzed": prof["years_analyzed"],
             "data_source_type": prof["data_source_type"],
             "data_source_label": prof["data_source_label"],
@@ -991,26 +1283,37 @@ def analyze_10yr_university_and_concurrent(exam_vec: list, current_univ: str, su
     # Sort measured first on ties, and overall by match_rate
     scored.sort(key=lambda x: (-x["match_rate"], 0 if x["data_source_type"] == "measured" else 1))
     if matched_prof is None:
-        matched_prof = candidate_pool[0]
         top_id = scored[0]["id"]
         matched_prof = next((p for p in candidate_pool if p["id"] == top_id), candidate_pool[0])
 
-    base_dev = matched_prof.get("dev", 60)
+    # Point 5: Realistic concurrent university buckets (avoid absurd +/-15 deviation jumps)
     for item in scored:
-        diff_dev = item["deviation_value"] - base_dev
-        if diff_dev >= 3:
-            item["concurrent_category"] = "🔥 チャレンジ併願校（同一ルート＋応用追加で狙える上位校）"
+        dd = item["diff_dev"]
+        if 2 <= dd <= 8:
+            item["concurrent_category"] = "🔥 チャレンジ併願校（現実的な上位挑戦校 +2〜+8）"
             item["category_code"] = "challenge"
-        elif diff_dev <= -3:
-            item["concurrent_category"] = "🛡️ 安全圏・確実抑え併願校（現在の対策で8割以上狙える併願校）"
+        elif -10 <= dd <= -2:
+            item["concurrent_category"] = "🛡️ 安全圏・確実抑え併願校（現在の対策で得点確保 -2〜-10）"
             item["category_code"] = "safe"
-        else:
+        elif abs(dd) <= 3:
             item["concurrent_category"] = "🎯 実力相応・本命併願推奨校（出題傾向・難易度帯が直撃一致）"
             item["category_code"] = "match"
+        elif dd > 8:
+            item["concurrent_category"] = "⚡ 最難関（参考比較のみ：難易度差大）"
+            item["category_code"] = "out_of_range_high"
+        else:
+            item["concurrent_category"] = "📘 基礎確認用（参考比較のみ）"
+            item["category_code"] = "out_of_range_low"
 
     match_list = [x for x in scored if x["category_code"] == "match"][:5]
     challenge_list = [x for x in scored if x["category_code"] == "challenge"][:3]
     safe_list = [x for x in scored if x["category_code"] == "safe"][:3]
+    # Soft fallback if strict challenge/safe window had 0 items (keep max delta <= 12)
+    if not challenge_list:
+        challenge_list = [x for x in scored if 8 < x["diff_dev"] <= 12][:2]
+    if not safe_list:
+        safe_list = [x for x in scored if -12 <= x["diff_dev"] < -10][:2]
+
     combined_concurrent = match_list + challenge_list + safe_list
     combined_concurrent.sort(key=lambda x: -x["match_rate"])
 

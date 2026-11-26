@@ -22,6 +22,8 @@ from ten_year_dna_engine import (
     delete_accumulated_dna_profile,
     update_accumulated_dna_profile,
     analyze_10yr_university_and_concurrent,
+    find_merge_candidates,
+    get_metadata_suggestions,
 )
 from supabase_sync_engine import (
     get_admin_sync_overview,
@@ -243,7 +245,7 @@ class TextAnalyzeRequest(BaseModel):
 class ExamDnaSaveRequest(BaseModel):
     university: str
     faculty: str = "共通・標準"
-    exam_type: str = "一般・標準"
+    exam_type: str = "一般入試"
     year: str = "2026"
     subject: str
     exam_vector: list
@@ -252,6 +254,10 @@ class ExamDnaSaveRequest(BaseModel):
     topics: list = []
     deviation_value: Optional[int] = None
     char_count: int = 1000
+    word_count: int = 0
+    problem_count: int = 2
+    vector_version: int = 2
+    force_save: bool = False
 
 
 class AdminDnaUpdateRequest(BaseModel):
@@ -446,6 +452,14 @@ def admin_reload_routes(request: Request):
     }
 
 
+@app.get("/api/dna-metadata-suggestions")
+def dna_metadata_suggestions():
+    return {
+        "status": "ok",
+        **get_metadata_suggestions(),
+    }
+
+
 @app.get("/api/admin/dna-profiles")
 def admin_list_dna_profiles(request: Request):
     auth_info = getattr(request.state, "auth_user", None) or verify_token(get_auth_token_from_request(request))
@@ -457,6 +471,7 @@ def admin_list_dna_profiles(request: Request):
         "total_profiles": len(records),
         "total_year_slots": sum(p.get("sample_years_count", len(p.get("year_slots", {}))) for p in records),
         "profiles": records,
+        "merge_candidates": find_merge_candidates(),
     }
 
 
@@ -497,13 +512,26 @@ def save_exam_dna_endpoint(req: ExamDnaSaveRequest, request: Request):
     role = auth_info.get("role", "user")
     username = auth_info.get("username", "user")
 
-    # Guard against low-quality / empty OCR data polluting accumulated DNA
+    # Guard against low-quality / partial-excerpt PDFs polluting 10-year averages
     if req.char_count < 80:
         return {
             "status": "skipped_low_quality",
             "duplicate_status": "SKIPPED",
             "message": "抽出文字数が少なすぎるため（80文字未満）、DNA品質保護のため自動蓄積はスキップしました。",
         }
+    if not req.force_save:
+        if req.subject == "english" and 0 < req.word_count < 220 and req.problem_count <= 1:
+            return {
+                "status": "skipped_low_quality",
+                "duplicate_status": "SKIPPED_FRAGMENT",
+                "message": f"英文{req.word_count}語・大問{req.problem_count}題の抜粋データと判定されたため、10年平均傾向の汚染防止のため自動蓄積をスキップしました。",
+            }
+        if req.subject != "english" and req.char_count < 180 and req.problem_count <= 1:
+            return {
+                "status": "skipped_low_quality",
+                "duplicate_status": "SKIPPED_FRAGMENT",
+                "message": f"問題抜粋（{req.char_count}文字・大問{req.problem_count}題）と判定されたため、傾向平均の汚染防止のため自動蓄積をスキップしました。",
+            }
     if not req.university or "未検出" in req.university or "未指定" in req.university:
         raise HTTPException(status_code=400, detail="大学名が未設定のため蓄積できません。")
 
@@ -514,6 +542,7 @@ def save_exam_dna_endpoint(req: ExamDnaSaveRequest, request: Request):
         "year": req.year,
         "subject": req.subject,
         "exam_vector": req.exam_vector,
+        "vector_version": req.vector_version,
         "content_fingerprint": req.content_fingerprint,
         "book_rates": req.book_rates,
         "topics": req.topics,
@@ -527,7 +556,10 @@ def save_exam_dna_endpoint(req: ExamDnaSaveRequest, request: Request):
         req.university,
         req.subject,
         current_faculty=req.faculty,
-        current_exam_type=req.exam_type
+        current_exam_type=req.exam_type,
+        exam_level_dev=req.deviation_value,
+        exam_topics=req.topics,
+        vector_version=req.vector_version,
     )
     return {
         "status": "ok",
